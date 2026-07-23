@@ -1,0 +1,2010 @@
+openapi: 3.0.3
+info:
+  title: Api
+  version: 1.0.0
+
+servers:
+  - url: /api
+
+paths:
+  # ─── Auth ───────────────────────────────────────────────────
+  /auth/register:
+    post:
+      operationId: register
+      tags: [Auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: User registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/login:
+    post:
+      operationId: login
+      tags: [Auth]
+      summary: Login with phone or username
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/logout:
+    post:
+      operationId: logout
+      tags: [Auth]
+      summary: Logout current user
+      responses:
+        '200':
+          description: Logged out
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /auth/google:
+    post:
+      operationId: googleAuth
+      tags: [Auth]
+      summary: Sign in or register with Google
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/GoogleAuthRequest'
+      responses:
+        '200':
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  # ─── Profile ─────────────────────────────────────────────────
+  /profile:
+    get:
+      operationId: getProfile
+      tags: [Profile]
+      summary: Get current user profile
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+    put:
+      operationId: updateProfile
+      tags: [Profile]
+      summary: Update profile (photo)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserProfile'
+
+  # ─── Deposits ────────────────────────────────────────────────
+  /admin/reset-counters:
+    post:
+      operationId: resetCounters
+      summary: Admin — delete all deposits and withdrawals (reset stats)
+      tags: [Admin]
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Counters reset
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, deletedDeposits, deletedWithdrawals]
+                properties:
+                  success:
+                    type: boolean
+                  deletedDeposits:
+                    type: integer
+                  deletedWithdrawals:
+                    type: integer
+
+  /transactions:
+    get:
+      operationId: getTransactions
+      summary: Get user transaction history (deposits + withdrawals merged)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Transaction list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionListResponse'
+
+  /deposits:
+    get:
+      operationId: getDeposits
+      tags: [Deposits]
+      summary: Get user's deposit history
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Deposit list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DepositListResponse'
+    post:
+      operationId: createDeposit
+      tags: [Deposits]
+      summary: Submit a deposit request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDepositRequest'
+      responses:
+        '201':
+          description: Deposit submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deposit'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /deposits/{id}:
+    delete:
+      operationId: deleteDeposit
+      tags: [Deposits]
+      summary: Delete a deposit (validated or rejected only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /deposits/{id}/validate:
+    put:
+      operationId: validateDeposit
+      tags: [Deposits]
+      summary: Admin validate a deposit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Deposit validated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deposit'
+
+  /deposits/{id}/reject:
+    put:
+      operationId: rejectDeposit
+      tags: [Deposits]
+      summary: Admin reject a deposit
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectRequest'
+      responses:
+        '200':
+          description: Deposit rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Deposit'
+
+  # ─── Withdrawals ─────────────────────────────────────────────
+  /withdrawals:
+    get:
+      operationId: getWithdrawals
+      tags: [Withdrawals]
+      summary: Get user's withdrawal history
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Withdrawal list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WithdrawalListResponse'
+    post:
+      operationId: createWithdrawal
+      tags: [Withdrawals]
+      summary: Submit a withdrawal request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateWithdrawalRequest'
+      responses:
+        '201':
+          description: Withdrawal submitted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Withdrawal'
+
+  /withdrawals/{id}:
+    delete:
+      operationId: deleteWithdrawal
+      tags: [Withdrawals]
+      summary: Delete a withdrawal (processed or rejected only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /withdrawals/{id}/process:
+    put:
+      operationId: processWithdrawal
+      tags: [Withdrawals]
+      summary: Admin process a withdrawal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Withdrawal processed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Withdrawal'
+
+  # ─── Coupons ─────────────────────────────────────────────────
+  /coupons/daily:
+    get:
+      operationId: getDailyCoupons
+      tags: [Coupons]
+      summary: Get today's daily coupons
+      responses:
+        '200':
+          description: Daily coupons
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CouponListResponse'
+
+  /coupons/vip:
+    get:
+      operationId: getVipCoupons
+      tags: [Coupons]
+      summary: Get VIP coupons (requires VIP status)
+      responses:
+        '200':
+          description: VIP coupons
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CouponListResponse'
+        '403':
+          description: VIP access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /coupons:
+    get:
+      operationId: getAllCoupons
+      tags: [Coupons]
+      summary: Admin - get all coupons
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [daily, vip]
+      responses:
+        '200':
+          description: All coupons
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CouponListResponse'
+    post:
+      operationId: createCoupon
+      tags: [Coupons]
+      summary: Admin - create a coupon
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCouponRequest'
+      responses:
+        '201':
+          description: Coupon created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Coupon'
+
+  /coupons/{id}:
+    put:
+      operationId: updateCoupon
+      tags: [Coupons]
+      summary: Admin - update a coupon
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCouponRequest'
+      responses:
+        '200':
+          description: Coupon updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Coupon'
+    delete:
+      operationId: deleteCoupon
+      tags: [Coupons]
+      summary: Admin - delete a coupon
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Coupon deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ─── VIP ─────────────────────────────────────────────────────
+  /vip/purchase:
+    post:
+      operationId: purchaseVip
+      tags: [VIP]
+      summary: Purchase VIP access (5000 FCFA one-time)
+      responses:
+        '200':
+          description: VIP purchase initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VipPurchaseResponse'
+
+  /vip/confirm:
+    post:
+      operationId: confirmVipPurchase
+      tags: [VIP]
+      summary: Confirm VIP purchase (manual admin confirmation)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ConfirmVipPurchaseRequest'
+      responses:
+        '200':
+          description: VIP activated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ─── SendavaPay ──────────────────────────────────────────────
+  /sendavapay/countries:
+    get:
+      operationId: getSendavapayCountries
+      tags: [SendavaPay]
+      summary: Get available countries for SendavaPay
+      responses:
+        '200':
+          description: Countries list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendavapayCountriesResponse'
+
+  /sendavapay/operators/{countryCode}:
+    get:
+      operationId: getSendavapayOperators
+      tags: [SendavaPay]
+      summary: Get payment operators for a country
+      parameters:
+        - name: countryCode
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Operators list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendavapayOperatorsResponse'
+
+  /sendavapay/create-deposit-payment:
+    post:
+      operationId: createDepositPayment
+      tags: [SendavaPay]
+      summary: Create a SendavaPay payment for an international deposit
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateDepositPaymentRequest'
+      responses:
+        '200':
+          description: Payment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendavapayPaymentResponse'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sendavapay/create-vip-payment:
+    post:
+      operationId: createVipPayment
+      tags: [SendavaPay]
+      summary: Create a SendavaPay payment for VIP access
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateVipPaymentRequest'
+      responses:
+        '200':
+          description: Payment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendavapayPaymentResponse'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sendavapay/initiate:
+    post:
+      operationId: initiateSendavapayPayment
+      tags: [SendavaPay]
+      summary: Initiate a SendavaPay payment (send push to payer)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/InitiatePaymentRequest'
+      responses:
+        '200':
+          description: Payment initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/InitiatePaymentResponse'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sendavapay/submit-otp:
+    post:
+      operationId: submitPaymentOtp
+      tags: [SendavaPay]
+      summary: Submit OTP for payment confirmation
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitOtpRequest'
+      responses:
+        '200':
+          description: OTP accepted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /sendavapay/status/{reference}:
+    get:
+      operationId: getSendavapayPaymentStatus
+      tags: [SendavaPay]
+      summary: Get SendavaPay payment status
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payment status
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SendavapayStatusResponse'
+
+  # ─── Promotions ──────────────────────────────────────────────
+  /promotions:
+    get:
+      operationId: getPromotions
+      tags: [Promotions]
+      summary: Get active promotions
+      responses:
+        '200':
+          description: Promotions list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PromotionListResponse'
+    post:
+      operationId: createPromotion
+      tags: [Promotions]
+      summary: Admin - create a promotion
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePromotionRequest'
+      responses:
+        '201':
+          description: Promotion created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Promotion'
+
+  /promotions/{id}:
+    put:
+      operationId: updatePromotion
+      tags: [Promotions]
+      summary: Admin - update a promotion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreatePromotionRequest'
+      responses:
+        '200':
+          description: Promotion updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Promotion'
+    delete:
+      operationId: deletePromotion
+      tags: [Promotions]
+      summary: Admin - delete a promotion
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Promotion deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ─── Referrals ───────────────────────────────────────────────
+  /referrals:
+    get:
+      operationId: getReferrals
+      tags: [Referrals]
+      summary: Get current user's referrals
+      responses:
+        '200':
+          description: Referral info
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReferralResponse'
+
+  # ─── Contest ─────────────────────────────────────────────────
+  /contest/current:
+    get:
+      operationId: getCurrentContest
+      tags: [Contest]
+      summary: Get current active contest (null if none is active)
+      responses:
+        '200':
+          description: Current contest, or null if no contest is active
+          content:
+            application/json:
+              schema:
+                nullable: true
+                allOf:
+                  - $ref: '#/components/schemas/Contest'
+
+  /contest/leaderboard:
+    get:
+      operationId: getContestLeaderboard
+      tags: [Contest]
+      summary: Get top 10 referrers
+      responses:
+        '200':
+          description: Leaderboard
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LeaderboardResponse'
+
+  /contest:
+    post:
+      operationId: createContest
+      tags: [Contest]
+      summary: Admin - create a contest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateContestRequest'
+      responses:
+        '201':
+          description: Contest created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contest'
+
+  /contest/{id}:
+    put:
+      operationId: updateContest
+      tags: [Contest]
+      summary: Admin - update a contest
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateContestRequest'
+      responses:
+        '200':
+          description: Contest updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contest'
+
+  # ─── Notifications ───────────────────────────────────────────
+  /notifications:
+    get:
+      operationId: getNotifications
+      tags: [Notifications]
+      summary: Get user notifications
+      responses:
+        '200':
+          description: Notifications list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationListResponse'
+
+  /notifications/{id}:
+    delete:
+      operationId: deleteNotification
+      tags: [Notifications]
+      summary: Admin - delete a notification
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /notifications/read-all:
+    patch:
+      operationId: markAllNotificationsRead
+      tags: [Notifications]
+      summary: Mark all notifications as read
+      responses:
+        '200':
+          description: All marked as read
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /notifications/{id}/read:
+    patch:
+      operationId: markNotificationRead
+      tags: [Notifications]
+      summary: Mark a single notification as read
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Marked as read
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /notifications/broadcast:
+    post:
+      operationId: broadcastNotification
+      tags: [Notifications]
+      summary: Admin - broadcast notification to all users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BroadcastRequest'
+      responses:
+        '200':
+          description: Notification sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  # ─── Admin ───────────────────────────────────────────────────
+  /admin/stats:
+    get:
+      operationId: getAdminStats
+      tags: [Admin]
+      summary: Get platform statistics
+      responses:
+        '200':
+          description: Platform stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminStats'
+
+  /admin/users:
+    get:
+      operationId: getAdminUsers
+      tags: [Admin]
+      summary: Admin - list all users
+      parameters:
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Users list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUsersResponse'
+
+  /admin/users/{id}/reset-password:
+    post:
+      operationId: resetAdminUserPassword
+      tags: [Admin]
+      summary: Admin - reset a user's password
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminResetPasswordRequest'
+      responses:
+        '200':
+          description: Password updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '404':
+          description: User not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /admin/users/{id}:
+    put:
+      operationId: updateAdminUser
+      tags: [Admin]
+      summary: Admin - update user (ban, set VIP, promote/revoke admin, etc.)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AdminUpdateUserRequest'
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminUser'
+    delete:
+      operationId: deleteAdminUser
+      tags: [Admin]
+      summary: Admin - permanently delete a user from the database
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: User deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+
+  /admin/deposits:
+    get:
+      operationId: getAdminDeposits
+      tags: [Admin]
+      summary: Admin - list all deposits
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, validated, rejected]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Deposits list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDepositListResponse'
+
+  /admin/withdrawals:
+    get:
+      operationId: getAdminWithdrawals
+      tags: [Admin]
+      summary: Admin - list all withdrawals
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, processed, rejected]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Withdrawals list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminWithdrawalListResponse'
+
+  /admin/payment-config:
+    get:
+      operationId: getPaymentConfig
+      tags: [Admin]
+      summary: Admin - get payment config
+      responses:
+        '200':
+          description: Payment config
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentConfig'
+    put:
+      operationId: updatePaymentConfig
+      tags: [Admin]
+      summary: Admin - update payment config
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentConfig'
+      responses:
+        '200':
+          description: Config updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentConfig'
+
+  # ─── App settings ────────────────────────────────────────────
+  /app-settings:
+    get:
+      operationId: getAppSettings
+      tags: [AppSettings]
+      summary: Public - get app-wide settings (maintenance mode, VIP price)
+      responses:
+        '200':
+          description: App settings
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppSettings'
+
+  /admin/app-settings:
+    put:
+      operationId: updateAppSettings
+      tags: [Admin]
+      summary: Admin - update app-wide settings (maintenance mode, VIP price)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppSettings'
+      responses:
+        '200':
+          description: App settings updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppSettings'
+
+  # ─── Health ──────────────────────────────────────────────────
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [Health]
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthStatus'
+
+components:
+  schemas:
+    # ─── Auth ──────────────────────────────────────────────────
+    RegisterRequest:
+      type: object
+      required: [username, phone, password, confirmPassword, country]
+      properties:
+        username:
+          type: string
+          minLength: 3
+        phone:
+          type: string
+        password:
+          type: string
+          minLength: 6
+        confirmPassword:
+          type: string
+        country:
+          type: string
+          description: Country chosen by the user at registration
+        referralCode:
+          type: string
+        deviceId:
+          type: string
+          description: Unique device identifier for one-account-per-device enforcement
+
+    GoogleAuthRequest:
+      type: object
+      required: [accessToken]
+      properties:
+        accessToken:
+          type: string
+          description: Google OAuth2 access token
+        deviceId:
+          type: string
+          description: Unique device identifier for one-account-per-device enforcement
+        country:
+          type: string
+        referralCode:
+          type: string
+
+    AdminResetPasswordRequest:
+      type: object
+      required: [newPassword]
+      properties:
+        newPassword:
+          type: string
+          minLength: 6
+
+    LoginRequest:
+      type: object
+      required: [identifier, password]
+      properties:
+        identifier:
+          type: string
+          description: Phone number or username
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      required: [user, token]
+      properties:
+        user:
+          $ref: '#/components/schemas/UserProfile'
+        token:
+          type: string
+
+    # ─── User ──────────────────────────────────────────────────
+    UserProfile:
+      type: object
+      required: [id, username, userId, referralCode, referralCount, isVip, isAdmin, createdAt]
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        userId:
+          type: string
+          description: Display user ID (e.g. MS-00123)
+        referralCode:
+          type: string
+        referralCount:
+          type: integer
+        isVip:
+          type: boolean
+        isAdmin:
+          type: boolean
+        photoUrl:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        photoUrl:
+          type: string
+
+    AdminUser:
+      type: object
+      required: [id, username, userId, referralCode, referralCount, isVip, isAdmin, isBanned, createdAt]
+      properties:
+        id:
+          type: integer
+        username:
+          type: string
+        phone:
+          type: string
+          nullable: true
+        userId:
+          type: string
+        referralCode:
+          type: string
+        referralCount:
+          type: integer
+        isVip:
+          type: boolean
+        isAdmin:
+          type: boolean
+        isBanned:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    AdminUsersResponse:
+      type: object
+      required: [users, total, page, limit]
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminUser'
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    AdminUpdateUserRequest:
+      type: object
+      properties:
+        isVip:
+          type: boolean
+        isAdmin:
+          type: boolean
+        isBanned:
+          type: boolean
+
+    # ─── Deposits ──────────────────────────────────────────────
+    Deposit:
+      type: object
+      required: [id, userId, type, operator, oneXbetAccountId, amount, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        username:
+          type: string
+        type:
+          type: string
+          enum: [national, international]
+        operator:
+          type: string
+          enum: [tmoney, moov_money, other]
+        oneXbetAccountId:
+          type: string
+          description: User's 1xBet account ID
+        internationalOperator:
+          type: string
+          nullable: true
+          description: Chosen payment operator for international deposits
+        amount:
+          type: number
+        referenceId:
+          type: string
+          nullable: true
+        screenshotUrl:
+          type: string
+          nullable: true
+        country:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [pending, validated, rejected]
+        rejectionReason:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateDepositRequest:
+      type: object
+      required: [type, operator, oneXbetAccountId, amount]
+      properties:
+        type:
+          type: string
+          enum: [national, international]
+        operator:
+          type: string
+        oneXbetAccountId:
+          type: string
+          description: User's 1xBet account ID
+        internationalOperator:
+          type: string
+          description: Chosen payment operator, required for international deposits
+        amount:
+          type: number
+        referenceId:
+          type: string
+        screenshotUrl:
+          type: string
+        country:
+          type: string
+
+    DepositListResponse:
+      type: object
+      required: [deposits, total, page, limit]
+      properties:
+        deposits:
+          type: array
+          items:
+            $ref: '#/components/schemas/Deposit'
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    AdminDepositListResponse:
+      type: object
+      required: [deposits, total, page, limit]
+      properties:
+        deposits:
+          type: array
+          items:
+            $ref: '#/components/schemas/Deposit'
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    # ─── Withdrawals ───────────────────────────────────────────
+    Withdrawal:
+      type: object
+      required: [id, userId, amount, phone, country, operator, status, createdAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        username:
+          type: string
+        amount:
+          type: number
+        phone:
+          type: string
+        country:
+          type: string
+        operator:
+          type: string
+        code:
+          type: string
+          nullable: true
+          description: Withdrawal code obtained by the user from 1xBet
+        status:
+          type: string
+          enum: [pending, processed, rejected]
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateWithdrawalRequest:
+      type: object
+      required: [amount, phone, country, operator, code]
+      properties:
+        amount:
+          type: number
+        phone:
+          type: string
+        country:
+          type: string
+        operator:
+          type: string
+        code:
+          type: string
+          description: Withdrawal code obtained by the user from 1xBet
+
+    WithdrawalListResponse:
+      type: object
+      required: [withdrawals, total, page, limit]
+      properties:
+        withdrawals:
+          type: array
+          items:
+            $ref: '#/components/schemas/Withdrawal'
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    AdminWithdrawalListResponse:
+      type: object
+      required: [withdrawals, total, page, limit]
+      properties:
+        withdrawals:
+          type: array
+          items:
+            $ref: '#/components/schemas/Withdrawal'
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    # ─── Coupons ───────────────────────────────────────────────
+    Coupon:
+      type: object
+      required: [id, type, title, content, date, createdAt]
+      properties:
+        id:
+          type: integer
+        type:
+          type: string
+          enum: [daily, vip]
+        title:
+          type: string
+        content:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+        date:
+          type: string
+          format: date
+        odds:
+          type: number
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateCouponRequest:
+      type: object
+      required: [type, title]
+      properties:
+        type:
+          type: string
+          enum: [daily, vip]
+        title:
+          type: string
+        content:
+          type: string
+        imageUrl:
+          type: string
+        date:
+          type: string
+          format: date
+        odds:
+          type: number
+
+    CouponListResponse:
+      type: object
+      required: [coupons]
+      properties:
+        coupons:
+          type: array
+          items:
+            $ref: '#/components/schemas/Coupon'
+
+    # ─── VIP ───────────────────────────────────────────────────
+    VipPurchaseResponse:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+        paymentUrl:
+          type: string
+          nullable: true
+
+    ConfirmVipPurchaseRequest:
+      type: object
+      required: [userId]
+      properties:
+        userId:
+          type: integer
+
+    # ─── Promotions ────────────────────────────────────────────
+    Promotion:
+      type: object
+      required: [id, title, content, isActive, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        content:
+          type: string
+        imageUrl:
+          type: string
+          nullable: true
+        isActive:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    CreatePromotionRequest:
+      type: object
+      required: [title, content]
+      properties:
+        title:
+          type: string
+        content:
+          type: string
+        imageUrl:
+          type: string
+        isActive:
+          type: boolean
+          default: true
+
+    PromotionListResponse:
+      type: object
+      required: [promotions]
+      properties:
+        promotions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Promotion'
+
+    # ─── Referrals ─────────────────────────────────────────────
+    ReferralResponse:
+      type: object
+      required: [referralCode, referralCount, referrals]
+      properties:
+        referralCode:
+          type: string
+        referralCount:
+          type: integer
+        referrals:
+          type: array
+          items:
+            type: object
+            required: [username, createdAt]
+            properties:
+              username:
+                type: string
+              createdAt:
+                type: string
+                format: date-time
+
+    # ─── Contest ───────────────────────────────────────────────
+    Contest:
+      type: object
+      required: [id, title, description, reward, startDate, endDate, isActive]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        reward:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        isActive:
+          type: boolean
+
+    CreateContestRequest:
+      type: object
+      required: [title, description, reward, startDate, endDate]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        reward:
+          type: string
+        startDate:
+          type: string
+          format: date-time
+        endDate:
+          type: string
+          format: date-time
+        isActive:
+          type: boolean
+          default: true
+
+    LeaderboardEntry:
+      type: object
+      required: [rank, username, referralCount]
+      properties:
+        rank:
+          type: integer
+        username:
+          type: string
+        referralCount:
+          type: integer
+        userId:
+          type: string
+
+    LeaderboardResponse:
+      type: object
+      required: [entries, contestEndsAt]
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: '#/components/schemas/LeaderboardEntry'
+        contestEndsAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    # ─── Notifications ─────────────────────────────────────────
+    Notification:
+      type: object
+      required: [id, title, message, isRead, createdAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        message:
+          type: string
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    NotificationListResponse:
+      type: object
+      required: [notifications]
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+
+    BroadcastRequest:
+      type: object
+      required: [title, message]
+      properties:
+        title:
+          type: string
+        message:
+          type: string
+
+    # ─── Admin Stats ───────────────────────────────────────────
+    AdminStats:
+      type: object
+      required: [totalUsers, vipUsers, totalDeposits, pendingDeposits, totalWithdrawals, pendingWithdrawals, totalReferrals]
+      properties:
+        totalUsers:
+          type: integer
+        vipUsers:
+          type: integer
+        totalDeposits:
+          type: integer
+        pendingDeposits:
+          type: integer
+        totalDepositAmount:
+          type: number
+        totalWithdrawals:
+          type: integer
+        pendingWithdrawals:
+          type: integer
+        totalWithdrawalAmount:
+          type: number
+        totalReferrals:
+          type: integer
+
+    # ─── Payment Config ────────────────────────────────────────
+    PaymentConfig:
+      type: object
+      required: [tmoneyEnabled, moovMoneyEnabled]
+      properties:
+        tmoneyEnabled:
+          type: boolean
+        moovMoneyEnabled:
+          type: boolean
+        moovMoneyNumber:
+          type: string
+          nullable: true
+        moovMoneyUssdCode:
+          type: string
+          nullable: true
+        internationalPaymentApiUrl:
+          type: string
+          nullable: true
+        internationalPaymentApiKey:
+          type: string
+          nullable: true
+        sendavapayApiKey:
+          type: string
+          nullable: true
+        sendavapayWebhookSecret:
+          type: string
+          nullable: true
+
+    AppSettings:
+      type: object
+      required: [maintenanceMode, vipPriceFcfa]
+      properties:
+        maintenanceMode:
+          type: boolean
+        maintenanceMessage:
+          type: string
+          nullable: true
+        vipPriceFcfa:
+          type: number
+        whatsappChannelUrl:
+          type: string
+          nullable: true
+        whatsappSupport1Url:
+          type: string
+          nullable: true
+        whatsappSupport2Url:
+          type: string
+          nullable: true
+        telegramSupportUrl:
+          type: string
+          nullable: true
+
+    # ─── Transactions ──────────────────────────────────────────
+    Transaction:
+      type: object
+      required: [id, kind, amount, status, createdAt]
+      properties:
+        id:
+          type: integer
+        kind:
+          type: string
+          enum: [deposit, withdrawal]
+        amount:
+          type: number
+        status:
+          type: string
+        operator:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    TransactionListResponse:
+      type: object
+      required: [transactions, total, page, limit]
+      properties:
+        transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    # ─── SendavaPay ────────────────────────────────────────────
+    SendavapayCountry:
+      type: object
+      required: [code, name, currency]
+      properties:
+        code:
+          type: string
+        name:
+          type: string
+        currency:
+          type: string
+        operators:
+          type: number
+
+    SendavapayCountriesResponse:
+      type: object
+      required: [countries]
+      properties:
+        countries:
+          type: array
+          items:
+            $ref: '#/components/schemas/SendavapayCountry'
+
+    SendavapayOperator:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        requiresOtp:
+          type: boolean
+        status:
+          type: string
+
+    SendavapayOperatorsResponse:
+      type: object
+      required: [operators]
+      properties:
+        operators:
+          type: array
+          items:
+            $ref: '#/components/schemas/SendavapayOperator'
+
+    CreateDepositPaymentRequest:
+      type: object
+      required: [amount, currency, payerCountry, oneXbetAccountId]
+      properties:
+        amount:
+          type: number
+        currency:
+          type: string
+        payerCountry:
+          type: string
+        oneXbetAccountId:
+          type: string
+
+    CreateVipPaymentRequest:
+      type: object
+      required: [currency, payerCountry]
+      properties:
+        currency:
+          type: string
+        payerCountry:
+          type: string
+
+    SendavapayPaymentResponse:
+      type: object
+      required: [paymentToken, reference, amount, currency, expiresAt]
+      properties:
+        paymentToken:
+          type: string
+        reference:
+          type: string
+        depositId:
+          type: integer
+          nullable: true
+        amount:
+          type: string
+        currency:
+          type: string
+        expiresAt:
+          type: string
+          format: date-time
+
+    InitiatePaymentRequest:
+      type: object
+      required: [paymentToken, payerName, payerPhone, payerCountry, operatorId]
+      properties:
+        paymentToken:
+          type: string
+        payerName:
+          type: string
+        payerPhone:
+          type: string
+        payerEmail:
+          type: string
+        payerCountry:
+          type: string
+        operatorId:
+          type: string
+
+    InitiatePaymentResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+        reference:
+          type: string
+          nullable: true
+        requiresOtp:
+          type: boolean
+        otpToken:
+          type: string
+          nullable: true
+        requiresRedirect:
+          type: boolean
+        redirectUrl:
+          type: string
+          nullable: true
+        message:
+          type: string
+          nullable: true
+
+    SubmitOtpRequest:
+      type: object
+      required: [otpToken, otp]
+      properties:
+        otpToken:
+          type: string
+        otp:
+          type: string
+
+    SendavapayStatusResponse:
+      type: object
+      required: [reference, status, amount, currency]
+      properties:
+        reference:
+          type: string
+        status:
+          type: string
+        amount:
+          type: string
+        currency:
+          type: string
+        completedAt:
+          type: string
+          nullable: true
+
+    # ─── Common ────────────────────────────────────────────────
+    SuccessResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+    ErrorResponse:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+        details:
+          type: object
+
+    RejectRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string
+
+    HealthStatus:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string

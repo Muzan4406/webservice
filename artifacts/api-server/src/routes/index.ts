@@ -1,0 +1,38 @@
+import { Router, type IRouter } from "express";
+import healthRouter from "./health";
+import authRouter from "./auth";
+import profileRouter from "./profile";
+import depositsRouter from "./deposits";
+import withdrawalsRouter from "./withdrawals";
+import couponsRouter from "./coupons";
+import vipRouter from "./vip";
+import promotionsRouter from "./promotions";
+import referralsRouter from "./referrals";
+import contestRouter from "./contest";
+import notificationsRouter from "./notifications";
+import adminRouter from "./admin";
+import uploadRouter from "./upload";
+import appSettingsRouter from "./app-settings";
+import transactionsRouter from "./transactions";
+import sendavapayRouter from "./sendavapay";
+
+const router: IRouter = Router();
+
+router.use(healthRouter);
+router.use(authRouter);
+router.use(profileRouter);
+router.use(depositsRouter);
+router.use(withdrawalsRouter);
+router.use(couponsRouter);
+router.use(vipRouter);
+router.use(promotionsRouter);
+router.use(referralsRouter);
+router.use(contestRouter);
+router.use(notificationsRouter);
+router.use(adminRouter);
+router.use(uploadRouter);
+router.use(appSettingsRouter);
+router.use(transactionsRouter);
+router.use(sendavapayRouter);
+
+export default router;
