@@ -29,13 +29,13 @@ args = "Start application"
 name = "Start Backend"
 author = "agent"
 
-[[workflows.workflow.tasks]]
-task = "shell.exec"
-args = "cd artifacts/api-server && PORT=3000 pnpm run dev"
-waitForPort = 3000
-
 [workflows.workflow.metadata]
 outputType = "console"
+
+[[workflows.workflow.tasks]]
+task = "shell.exec"
+args = "cd artifacts/api-server && PORT=3000 NODE_ENV=development pnpm exec tsx src/index.ts"
+waitForPort = 3000
 
 [[workflows.workflow]]
 name = "Start application"
@@ -48,3 +48,11 @@ waitForPort = 5000
 
 [workflows.workflow.metadata]
 outputType = "webview"
+
+[[ports]]
+localPort = 3000
+externalPort = 3000
+
+[[ports]]
+localPort = 5000
+externalPort = 80
