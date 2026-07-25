@@ -6,6 +6,7 @@ import { setBaseUrl, setAuthTokenGetter } from '@workspace/api-client-react';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { AdminRoute } from '@/components/AdminRoute';
+import { PwaInstallBanner } from '@/components/PwaInstallBanner';
 
 // User pages
 import LoginPage from '@/pages/login';
@@ -53,6 +54,8 @@ function Router() {
       {/* Auth */}
       <Route path="/login" component={LoginPage} />
       <Route path="/register" component={RegisterPage} />
+      {/* Referral deep-link: /inscription/:code pre-fills the referral code */}
+      <Route path="/inscription/:code" component={RegisterPage} />
 
       {/* User routes */}
       <Route path="/">
@@ -130,6 +133,7 @@ function App() {
         <TooltipProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
             <Router />
+            <PwaInstallBanner />
           </WouterRouter>
           <Toaster position="top-center" />
         </TooltipProvider>

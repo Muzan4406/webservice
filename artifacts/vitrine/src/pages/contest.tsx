@@ -55,7 +55,8 @@ export default function ContestPage() {
         <p className="text-white/50 text-sm">Parrainez le plus de filleuls pour gagner</p>
       </div>
 
-      <div className="px-4 -mt-10 space-y-4">
+      {/* Cards sit on top of the hero via negative margin — needs z-10 */}
+      <div className="relative z-10 px-4 -mt-10 space-y-4">
         {isLoading ? (
           <div className="flex justify-center py-16">
             <div className="animate-spin rounded-full h-9 w-9 border-b-2 border-[#1a2a5e]" />
@@ -118,9 +119,10 @@ export default function ContestPage() {
             {/* Podium */}
             {top3.length > 0 && (
               <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
-                <div className="bg-white rounded-2xl shadow-sm p-5">
+                <div className="bg-white rounded-2xl shadow-sm p-5 overflow-visible">
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-5">Podium</p>
-                  <div className="flex items-end justify-center gap-4">
+                  {/* Extra top padding so avatars above the bars don't get clipped */}
+                  <div className="flex items-end justify-center gap-3 pt-16">
                     {[
                       top3.find(e => e.rank === 2),
                       top3.find(e => e.rank === 1),
@@ -128,18 +130,22 @@ export default function ContestPage() {
                     ].filter(Boolean).map((entry: any) => {
                       const isMe = entry.username === user?.username;
                       const c = RANK_COLOR[entry.rank] ?? RANK_COLOR[3];
-                      const heights = { 1: 80, 2: 60, 3: 48 };
+                      const heights: Record<number, number> = { 1: 80, 2: 60, 3: 48 };
                       const h = heights[entry.rank as 1|2|3] ?? 48;
                       return (
-                        <div key={entry.rank} className="flex flex-col items-center gap-1" style={{ width: 90 }}>
-                          <span className="text-xl">{RANK_MEDAL[entry.rank]}</span>
-                          <div className={`w-12 h-12 rounded-full overflow-hidden ${isMe ? 'ring-2 ring-green-400' : ''}`}>
+                        <div key={entry.rank} className="flex flex-col items-center" style={{ width: 90 }}>
+                          {/* Content above the bar */}
+                          <span className="text-xl mb-1">{RANK_MEDAL[entry.rank]}</span>
+                          <div className={`w-12 h-12 rounded-full overflow-hidden mb-1 ${isMe ? 'ring-2 ring-green-400' : ''}`}>
                             <img src="/logo.png" alt="avatar" className="w-full h-full object-cover" />
                           </div>
-                          <p className={`text-xs font-bold truncate max-w-full text-center ${isMe ? 'text-green-700' : 'text-gray-800'}`}>
+                          <p className={`text-xs font-bold truncate max-w-full text-center mb-0.5 ${isMe ? 'text-green-700' : 'text-gray-800'}`}>
                             {entry.username}
                           </p>
-                          <p className="text-sm font-bold text-gray-500">{entry.referralCount} <span className="text-[10px] font-normal">filleuls</span></p>
+                          <p className="text-xs font-bold text-gray-500 mb-1">
+                            {entry.referralCount} <span className="text-[10px] font-normal">filleuls</span>
+                          </p>
+                          {/* Podium bar */}
                           <div
                             className={`w-full rounded-t-xl flex items-center justify-center ${c.bar}`}
                             style={{ height: h }}
@@ -201,7 +207,8 @@ export default function ContestPage() {
               <div className="bg-blue-50 border border-blue-100 rounded-2xl p-4 flex gap-3">
                 <span className="text-lg shrink-0">💡</span>
                 <p className="text-sm text-blue-800 leading-relaxed">
-                  Partagez votre code depuis l'onglet <strong>Parrainage</strong>. Chaque filleul inscrit compte comme 1 point.
+                  Partagez votre lien depuis l'onglet <strong>Parrainage</strong>. Chaque filleul ayant effectué
+                  un dépôt approuvé compte comme 1 point au concours.
                 </p>
               </div>
             </motion.div>

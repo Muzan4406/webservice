@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useLocation } from 'wouter';
+import { useState, useEffect } from 'react';
+import { Link, useLocation, useParams } from 'wouter';
 import { motion } from 'framer-motion';
 import { useRegister } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,6 +31,14 @@ export default function RegisterPage() {
   const [, setLocation] = useLocation();
   const { login: authLogin } = useAuth();
   const registerMutation = useRegister();
+
+  // Read referral code from URL path: /inscription/:code
+  const params = useParams<{ code?: string }>();
+  useEffect(() => {
+    if (params.code) {
+      setReferralCode(params.code.toUpperCase());
+    }
+  }, [params.code]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -166,16 +174,23 @@ export default function RegisterPage() {
 
           <div className="space-y-2">
             <Label htmlFor="referralCode" className="text-white/80">
-              Code de parrainage (optionnel)
+              Code de parrainage{' '}
+              {params.code ? (
+                <span className="text-green-400 text-xs">(appliqué automatiquement)</span>
+              ) : (
+                <span className="text-white/40 text-xs">(optionnel)</span>
+              )}
             </Label>
             <Input
               id="referralCode"
               data-testid="input-referral-code"
               type="text"
               value={referralCode}
-              onChange={(e) => setReferralCode(e.target.value)}
+              onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
               placeholder="Code de parrainage"
-              className="bg-white/5 border-white/10 text-white placeholder:text-white/40"
+              className={`bg-white/5 border-white/10 text-white placeholder:text-white/40 ${
+                params.code ? 'border-green-500/50 bg-green-500/5' : ''
+              }`}
             />
           </div>
 
