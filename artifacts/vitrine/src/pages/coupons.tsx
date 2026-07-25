@@ -97,7 +97,7 @@ export default function CouponsPage() {
                     </strong>
                   </p>
                   <Button asChild className="bg-[#FFD700] hover:bg-[#FFD700]/90 text-black font-bold">
-                    <Link href="/profile">Devenir VIP</Link>
+                    <Link href="/vip-purchase">Devenir VIP</Link>
                   </Button>
                 </CardContent>
               </Card>

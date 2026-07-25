@@ -44,7 +44,7 @@ export default function NotificationsPage() {
         <div className="flex items-center justify-between mb-2">
           <h1 className="text-2xl font-bold text-white">Notifications</h1>
           {unreadCount > 0 && (
-            <Badge className="bg-primary text-black">{unreadCount} nouveau(x)</Badge>
+            <Badge className="bg-primary text-white">{unreadCount} nouveau(x)</Badge>
           )}
         </div>
         <p className="text-white/60 text-sm">Restez informé de vos activités</p>
