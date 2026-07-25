@@ -194,8 +194,8 @@ export default function AdminConfigPage() {
               <Label>ID Utilisateur (base de données)</Label>
               <Input type="number" placeholder="Ex: 42" value={vipUserId} onChange={e => setVipUserId(e.target.value)} />
             </div>
-            <Button className="w-full bg-amber-500 hover:bg-amber-600" onClick={handleConfirmVip} disabled={isConfirming}>
-              {isConfirming ? 'Traitement…' : '⭐ Forcer le statut VIP'}
+            <Button className="w-full" onClick={handleConfirmVip} disabled={isConfirming}>
+              {isConfirming ? 'Traitement…' : 'Confirmer le statut VIP'}
             </Button>
           </CardContent>
         </Card>

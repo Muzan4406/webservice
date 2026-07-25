@@ -1,12 +1,12 @@
 import { useState } from 'react';
-import { useCreateDeposit } from '@workspace/api-client-react';
+import { useCreateDeposit, useGetPaymentConfig, getGetPaymentConfigQueryKey } from '@workspace/api-client-react';
 import { BottomNav } from '@/components/BottomNav';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { ArrowLeft, Globe, Smartphone, Info } from 'lucide-react';
+import { ArrowLeft, Globe, Smartphone, Info, Wrench } from 'lucide-react';
 import { useLocation } from 'wouter';
 
 const COUNTRIES = [
@@ -27,6 +27,8 @@ const TMONEY_USSD = '*145*5*MONTANT*1181879*CODE SECRET#';
 export default function DepositPage() {
   const [, setLocation] = useLocation();
   const [activeTab, setActiveTab] = useState<'national' | 'international'>('national');
+
+  const { data: paymentConfig } = useGetPaymentConfig({ query: { queryKey: getGetPaymentConfigQueryKey() } });
 
   // National
   const [nationalOperator, setNationalOperator] = useState<'tmoney' | 'moov_money'>('tmoney');
@@ -202,7 +204,19 @@ export default function DepositPage() {
                   </p>
                 </div>
               )}
-              {nationalOperator === 'moov_money' && (
+              {nationalOperator === 'moov_money' && paymentConfig && !paymentConfig.moovMoneyEnabled && (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 flex flex-col items-center text-center gap-3">
+                  <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center">
+                    <Wrench className="w-7 h-7 text-amber-500" />
+                  </div>
+                  <p className="font-bold text-gray-800 text-base">Dépôt Moov Money indisponible</p>
+                  <p className="text-sm text-gray-500">
+                    Ce mode de paiement est temporairement suspendu pour maintenance. Veuillez utiliser T-Money ou réessayer plus tard.
+                  </p>
+                </div>
+              )}
+
+              {nationalOperator === 'moov_money' && (!paymentConfig || paymentConfig.moovMoneyEnabled) && (
                 <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-2">
                   <div className="flex items-center gap-2 text-[#1a3aff] font-semibold text-sm">
                     <Info className="w-4 h-4" />
@@ -214,36 +228,39 @@ export default function DepositPage() {
                 </div>
               )}
 
-              {/* Account ID */}
-              <div className="space-y-2">
-                <Label className="text-gray-700 font-medium">ID de compte 1xbet</Label>
-                <Input
-                  value={nationalAccountId}
-                  onChange={(e) => setNationalAccountId(e.target.value)}
-                  placeholder="Votre ID de compte 1xbet"
-                  required
-                  className="h-14 text-base bg-gray-50 border-gray-200 rounded-xl"
-                />
-              </div>
+              {/* Account ID, Reference and Submit — hidden when Moov is disabled */}
+              {(nationalOperator !== 'moov_money' || !paymentConfig || paymentConfig.moovMoneyEnabled) && (
+                <>
+                  <div className="space-y-2">
+                    <Label className="text-gray-700 font-medium">ID de compte 1xbet</Label>
+                    <Input
+                      value={nationalAccountId}
+                      onChange={(e) => setNationalAccountId(e.target.value)}
+                      placeholder="Votre ID de compte 1xbet"
+                      required
+                      className="h-14 text-base bg-gray-50 border-gray-200 rounded-xl"
+                    />
+                  </div>
 
-              {/* Reference */}
-              <div className="space-y-2">
-                <Label className="text-gray-700 font-medium">Numéro de référence</Label>
-                <Input
-                  value={nationalReference}
-                  onChange={(e) => setNationalReference(e.target.value)}
-                  placeholder="Référence de la transaction"
-                  className="h-14 text-base bg-gray-50 border-gray-200 rounded-xl"
-                />
-              </div>
+                  <div className="space-y-2">
+                    <Label className="text-gray-700 font-medium">Numéro de référence</Label>
+                    <Input
+                      value={nationalReference}
+                      onChange={(e) => setNationalReference(e.target.value)}
+                      placeholder="Référence de la transaction"
+                      className="h-14 text-base bg-gray-50 border-gray-200 rounded-xl"
+                    />
+                  </div>
 
-              <Button
-                type="submit"
-                disabled={createDeposit.isPending}
-                className="w-full h-14 bg-[#1a3aff] hover:bg-[#1a3aff]/90 text-white font-bold rounded-2xl text-base"
-              >
-                {createDeposit.isPending ? 'Envoi en cours...' : '→  Soumettre le dépôt'}
-              </Button>
+                  <Button
+                    type="submit"
+                    disabled={createDeposit.isPending}
+                    className="w-full h-14 bg-[#1a3aff] hover:bg-[#1a3aff]/90 text-white font-bold rounded-2xl text-base"
+                  >
+                    {createDeposit.isPending ? 'Envoi en cours...' : '→  Soumettre le dépôt'}
+                  </Button>
+                </>
+              )}
             </form>
           </div>
         )}
