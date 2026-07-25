@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Check, X, Trash2, ExternalLink } from 'lucide-react';
+import { ArrowLeft, Check, X, Trash2, ImageIcon } from 'lucide-react';
 
 type Status = 'pending' | 'validated' | 'rejected';
 
@@ -99,6 +99,7 @@ export default function AdminDepositsPage() {
                     {[
                       ['Utilisateur', item.username],
                       ['Téléphone', item.phone],
+                      ['ID 1xBet', item.oneXbetAccountId],
                       ['Opérateur', item.operator],
                       ['Pays', item.country],
                       ['Référence', item.referenceId],
@@ -106,19 +107,18 @@ export default function AdminDepositsPage() {
                     ].filter(Boolean).map(([k, v]: any) => v && (
                       <div key={k} className="flex justify-between text-sm">
                         <span className="text-muted-foreground">{k}</span>
-                        <span className="font-medium max-w-[60%] text-right">{v}</span>
+                        <span className="font-medium max-w-[60%] text-right font-mono">{v}</span>
                       </div>
                     ))}
                     {item.screenshotUrl && (
                       <div className="pt-1">
-                        <p className="text-xs text-muted-foreground mb-1.5 font-medium">Capture d'écran</p>
-                        <a href={item.screenshotUrl} target="_blank" rel="noreferrer">
-                          <img
-                            src={item.screenshotUrl}
-                            alt="Capture du paiement"
-                            className="w-full rounded-xl object-contain max-h-64 bg-gray-50 border border-gray-100 hover:opacity-90 transition-opacity cursor-zoom-in"
-                          />
-                        </a>
+                        <button
+                          onClick={() => setLocation(`/admin/deposits/${item.id}`)}
+                          className="flex items-center gap-2 w-full py-2 px-3 rounded-lg bg-blue-50 hover:bg-blue-100 text-blue-700 text-sm font-medium transition-colors border border-blue-200"
+                        >
+                          <ImageIcon className="w-4 h-4" />
+                          Voir la capture d'écran
+                        </button>
                       </div>
                     )}
                   </div>

@@ -34,6 +34,7 @@ import AdminNotificationsPage from '@/pages/admin/notifications';
 import AdminPromotionsPage from '@/pages/admin/promotions';
 import AdminContestPage from '@/pages/admin/contest';
 import AdminConfigPage from '@/pages/admin/config';
+import AdminDepositDetailPage from '@/pages/admin/deposit-detail';
 
 // Configure API client
 setBaseUrl(null);
@@ -119,6 +120,9 @@ function Router() {
       </Route>
       <Route path="/admin/config">
         <AdminRoute><AdminConfigPage /></AdminRoute>
+      </Route>
+      <Route path="/admin/deposits/:id">
+        <AdminRoute><AdminDepositDetailPage /></AdminRoute>
       </Route>
 
       <Route component={NotFound} />
