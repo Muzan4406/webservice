@@ -59,7 +59,7 @@ export default function AdminPromotionsPage() {
     });
   };
 
-  const promos: any[] = (data as any) ?? [];
+  const promos: any[] = (data as any)?.promotions ?? [];
 
   return (
     <div className="min-h-screen bg-[#F4F6FB] pb-8">
