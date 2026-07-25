@@ -11,7 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import {
   ArrowLeft, Users, Star, ArrowDownCircle, ArrowUpCircle,
-  RotateCcw, ChevronRight, Bell, Tag, Megaphone, Trophy, Settings,
+  RotateCcw, ChevronRight, Bell, Tag, Megaphone, Trophy, Settings, MessageCircle,
 } from 'lucide-react';
 
 const BASE = '/admin';
@@ -79,6 +79,15 @@ const MENU = [
     path: `${BASE}/notifications`,
     iconBg: 'bg-sky-100',
     iconColor: 'text-sky-600',
+  },
+  {
+    id: 'chat',
+    label: 'Chat Support',
+    desc: 'Répondre aux utilisateurs',
+    icon: MessageCircle,
+    path: `${BASE}/chat`,
+    iconBg: 'bg-teal-100',
+    iconColor: 'text-teal-600',
   },
   {
     id: 'config',

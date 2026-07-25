@@ -21,7 +21,15 @@ router.post("/upload", requireAuth, async (req: AuthRequest, res): Promise<void>
       return;
     }
 
-    const ext = mimeType.includes("png") ? "png" : "jpg";
+    const ext = mimeType.includes("png")
+      ? "png"
+      : mimeType.includes("webm")
+        ? "webm"
+        : mimeType.includes("ogg")
+          ? "ogg"
+          : mimeType.includes("mp4") && mimeType.startsWith("audio")
+            ? "m4a"
+            : "jpg";
     const filename = `${randomBytes(16).toString("hex")}.${ext}`;
     const filepath = join(UPLOADS_DIR, filename);
 
@@ -60,7 +68,12 @@ router.get("/uploads/:filename", async (req, res): Promise<void> => {
 
     const buffer = await readFile(filepath);
     const ext = filename.split(".").pop()?.toLowerCase();
-    const contentType = ext === "png" ? "image/png" : "image/jpeg";
+    const contentType =
+      ext === "png" ? "image/png" :
+      ext === "webm" ? "audio/webm" :
+      ext === "ogg" ? "audio/ogg" :
+      ext === "m4a" ? "audio/mp4" :
+      "image/jpeg";
 
     res.setHeader("Content-Type", contentType);
     res.setHeader("Cache-Control", "public, max-age=86400");

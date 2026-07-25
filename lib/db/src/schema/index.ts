@@ -11,3 +11,4 @@ export * from "./app_settings";
 export * from "./sessions";
 export * from "./vip_payments";
 export * from "./pending_sp_deposits";
+export * from "./chat_messages";

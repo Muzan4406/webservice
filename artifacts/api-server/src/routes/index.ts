@@ -15,6 +15,7 @@ import uploadRouter from "./upload";
 import appSettingsRouter from "./app-settings";
 import transactionsRouter from "./transactions";
 import sendavapayRouter from "./sendavapay";
+import chatRouter from "./chat";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use(uploadRouter);
 router.use(appSettingsRouter);
 router.use(transactionsRouter);
 router.use(sendavapayRouter);
+router.use(chatRouter);
 
 export default router;

@@ -22,9 +22,11 @@ import NotificationsPage from '@/pages/notifications';
 import ProfilePage from '@/pages/profile';
 import ContestPage from '@/pages/contest';
 import VipPurchasePage from '@/pages/vip-purchase';
+import ChatPage from '@/pages/chat';
 import NotFound from '@/pages/not-found';
 
 // Admin pages
+import AdminChatPage from '@/pages/admin/chat';
 import AdminDashboardPage from '@/pages/admin/index';
 import AdminUsersPage from '@/pages/admin/users';
 import AdminDepositsPage from '@/pages/admin/deposits';
@@ -92,6 +94,9 @@ function Router() {
       <Route path="/vip-purchase">
         <ProtectedRoute><VipPurchasePage /></ProtectedRoute>
       </Route>
+      <Route path="/chat">
+        <ProtectedRoute><ChatPage /></ProtectedRoute>
+      </Route>
 
       {/* Admin routes */}
       <Route path="/admin">
@@ -123,6 +128,9 @@ function Router() {
       </Route>
       <Route path="/admin/deposits/:id">
         <AdminRoute><AdminDepositDetailPage /></AdminRoute>
+      </Route>
+      <Route path="/admin/chat">
+        <AdminRoute><AdminChatPage /></AdminRoute>
       </Route>
 
       <Route component={NotFound} />
