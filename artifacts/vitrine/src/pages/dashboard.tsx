@@ -25,8 +25,8 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="bg-gradient-to-br from-[#1a2a5e] to-[#0f1a3e] px-5 pt-8 pb-6 rounded-b-3xl shadow-lg shrink-0">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-xl font-bold text-white">
-            {user?.username?.charAt(0).toUpperCase()}
+          <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
+            <img src="/logo.png" alt="avatar" className="w-full h-full object-cover" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-white/60 text-sm font-medium">Bonjour,</p>

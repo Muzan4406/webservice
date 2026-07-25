@@ -49,8 +49,8 @@ export default function ProfilePage() {
             {user.photoUrl ? (
               <img src={user.photoUrl} alt={user.username} className="w-16 h-16 rounded-full object-cover" />
             ) : (
-              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary shrink-0">
-                {user.username.charAt(0).toUpperCase()}
+              <div className="w-16 h-16 rounded-full overflow-hidden shrink-0">
+                <img src="/logo.png" alt="avatar" className="w-full h-full object-cover" />
               </div>
             )}
             <div className="flex-1 min-w-0">

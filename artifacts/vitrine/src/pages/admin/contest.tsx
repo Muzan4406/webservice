@@ -91,8 +91,8 @@ export default function AdminContestPage() {
               {entries.map((entry: any) => (
                 <div key={entry.rank} className="flex items-center gap-3 p-4">
                   <span className="text-sm font-bold text-muted-foreground w-8">#{entry.rank}</span>
-                  <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center text-primary text-xs font-bold">
-                    {entry.username.charAt(0).toUpperCase()}
+                  <div className="w-8 h-8 rounded-full overflow-hidden">
+                    <img src="/logo.png" alt="avatar" className="w-full h-full object-cover" />
                   </div>
                   <span className="flex-1 text-sm font-semibold">{entry.username}</span>
                   <span className="text-sm font-bold text-primary">{entry.referralCount} pts</span>

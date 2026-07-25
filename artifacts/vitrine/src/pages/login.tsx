@@ -46,7 +46,7 @@ export default function LoginPage() {
           <img
             src={`${BASE_URL}logo.png`}
             alt="MUZAN SERVICE"
-            className="h-20 w-20 mx-auto"
+            className="h-28 w-28 mx-auto rounded-2xl shadow-lg"
           />
           <h1 className="text-3xl font-bold text-white">Connexion</h1>
           <p className="text-white/60">Connectez-vous à votre compte</p>
