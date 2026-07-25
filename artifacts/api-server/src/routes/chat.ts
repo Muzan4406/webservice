@@ -1,9 +1,23 @@
 import { Router, type IRouter } from "express";
 import { db, chatMessagesTable, usersTable } from "@workspace/db";
-import { eq, desc, and, ne } from "drizzle-orm";
+import { eq, desc, and } from "drizzle-orm";
+import { unlink } from "node:fs/promises";
+import { join } from "node:path";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth";
 
 const router: IRouter = Router();
+const UPLOADS_DIR = join(process.cwd(), "uploads");
+
+async function removeMessageFile(fileUrl: string | null) {
+  if (!fileUrl?.startsWith("/api/uploads/")) return;
+
+  const filename = fileUrl.slice("/api/uploads/".length);
+  if (!/^[a-zA-Z0-9._-]+$/.test(filename)) return;
+
+  await unlink(join(UPLOADS_DIR, filename)).catch(() => {
+    // The message can still be deleted if its local upload was already removed.
+  });
+}
 
 /* ─── USER: Get my chat messages ─── */
 router.get("/chat", requireAuth, async (req: AuthRequest, res): Promise<void> => {
@@ -69,6 +83,37 @@ router.post("/chat", requireAuth, async (req: AuthRequest, res): Promise<void> =
     res.status(201).json({ message: msg });
   } catch {
     res.status(500).json({ error: "Erreur lors de l'envoi du message" });
+  }
+});
+
+/* ─── USER: Delete one of my audio/image messages ─── */
+router.delete("/chat/:messageId", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  try {
+    const messageId = Number.parseInt(req.params.messageId as string, 10);
+    if (Number.isNaN(messageId)) {
+      res.status(400).json({ error: "Invalid messageId" });
+      return;
+    }
+
+    const [message] = await db
+      .select()
+      .from(chatMessagesTable)
+      .where(and(eq(chatMessagesTable.id, messageId), eq(chatMessagesTable.userId, req.userId!)));
+
+    if (!message) {
+      res.status(404).json({ error: "Message introuvable" });
+      return;
+    }
+    if (message.fromAdmin || (message.type !== "audio" && message.type !== "image")) {
+      res.status(403).json({ error: "Seuls vos messages vocaux et images peuvent être supprimés" });
+      return;
+    }
+
+    await db.delete(chatMessagesTable).where(eq(chatMessagesTable.id, messageId));
+    await removeMessageFile(message.fileUrl);
+    res.status(204).send();
+  } catch {
+    res.status(500).json({ error: "Erreur lors de la suppression" });
   }
 });
 
@@ -218,6 +263,38 @@ router.post("/admin/chat/:userId", requireAdmin, async (req, res): Promise<void>
     res.status(201).json({ message: msg });
   } catch {
     res.status(500).json({ error: "Erreur lors de l'envoi" });
+  }
+});
+
+/* ─── ADMIN: Delete an audio/image message in a conversation ─── */
+router.delete("/admin/chat/:userId/:messageId", requireAdmin, async (req, res): Promise<void> => {
+  try {
+    const userId = Number.parseInt(req.params.userId as string, 10);
+    const messageId = Number.parseInt(req.params.messageId as string, 10);
+    if (Number.isNaN(userId) || Number.isNaN(messageId)) {
+      res.status(400).json({ error: "Identifiants invalides" });
+      return;
+    }
+
+    const [message] = await db
+      .select()
+      .from(chatMessagesTable)
+      .where(and(eq(chatMessagesTable.id, messageId), eq(chatMessagesTable.userId, userId)));
+
+    if (!message) {
+      res.status(404).json({ error: "Message introuvable" });
+      return;
+    }
+    if (message.type !== "audio" && message.type !== "image") {
+      res.status(403).json({ error: "Seuls les messages vocaux et images peuvent être supprimés" });
+      return;
+    }
+
+    await db.delete(chatMessagesTable).where(eq(chatMessagesTable.id, messageId));
+    await removeMessageFile(message.fileUrl);
+    res.status(204).send();
+  } catch {
+    res.status(500).json({ error: "Erreur lors de la suppression" });
   }
 });
 

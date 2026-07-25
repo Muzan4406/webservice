@@ -44,7 +44,7 @@ function AudioBubble({ url, fromAdmin }: { url: string; fromAdmin: boolean }) {
       </button>
       <div className="flex-1 space-y-1">
         <div className={`h-1.5 rounded-full overflow-hidden ${fromAdmin ? 'bg-white/25' : 'bg-[#1a2a5e]/15'}`}>
-          <div className={`h-full rounded-full transition-all duration-100 ${fromAdmin ? 'bg-white' : 'bg-[#1a2a5e]'}`}
+          <div className="h-full rounded-full transition-all duration-100 bg-yellow-400"
             style={{ width: `${progress * 100}%` }} />
         </div>
         <p className="text-[10px] opacity-55 font-medium">
@@ -94,7 +94,7 @@ function VoicePreview({
       {/* Progress + duration */}
       <div className="flex-1 space-y-1 min-w-0">
         <div className="h-1.5 rounded-full overflow-hidden bg-[#1a2a5e]/15">
-          <div className="h-full rounded-full bg-[#1a2a5e] transition-all duration-100" style={{ width: `${progress * 100}%` }} />
+          <div className="h-full rounded-full bg-yellow-400 transition-all duration-100" style={{ width: `${progress * 100}%` }} />
         </div>
         <p className="text-[10px] text-[#1a2a5e]/60 font-medium">{duration ? `${Math.floor(duration)}s` : '…'}</p>
       </div>
@@ -113,14 +113,26 @@ function VoicePreview({
 }
 
 /* ─── Single message bubble ─── */
-function MessageBubble({ msg }: { msg: ChatMessage }) {
+function MessageBubble({ msg, onDelete }: { msg: ChatMessage; onDelete: (messageId: number) => void }) {
   const mine = !msg.fromAdmin;
+  const canDelete = mine && (msg.type === 'audio' || msg.type === 'image');
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
       className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-      <div className={`max-w-[78%] rounded-2xl px-3.5 py-2.5 shadow-sm ${
+      <div className={`group relative max-w-[78%] rounded-2xl px-3.5 py-2.5 shadow-sm ${
         mine ? 'bg-[#1a2a5e] text-white rounded-br-sm' : 'bg-white text-gray-800 rounded-bl-sm border border-gray-100'
       }`}>
+        {canDelete && (
+          <button
+            type="button"
+            title="Supprimer"
+            aria-label="Supprimer ce message"
+            onClick={() => onDelete(msg.id)}
+            className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-red-500" />
+          </button>
+        )}
         {msg.type === 'text' && <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>}
         {msg.type === 'image' && msg.fileUrl && (
           <img src={msg.fileUrl} alt="Image" className="rounded-xl max-w-full max-h-48 object-cover" />
@@ -206,6 +218,21 @@ export default function ChatPage() {
     finally { setSending(false); }
   }
 
+  const handleDeleteMessage = async (messageId: number) => {
+    if (!window.confirm('Supprimer ce message ?')) return;
+    try {
+      const res = await fetch(`/api/chat/${messageId}`, { method: 'DELETE', headers: authHeaders });
+      if (!res.ok) {
+        toast.error((await res.json()).error ?? 'Suppression échouée');
+        return;
+      }
+      setMessages((current) => current.filter((message) => message.id !== messageId));
+      toast.success('Message supprimé');
+    } catch {
+      toast.error('Erreur réseau');
+    }
+  };
+
   const handleSendText = async () => {
     if (!text.trim() || sending) return;
     await sendMsg('text', { content: text.trim() });
@@ -290,7 +317,10 @@ export default function ChatPage() {
       </div>
 
       {/* Messages list */}
-      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+      <div
+        className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-[#101010] bg-repeat"
+        style={{ backgroundImage: `url(${BASE_URL}chat-background.png)`, backgroundSize: '270px auto' }}
+      >
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center py-16 text-gray-400 space-y-2">
             <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-2">
@@ -300,7 +330,7 @@ export default function ChatPage() {
             <p className="text-sm leading-relaxed">Notre équipe vous répondra dans les plus brefs délais.</p>
           </div>
         )}
-        {messages.map((msg) => <MessageBubble key={msg.id} msg={msg} />)}
+        {messages.map((msg) => <MessageBubble key={msg.id} msg={msg} onDelete={handleDeleteMessage} />)}
         <div ref={bottomRef} />
       </div>
 

@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Send, Loader2, MessageSquare, X, ZoomIn } from 'lucide-react';
+import { ArrowLeft, Send, Loader2, MessageSquare, X, ZoomIn, Trash2 } from 'lucide-react';
 import { Link } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -78,7 +78,7 @@ function AudioBubble({ url, fromAdmin }: { url: string; fromAdmin: boolean }) {
       </button>
       <div className="flex-1 space-y-1">
         <div className={`h-1.5 rounded-full overflow-hidden ${fromAdmin ? 'bg-white/25' : 'bg-[#1a2a5e]/15'}`}>
-          <div className={`h-full rounded-full transition-all duration-100 ${fromAdmin ? 'bg-white' : 'bg-[#1a2a5e]'}`}
+          <div className="h-full rounded-full transition-all duration-100 bg-yellow-400"
             style={{ width: `${progress * 100}%` }} />
         </div>
         <p className="text-[10px] opacity-55 font-medium">{duration ? `${Math.floor(duration)}s` : '…'}</p>
@@ -140,6 +140,25 @@ export default function AdminChatPage() {
       await fetchUsers();
     } catch { toast.error('Erreur réseau'); }
     finally { setSending(false); }
+  };
+
+  const handleDeleteMessage = async (messageId: number) => {
+    if (!selectedUid || !window.confirm('Supprimer ce message ?')) return;
+    try {
+      const res = await fetch(`/api/admin/chat/${selectedUid}/${messageId}`, {
+        method: 'DELETE',
+        headers: authHeaders,
+      });
+      if (!res.ok) {
+        toast.error((await res.json()).error ?? 'Suppression échouée');
+        return;
+      }
+      setMessages((current) => current.filter((message) => message.id !== messageId));
+      await fetchUsers();
+      toast.success('Message supprimé');
+    } catch {
+      toast.error('Erreur réseau');
+    }
   };
 
   const selectedUser = users.find((u) => u.user.id === selectedUid);
@@ -226,15 +245,29 @@ export default function AdminChatPage() {
             </div>
 
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto px-4 py-4 space-y-3">
+            <div
+              className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-[#101010] bg-repeat"
+              style={{ backgroundImage: `url(${BASE_URL}chat-background.png)`, backgroundSize: '270px auto' }}
+            >
               {messages.map((msg) => (
                 <motion.div key={msg.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}
                   className={`flex ${msg.fromAdmin ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-[75%] rounded-2xl px-3.5 py-2.5 shadow-sm ${
+                  <div className={`group relative max-w-[75%] rounded-2xl px-3.5 py-2.5 shadow-sm ${
                     msg.fromAdmin
                       ? 'bg-[#1a2a5e] text-white rounded-br-sm'
                       : 'bg-white text-gray-800 rounded-bl-sm border border-gray-100'
                   }`}>
+                    {(msg.type === 'audio' || msg.type === 'image') && (
+                      <button
+                        type="button"
+                        title="Supprimer"
+                        aria-label="Supprimer ce message"
+                        onClick={() => handleDeleteMessage(msg.id)}
+                        className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                      >
+                        <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                      </button>
+                    )}
                     {msg.type === 'text' && <p className="text-sm whitespace-pre-wrap leading-relaxed">{msg.content}</p>}
                     {msg.type === 'image' && msg.fileUrl && (
                       <div className="relative group cursor-pointer" onClick={() => setLightboxUrl(msg.fileUrl!)}>
