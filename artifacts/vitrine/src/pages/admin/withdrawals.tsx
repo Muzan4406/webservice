@@ -1,14 +1,14 @@
 import { useState } from 'react';
 import { useLocation } from 'wouter';
 import {
-  useGetAdminWithdrawals, useProcessWithdrawal, useDeleteWithdrawal,
+  useGetAdminWithdrawals, useProcessWithdrawal, useDeleteWithdrawal, useRejectWithdrawal,
   getGetAdminWithdrawalsQueryKey,
 } from '@workspace/api-client-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Check, Trash2 } from 'lucide-react';
+import { ArrowLeft, Check, Trash2, XCircle } from 'lucide-react';
 
 type Status = 'pending' | 'processed' | 'rejected';
 
@@ -17,11 +17,14 @@ export default function AdminWithdrawalsPage() {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<Status>('pending');
   const [page, setPage] = useState(1);
+  const [rejectingId, setRejectingId] = useState<number | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   const qKey = getGetAdminWithdrawalsQueryKey({ status, page });
   const { data, isLoading } = useGetAdminWithdrawals({ status, page }, { query: { queryKey: qKey } });
   const { mutate: process } = useProcessWithdrawal();
   const { mutate: del } = useDeleteWithdrawal();
+  const { mutate: reject, isPending: isRejecting } = useRejectWithdrawal();
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: qKey });
 
@@ -38,6 +41,24 @@ export default function AdminWithdrawalsPage() {
     del({ id }, {
       onSuccess: () => { toast.success('Supprimé.'); invalidate(); },
       onError: (err: any) => toast.error(err?.data?.error ?? 'Impossible de supprimer.'),
+    });
+  };
+
+  const openReject = (id: number) => {
+    setRejectingId(id);
+    setRejectReason('');
+  };
+
+  const handleReject = () => {
+    if (!rejectingId) return;
+    const reason = rejectReason.trim() || "Retrait rejeté par l'administrateur";
+    reject({ id: rejectingId, reason }, {
+      onSuccess: () => {
+        toast.success('Retrait rejeté.');
+        setRejectingId(null);
+        invalidate();
+      },
+      onError: (err: any) => toast.error(err?.data?.error ?? 'Impossible de rejeter.'),
     });
   };
 
@@ -96,7 +117,10 @@ export default function AdminWithdrawalsPage() {
                       <button onClick={() => handleProcess(item.id)} className="flex-1 flex items-center justify-center gap-2 py-3 text-green-600 font-semibold text-sm hover:bg-green-50">
                         <Check className="w-4 h-4" />Traité / Envoyé
                       </button>
-                      <button onClick={() => handleDelete(item.id)} className="px-5 flex items-center justify-center text-muted-foreground hover:bg-muted">
+                      <button onClick={() => openReject(item.id)} className="flex-1 flex items-center justify-center gap-2 py-3 text-red-600 font-semibold text-sm hover:bg-red-50">
+                        <XCircle className="w-4 h-4" />Rejeter
+                      </button>
+                      <button onClick={() => handleDelete(item.id)} className="px-4 flex items-center justify-center text-muted-foreground hover:bg-muted">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
@@ -119,6 +143,38 @@ export default function AdminWithdrawalsPage() {
           </>
         )}
       </div>
+
+      {/* Reject modal */}
+      {rejectingId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 space-y-4">
+            <h2 className="text-lg font-bold text-gray-900">Rejeter le retrait</h2>
+            <p className="text-sm text-gray-500">Indiquez un motif (optionnel). L'utilisateur sera notifié.</p>
+            <textarea
+              className="w-full border border-gray-200 rounded-xl p-3 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-red-400"
+              rows={3}
+              placeholder="Motif du rejet…"
+              value={rejectReason}
+              onChange={(e) => setRejectReason(e.target.value)}
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => setRejectingId(null)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 hover:bg-gray-50"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleReject}
+                disabled={isRejecting}
+                className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 disabled:opacity-60"
+              >
+                {isRejecting ? 'Rejet…' : 'Confirmer le rejet'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

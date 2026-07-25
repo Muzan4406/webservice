@@ -1358,6 +1358,33 @@ export const useProcessWithdrawal = <TError = ErrorType<unknown>,
       return useMutation(getProcessWithdrawalMutationOptions(options));
     }
 
+export const getRejectWithdrawalUrl = (id: number) => `/api/withdrawals/${id}/reject`;
+
+export const rejectWithdrawal = async (id: number, reason: string, options?: RequestInit): Promise<Withdrawal> => {
+  return customFetch<Withdrawal>(getRejectWithdrawalUrl(id),
+    { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ reason }), ...options }
+  );
+};
+
+export const getRejectWithdrawalMutationOptions = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof rejectWithdrawal>>, TError, { id: number; reason: string }, TContext>; request?: SecondParameter<typeof customFetch> }
+): UseMutationOptions<Awaited<ReturnType<typeof rejectWithdrawal>>, TError, { id: number; reason: string }, TContext> => {
+  const mutationKey = ['rejectWithdrawal'];
+  const { mutation: mutationOptions, request: requestOptions } = options ?? {};
+  const mutationFn: MutationFunction<Awaited<ReturnType<typeof rejectWithdrawal>>, { id: number; reason: string }> = ({ id, reason }) =>
+    rejectWithdrawal(id, reason, requestOptions);
+  return { mutationKey, mutationFn, ...mutationOptions };
+};
+
+export type RejectWithdrawalMutationResult = NonNullable<Awaited<ReturnType<typeof rejectWithdrawal>>>;
+export type RejectWithdrawalMutationError = ErrorType<unknown>;
+
+export const useRejectWithdrawal = <TError = ErrorType<unknown>, TContext = unknown>(
+  options?: { mutation?: UseMutationOptions<Awaited<ReturnType<typeof rejectWithdrawal>>, TError, { id: number; reason: string }, TContext>; request?: SecondParameter<typeof customFetch> }
+): UseMutationResult<Awaited<ReturnType<typeof rejectWithdrawal>>, TError, { id: number; reason: string }, TContext> => {
+  return useMutation(getRejectWithdrawalMutationOptions(options));
+};
+
 export const getGetDailyCouponsUrl = () => {
 
 

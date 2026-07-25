@@ -112,6 +112,55 @@ router.put("/withdrawals/:id/process", requireAuth, async (req: AuthRequest, res
   res.json({ ...withdrawal, amount: parseFloat(withdrawal.amount), username: user?.username, code: withdrawal.code ?? null });
 });
 
+router.put("/withdrawals/:id/reject", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  if (!req.isAdmin) {
+    res.status(403).json({ error: "Admin access required" });
+    return;
+  }
+
+  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(rawId, 10);
+
+  const reason: string = req.body?.reason ?? "Retrait rejeté par l'administrateur";
+
+  const [withdrawal] = await db
+    .update(withdrawalsTable)
+    .set({ status: "rejected", updatedAt: new Date() })
+    .where(eq(withdrawalsTable.id, id))
+    .returning();
+
+  if (!withdrawal) {
+    res.status(404).json({ error: "Withdrawal not found" });
+    return;
+  }
+
+  const [user] = await db
+    .select({ username: usersTable.username, userId: usersTable.userId, pushToken: usersTable.pushToken })
+    .from(usersTable)
+    .where(eq(usersTable.id, withdrawal.userId));
+
+  tg.withdrawalProcessed({
+    username: user?.username ?? String(withdrawal.userId),
+    userId: user?.userId ?? String(withdrawal.userId),
+    amount: parseFloat(withdrawal.amount),
+    withdrawalId: withdrawal.id,
+  });
+
+  sendPushNotification([user?.pushToken], {
+    title: "❌ Retrait rejeté",
+    body: `Votre retrait de ${parseFloat(withdrawal.amount).toLocaleString()} XOF a été rejeté. Motif : ${reason}`,
+    data: { type: "withdrawal_rejected", withdrawalId: withdrawal.id },
+  });
+  db.insert(notificationsTable).values({
+    userId: withdrawal.userId,
+    title: "❌ Retrait rejeté",
+    message: `Votre retrait de ${parseFloat(withdrawal.amount).toLocaleString()} XOF a été rejeté. Motif : ${reason}`,
+    isRead: false,
+  }).catch(() => {});
+
+  res.json({ ...withdrawal, amount: parseFloat(withdrawal.amount), username: user?.username, code: withdrawal.code ?? null });
+});
+
 router.delete("/withdrawals/:id", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
   const id = parseInt(rawId, 10);

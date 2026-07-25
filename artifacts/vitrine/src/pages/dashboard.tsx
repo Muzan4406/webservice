@@ -2,6 +2,7 @@ import { Link } from 'wouter';
 import { motion } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
 import { BottomNav } from '@/components/BottomNav';
+import { WhatsAppPopup } from '@/components/WhatsAppPopup';
 
 const BASE_URL = import.meta.env.BASE_URL;
 
@@ -98,6 +99,7 @@ export default function DashboardPage() {
       </div>
 
       <BottomNav />
+      <WhatsAppPopup />
     </div>
   );
 }

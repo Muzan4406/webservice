@@ -21,7 +21,7 @@ export function PwaInstallBanner() {
 
   useEffect(() => {
     if (isInStandalone()) return;
-    if (sessionStorage.getItem('pwa-banner-dismissed')) return;
+    if (localStorage.getItem('pwa-banner-dismissed')) return;
 
     const handler = (e: Event) => {
       e.preventDefault();
@@ -48,7 +48,7 @@ export function PwaInstallBanner() {
     setDismissed(true);
     setDeferredPrompt(null);
     setShowIosBanner(false);
-    sessionStorage.setItem('pwa-banner-dismissed', '1');
+    localStorage.setItem('pwa-banner-dismissed', '1');
   };
 
   if (dismissed || isInStandalone()) return null;
