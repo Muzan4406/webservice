@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useLocation } from 'wouter';
 import {
   useGetAllCoupons, useCreateCoupon, useDeleteCoupon, getGetAllCouponsQueryKey,
@@ -9,7 +9,30 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Plus, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, X, ImagePlus } from 'lucide-react';
+
+async function uploadImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64 = (reader.result as string).split(',')[1];
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ base64, mimeType: file.type }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? 'Upload échoué');
+        resolve(data.url);
+      } catch (err: any) {
+        reject(err);
+      }
+    };
+    reader.onerror = () => reject(new Error('Lecture du fichier échouée'));
+    reader.readAsDataURL(file);
+  });
+}
 
 type CouponType = 'daily' | 'vip';
 
@@ -20,7 +43,11 @@ export default function AdminCouponsPage() {
   const [showModal, setShowModal] = useState(false);
 
   const todayStr = () => new Date().toISOString().split('T')[0];
-  const [form, setForm] = useState({ title: '', couponCode: '', odds: '', imageUrl: '', date: todayStr() });
+  const [form, setForm] = useState({ title: '', couponCode: '', odds: '', date: todayStr() });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const imageInputRef = useRef<HTMLInputElement>(null);
 
   const queryKey = getGetAllCouponsQueryKey({ type });
   const { data, isLoading } = useGetAllCoupons({ type }, { query: { queryKey, staleTime: 0 } });
@@ -29,9 +56,37 @@ export default function AdminCouponsPage() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey });
 
-  const handleCreate = () => {
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  };
+
+  const handleCreate = async () => {
     if (!form.title.trim()) { toast.error('Le titre est obligatoire.'); return; }
     if (!form.date.trim()) { toast.error('La date est obligatoire.'); return; }
+
+    let imageUrl: string | undefined;
+    if (imageFile) {
+      try {
+        setIsUploading(true);
+        imageUrl = await uploadImage(imageFile);
+      } catch (err: any) {
+        toast.error(err?.message ?? 'Erreur lors de l\'upload de l\'image');
+        setIsUploading(false);
+        return;
+      } finally {
+        setIsUploading(false);
+      }
+    }
+
     createCoupon({
       data: {
         type: type as any,
@@ -39,13 +94,15 @@ export default function AdminCouponsPage() {
         content: form.couponCode.trim() || undefined,
         date: new Date(form.date) as any,
         odds: form.odds ? parseFloat(form.odds) : undefined,
-        imageUrl: form.imageUrl || undefined,
+        imageUrl,
       } as any,
     }, {
       onSuccess: () => {
         toast.success('Coupon créé.');
         setShowModal(false);
-        setForm({ title: '', couponCode: '', odds: '', imageUrl: '', date: todayStr() });
+        setForm({ title: '', couponCode: '', odds: '', date: todayStr() });
+        setImageFile(null);
+        setImagePreview(null);
         invalidate();
       },
       onError: (err: any) => toast.error(err?.data?.error ?? 'Création échouée.'),
@@ -147,12 +204,43 @@ export default function AdminCouponsPage() {
                   <Input type="number" placeholder="Ex: 3.50" value={form.odds} onChange={e => setForm({ ...form, odds: e.target.value })} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>URL de l'image (optionnel)</Label>
-                  <Input placeholder="https://…" value={form.imageUrl} onChange={e => setForm({ ...form, imageUrl: e.target.value })} />
+                  <Label>Image (optionnel)</Label>
+                  <input
+                    ref={imageInputRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleImageChange}
+                  />
+                  {imagePreview ? (
+                    <div className="relative rounded-xl overflow-hidden border border-gray-200">
+                      <img
+                        src={imagePreview}
+                        alt="Aperçu"
+                        className="w-full max-h-48 object-contain bg-gray-50"
+                      />
+                      <button
+                        type="button"
+                        onClick={removeImage}
+                        className="absolute top-2 right-2 w-7 h-7 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black/80"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => imageInputRef.current?.click()}
+                      className="w-full h-24 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-primary hover:text-primary transition-colors bg-gray-50"
+                    >
+                      <ImagePlus className="w-6 h-6" />
+                      <span className="text-sm font-medium">Importer une image</span>
+                    </button>
+                  )}
                 </div>
               </div>
-              <Button className="w-full" onClick={handleCreate} disabled={isCreating}>
-                {isCreating ? 'Création…' : 'Créer le coupon'}
+              <Button className="w-full" onClick={handleCreate} disabled={isCreating || isUploading}>
+                {isUploading ? 'Upload…' : isCreating ? 'Création…' : 'Créer le coupon'}
               </Button>
             </CardContent>
           </Card>

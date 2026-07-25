@@ -110,9 +110,16 @@ export default function AdminDepositsPage() {
                       </div>
                     ))}
                     {item.screenshotUrl && (
-                      <a href={item.screenshotUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1 text-sm text-primary">
-                        <ExternalLink className="w-3 h-3" />Voir capture d'écran
-                      </a>
+                      <div className="pt-1">
+                        <p className="text-xs text-muted-foreground mb-1.5 font-medium">Capture d'écran</p>
+                        <a href={item.screenshotUrl} target="_blank" rel="noreferrer">
+                          <img
+                            src={item.screenshotUrl}
+                            alt="Capture du paiement"
+                            className="w-full rounded-xl object-contain max-h-64 bg-gray-50 border border-gray-100 hover:opacity-90 transition-opacity cursor-zoom-in"
+                          />
+                        </a>
+                      </div>
                     )}
                   </div>
                   {status === 'pending' && (

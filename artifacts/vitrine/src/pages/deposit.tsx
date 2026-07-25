@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useCreateDeposit, useGetPaymentConfig, getGetPaymentConfigQueryKey } from '@workspace/api-client-react';
 import { BottomNav } from '@/components/BottomNav';
 import { Button } from '@/components/ui/button';
@@ -6,8 +6,31 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { ArrowLeft, Globe, Smartphone, Info, Wrench } from 'lucide-react';
+import { ArrowLeft, Globe, Smartphone, Info, Wrench, ImagePlus, X } from 'lucide-react';
 import { useLocation } from 'wouter';
+
+async function uploadImage(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = async () => {
+      try {
+        const base64 = (reader.result as string).split(',')[1];
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ base64, mimeType: file.type }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? 'Upload échoué');
+        resolve(data.url);
+      } catch (err: any) {
+        reject(err);
+      }
+    };
+    reader.onerror = () => reject(new Error('Lecture du fichier échouée'));
+    reader.readAsDataURL(file);
+  });
+}
 
 const COUNTRIES = [
   'Togo',
@@ -35,6 +58,10 @@ export default function DepositPage() {
   const [nationalAccountId, setNationalAccountId] = useState('');
   const [nationalAmount, setNationalAmount] = useState('');
   const [nationalReference, setNationalReference] = useState('');
+  const [nationalScreenshot, setNationalScreenshot] = useState<File | null>(null);
+  const [nationalScreenshotPreview, setNationalScreenshotPreview] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const screenshotInputRef = useRef<HTMLInputElement>(null);
 
   // International
   const [intlCountry, setIntlCountry] = useState('');
@@ -43,8 +70,36 @@ export default function DepositPage() {
 
   const createDeposit = useCreateDeposit();
 
-  const handleNationalSubmit = (e: React.FormEvent) => {
+  const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setNationalScreenshot(file);
+    setNationalScreenshotPreview(URL.createObjectURL(file));
+  };
+
+  const removeScreenshot = () => {
+    setNationalScreenshot(null);
+    setNationalScreenshotPreview(null);
+    if (screenshotInputRef.current) screenshotInputRef.current.value = '';
+  };
+
+  const handleNationalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!nationalScreenshot) {
+      toast.error('Veuillez importer la capture d\'écran du paiement');
+      return;
+    }
+    let screenshotUrl: string | undefined;
+    try {
+      setIsUploading(true);
+      screenshotUrl = await uploadImage(nationalScreenshot);
+    } catch (err: any) {
+      toast.error(err?.message ?? 'Erreur lors de l\'upload de la capture');
+      setIsUploading(false);
+      return;
+    } finally {
+      setIsUploading(false);
+    }
     createDeposit.mutate(
       {
         data: {
@@ -53,8 +108,9 @@ export default function DepositPage() {
           oneXbetAccountId: nationalAccountId,
           amount: Number(nationalAmount),
           referenceId: nationalReference,
+          screenshotUrl,
           country: 'Togo',
-        },
+        } as any,
       },
       {
         onSuccess: () => {
@@ -252,12 +308,52 @@ export default function DepositPage() {
                     />
                   </div>
 
+                  {/* Screenshot upload */}
+                  <div className="space-y-2">
+                    <Label className="text-gray-700 font-medium">
+                      Capture d'écran du paiement <span className="text-red-500">*</span>
+                    </Label>
+                    <input
+                      ref={screenshotInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleScreenshotChange}
+                    />
+                    {nationalScreenshotPreview ? (
+                      <div className="relative rounded-xl overflow-hidden border border-gray-200">
+                        <img
+                          src={nationalScreenshotPreview}
+                          alt="Capture du paiement"
+                          className="w-full max-h-56 object-contain bg-gray-50"
+                        />
+                        <button
+                          type="button"
+                          onClick={removeScreenshot}
+                          className="absolute top-2 right-2 w-7 h-7 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-black/80"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={() => screenshotInputRef.current?.click()}
+                        className="w-full h-28 border-2 border-dashed border-gray-300 rounded-xl flex flex-col items-center justify-center gap-2 text-gray-400 hover:border-[#1a3aff] hover:text-[#1a3aff] transition-colors bg-gray-50"
+                      >
+                        <ImagePlus className="w-7 h-7" />
+                        <span className="text-sm font-medium">Importer la capture d'écran</span>
+                        <span className="text-xs">JPG, PNG — max 10 Mo</span>
+                      </button>
+                    )}
+                  </div>
+
                   <Button
                     type="submit"
-                    disabled={createDeposit.isPending}
+                    disabled={createDeposit.isPending || isUploading}
                     className="w-full h-14 bg-[#1a3aff] hover:bg-[#1a3aff]/90 text-white font-bold rounded-2xl text-base"
                   >
-                    {createDeposit.isPending ? 'Envoi en cours...' : '→  Soumettre le dépôt'}
+                    {isUploading ? 'Upload en cours...' : createDeposit.isPending ? 'Envoi en cours...' : '→  Soumettre le dépôt'}
                   </Button>
                 </>
               )}
