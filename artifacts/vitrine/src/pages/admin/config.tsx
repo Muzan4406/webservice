@@ -185,20 +185,6 @@ export default function AdminConfigPage() {
           </CardContent>
         </Card>
 
-        {/* VIP manual confirmation */}
-        <Card>
-          <CardContent className="p-5 space-y-3">
-            <p className="text-sm font-semibold text-muted-foreground uppercase">Confirmation VIP manuelle</p>
-            <p className="text-xs text-muted-foreground">Pour les paiements reçus hors système automatisé.</p>
-            <div className="space-y-1.5">
-              <Label>ID Utilisateur (base de données)</Label>
-              <Input type="number" placeholder="Ex: 42" value={vipUserId} onChange={e => setVipUserId(e.target.value)} />
-            </div>
-            <Button className="w-full" onClick={handleConfirmVip} disabled={isConfirming}>
-              {isConfirming ? 'Traitement…' : 'Confirmer le statut VIP'}
-            </Button>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );

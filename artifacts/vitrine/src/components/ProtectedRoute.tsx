@@ -1,10 +1,13 @@
 import { useAuth } from '@/contexts/AuthContext';
 import { useLocation } from 'wouter';
 import { useEffect } from 'react';
+import { useGetAppSettings } from '@workspace/api-client-react';
+import MaintenancePage from '@/pages/maintenance';
 
 export function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const [, setLocation] = useLocation();
+  const { data: appSettings } = useGetAppSettings();
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -22,6 +25,11 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
 
   if (!isAuthenticated) {
     return null;
+  }
+
+  // Show maintenance page to non-admin users when maintenance mode is active
+  if (appSettings?.maintenanceMode && !(user as any)?.isAdmin) {
+    return <MaintenancePage message={appSettings.maintenanceMessage} />;
   }
 
   return <>{children}</>;

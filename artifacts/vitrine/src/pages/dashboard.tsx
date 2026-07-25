@@ -21,9 +21,9 @@ export default function DashboardPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#F4F6FB] pb-20">
+    <div className="h-screen overflow-hidden flex flex-col bg-[#F4F6FB]">
       {/* Header */}
-      <div className="bg-gradient-to-br from-[#1a2a5e] to-[#0f1a3e] px-5 pt-8 pb-6 rounded-b-3xl shadow-lg">
+      <div className="bg-gradient-to-br from-[#1a2a5e] to-[#0f1a3e] px-5 pt-8 pb-6 rounded-b-3xl shadow-lg shrink-0">
         <div className="flex items-center gap-4">
           <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center text-xl font-bold text-white">
             {user?.username?.charAt(0).toUpperCase()}
@@ -60,10 +60,10 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Services grid */}
-      <div className="px-4 py-6">
-        <p className="text-sm font-semibold text-gray-500 mb-4">Services rapides</p>
-        <div className="grid grid-cols-2 gap-3">
+      {/* Services grid — fills remaining space, no scroll */}
+      <div className="flex-1 min-h-0 px-4 pt-4 pb-20 flex flex-col">
+        <p className="text-sm font-semibold text-gray-500 mb-3 shrink-0">Services rapides</p>
+        <div className="flex-1 min-h-0 grid grid-cols-2 gap-3" style={{ gridTemplateRows: 'repeat(4, 1fr)' }}>
           {services.map((service, index) => (
             <Link key={service.name} href={service.path}>
               <motion.div
@@ -71,21 +71,19 @@ export default function DashboardPage() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: index * 0.04 }}
                 whileTap={{ scale: 0.97 }}
-                className="bg-white rounded-2xl p-5 flex flex-col items-center justify-center gap-3 shadow-sm border border-gray-100 cursor-pointer relative overflow-hidden"
+                className="h-full bg-white rounded-2xl flex flex-col items-center justify-center gap-2 shadow-sm border border-gray-100 cursor-pointer relative overflow-hidden"
               >
-                {/* Icon placeholder — swap img once PNGs are imported */}
-                <div className="w-14 h-14 flex items-center justify-center">
+                <div className="w-12 h-12 flex items-center justify-center">
                   <img
                     src={`${BASE_URL}${service.icon}`}
                     alt={service.name}
-                    className="w-14 h-14 object-contain"
+                    className="w-12 h-12 object-contain"
                     onError={(e) => {
-                      // Fallback placeholder if PNG not yet uploaded
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}
                   />
                 </div>
-                <span className="text-sm font-semibold text-gray-800 text-center leading-tight">
+                <span className="text-sm font-semibold text-gray-800 text-center leading-tight px-2">
                   {service.name}
                 </span>
                 {service.vip && (
