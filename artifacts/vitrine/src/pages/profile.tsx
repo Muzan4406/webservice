@@ -1,7 +1,10 @@
 import { useGetProfile, useGetAppSettings, useLogout } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { BottomNav } from '@/components/BottomNav';
-import { Star, ChevronRight, MessageCircle, Send, History, Users, LogOut, Calendar, Hash } from 'lucide-react';
+import {
+  Star, ChevronRight, MessageCircle, Send, History, Users,
+  LogOut, Calendar, AtSign, Smartphone, Hash, Shield, Phone,
+} from 'lucide-react';
 import { useLocation } from 'wouter';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -24,65 +27,119 @@ export default function ProfilePage() {
     });
   };
 
-  const user = profile.data;
-  const settings = appSettings.data;
+  const user = profile.data as any;
+  const settings = appSettings.data as any;
 
   return (
     <div className="min-h-screen bg-[#F4F6FB] pb-24">
-      {/* Header */}
-      <div className="bg-white px-4 pt-6 pb-4 border-b border-gray-100">
+      {/* Top bar */}
+      <div className="bg-white px-5 pt-6 pb-4 border-b border-gray-100">
         <h1 className="text-xl font-bold text-gray-900">Profil</h1>
       </div>
 
       {profile.isLoading ? (
         <div className="flex justify-center py-16">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1a3aff]" />
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
         </div>
       ) : user ? (
         <div className="pt-4 space-y-4 px-4">
-          {/* Avatar + name card */}
-          <div className="bg-white rounded-2xl p-5 flex flex-col items-center text-center space-y-3 shadow-sm">
-            <div className="w-20 h-20 rounded-full bg-[#1a3aff]/10 flex items-center justify-center text-3xl font-bold text-[#1a3aff]">
-              {user.username.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <div className="flex items-center justify-center gap-2">
-                <span className="text-xl font-bold text-gray-900">{user.username}</span>
+
+          {/* ── User card ── */}
+          <div className="bg-white rounded-2xl p-5 flex items-center gap-4 shadow-sm border border-gray-100">
+            {user.photoUrl ? (
+              <img src={user.photoUrl} alt={user.username} className="w-16 h-16 rounded-full object-cover" />
+            ) : (
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center text-2xl font-bold text-primary shrink-0">
+                {user.username.charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-lg font-bold text-gray-900">{user.username}</span>
                 {user.isVip && (
                   <span className="inline-flex items-center gap-1 bg-[#FFD700] text-black text-xs font-bold px-2 py-0.5 rounded-full">
-                    <Star className="w-3 h-3" />
-                    VIP
+                    <Star className="w-3 h-3" /> VIP
                   </span>
                 )}
               </div>
+              <p className="text-gray-500 text-sm mt-0.5">ID: {user.userId}</p>
             </div>
+          </div>
 
-            {/* Info rows */}
-            <div className="w-full border-t border-gray-100 pt-3 space-y-2">
-              <div className="flex items-center gap-3 text-sm text-gray-600">
-                <Hash className="w-4 h-4 text-gray-400 shrink-0" />
-                <span>{user.userId}</span>
+          {/* ── Administration (admin only) ── */}
+          {user.isAdmin && (
+            <button
+              onClick={() => setLocation('/admin')}
+              className="w-full bg-[#1a2a5e] rounded-2xl p-4 flex items-center gap-4 shadow-sm text-left"
+            >
+              <div className="w-10 h-10 rounded-full bg-white/15 flex items-center justify-center shrink-0">
+                <Shield className="w-5 h-5 text-white" />
               </div>
-              <div className="flex items-center gap-3 text-sm text-gray-600">
-                <Calendar className="w-4 h-4 text-gray-400 shrink-0" />
-                <span>
-                  Membre depuis{' '}
-                  {format(new Date(user.createdAt), 'd MMMM yyyy', { locale: fr })}
-                </span>
+              <div className="flex-1 min-w-0">
+                <p className="font-bold text-white">Administration</p>
+                <p className="text-white/60 text-sm">Gérer les dépôts, retraits et concours</p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-white/50 shrink-0" />
+            </button>
+          )}
+
+          {/* ── INFORMATIONS ── */}
+          <div className="space-y-1">
+            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Informations</p>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
+              {user.phone && (
+                <div className="flex items-center gap-3 px-5 py-4">
+                  <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                    <Phone className="w-4 h-4 text-blue-600" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-400">Téléphone</p>
+                    <p className="font-bold text-gray-900">{user.phone}</p>
+                  </div>
+                </div>
+              )}
+              <div className="flex items-center gap-3 px-5 py-4">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                  <AtSign className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Nom d'utilisateur</p>
+                  <p className="font-bold text-gray-900">{user.username}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 px-5 py-4">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                  <Smartphone className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">ID utilisateur</p>
+                  <p className="font-bold text-gray-900">{user.userId}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 px-5 py-4">
+                <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
+                  <Calendar className="w-4 h-4 text-blue-600" />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-400">Membre depuis</p>
+                  <p className="font-bold text-gray-900">
+                    {format(new Date(user.createdAt), 'd MMMM yyyy', { locale: fr })}
+                  </p>
+                </div>
               </div>
             </div>
           </div>
 
-          {/* FINANCES */}
+          {/* ── FINANCES ── */}
           <div className="space-y-1">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Finances</p>
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <button
                 onClick={() => setLocation('/transactions')}
                 className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center">
                     <History className="w-4 h-4 text-green-600" />
                   </div>
                   <span className="font-medium text-gray-800">Historique des transactions</span>
@@ -92,23 +149,21 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* PARRAINAGE */}
+          {/* ── PARRAINAGE ── */}
           <div className="space-y-1">
             <p className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Parrainage</p>
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               <button
                 onClick={() => setLocation('/referral')}
                 className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
               >
                 <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center">
+                  <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center">
                     <Users className="w-4 h-4 text-green-600" />
                   </div>
                   <div className="text-left">
-                    <p className="text-xs text-gray-500">Mon code</p>
-                    <p className="text-base font-bold text-green-600 tracking-wider">
-                      {user.referralCode}
-                    </p>
+                    <p className="text-xs text-gray-400">Mon code</p>
+                    <p className="text-base font-bold text-green-600 tracking-wider">{user.referralCode}</p>
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-gray-400" />
@@ -116,155 +171,82 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          {/* SUPPORT */}
-          <div className="space-y-1">
-            <p className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Support</p>
-            <div className="bg-white rounded-2xl shadow-sm overflow-hidden divide-y divide-gray-100">
-              {/* WhatsApp channel */}
-              {settings?.whatsappChannelUrl ? (
-                <a
-                  href={settings.whatsappChannelUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center">
-                      <MessageCircle className="w-4 h-4 text-green-600" />
+          {/* ── SUPPORT ── */}
+          {(settings?.whatsappChannelUrl || settings?.whatsappSupport1Url || settings?.whatsappSupport2Url || settings?.telegramSupportUrl) && (
+            <div className="space-y-1">
+              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider px-1">Support</p>
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden divide-y divide-gray-100">
+                {settings?.whatsappChannelUrl && (
+                  <a href={settings.whatsappChannelUrl} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center">
+                        <MessageCircle className="w-4 h-4 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-800">Chaîne WhatsApp</p>
+                        <p className="text-xs text-gray-400">Suivre nos annonces</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-gray-800">Chaîne WhatsApp</p>
-                      <p className="text-xs text-gray-400">Suivre nos annonces et actualités</p>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                  </a>
+                )}
+                {settings?.whatsappSupport1Url && (
+                  <a href={settings.whatsappSupport1Url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center">
+                        <MessageCircle className="w-4 h-4 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-800">Service client WhatsApp 1</p>
+                        <p className="text-xs text-gray-400">Contacter un conseiller</p>
+                      </div>
                     </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                </a>
-              ) : (
-                <div className="flex items-center justify-between px-5 py-4 opacity-50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
-                      <MessageCircle className="w-4 h-4 text-gray-400" />
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                  </a>
+                )}
+                {settings?.whatsappSupport2Url && (
+                  <a href={settings.whatsappSupport2Url} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center">
+                        <MessageCircle className="w-4 h-4 text-green-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-800">Service client WhatsApp 2</p>
+                        <p className="text-xs text-gray-400">Contacter un conseiller</p>
+                      </div>
                     </div>
-                    <div>
-                      <p className="font-medium text-gray-500">Chaîne WhatsApp</p>
-                      <p className="text-xs text-gray-400">Suivre nos annonces et actualités</p>
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                  </a>
+                )}
+                {settings?.telegramSupportUrl && (
+                  <a href={settings.telegramSupportUrl} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center">
+                        <Send className="w-4 h-4 text-blue-500" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-800">Service client Telegram</p>
+                        <p className="text-xs text-gray-400">Contacter un conseiller</p>
+                      </div>
                     </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-300" />
-                </div>
-              )}
-
-              {/* WhatsApp Support 1 */}
-              {settings?.whatsappSupport1Url ? (
-                <a
-                  href={settings.whatsappSupport1Url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center">
-                      <MessageCircle className="w-4 h-4 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-800">Service client WhatsApp 1</p>
-                      <p className="text-xs text-gray-400">Contacter un conseiller</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                </a>
-              ) : (
-                <div className="flex items-center justify-between px-5 py-4 opacity-50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
-                      <MessageCircle className="w-4 h-4 text-gray-400" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-500">Service client WhatsApp 1</p>
-                      <p className="text-xs text-gray-400">Contacter un conseiller</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-300" />
-                </div>
-              )}
-
-              {/* WhatsApp Support 2 */}
-              {settings?.whatsappSupport2Url ? (
-                <a
-                  href={settings.whatsappSupport2Url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-green-100 flex items-center justify-center">
-                      <MessageCircle className="w-4 h-4 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-800">Service client WhatsApp 2</p>
-                      <p className="text-xs text-gray-400">Contacter un conseiller</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                </a>
-              ) : (
-                <div className="flex items-center justify-between px-5 py-4 opacity-50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
-                      <MessageCircle className="w-4 h-4 text-gray-400" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-500">Service client WhatsApp 2</p>
-                      <p className="text-xs text-gray-400">Contacter un conseiller</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-300" />
-                </div>
-              )}
-
-              {/* Telegram */}
-              {settings?.telegramSupportUrl ? (
-                <a
-                  href={settings.telegramSupportUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-blue-100 flex items-center justify-center">
-                      <Send className="w-4 h-4 text-blue-500" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-800">Service client Telegram</p>
-                      <p className="text-xs text-gray-400">Contacter un conseiller</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-400" />
-                </a>
-              ) : (
-                <div className="flex items-center justify-between px-5 py-4 opacity-50">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center">
-                      <Send className="w-4 h-4 text-gray-400" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-500">Service client Telegram</p>
-                      <p className="text-xs text-gray-400">Contacter un conseiller</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-300" />
-                </div>
-              )}
+                    <ChevronRight className="w-4 h-4 text-gray-400" />
+                  </a>
+                )}
+              </div>
             </div>
-          </div>
+          )}
 
-          {/* Logout */}
+          {/* ── Logout ── */}
           <button
             onClick={handleLogout}
             disabled={logoutMutation.isPending}
-            className="w-full h-14 rounded-2xl border-2 border-red-200 bg-red-50 text-red-500 font-bold flex items-center justify-center gap-2 text-base hover:bg-red-100 transition-colors"
+            className="w-full h-13 rounded-2xl border border-red-200 bg-red-50 text-red-500 font-semibold flex items-center justify-center gap-2 hover:bg-red-100 transition-colors"
           >
-            <LogOut className="w-5 h-5" />
+            <LogOut className="w-4 h-4" />
             {logoutMutation.isPending ? 'Déconnexion...' : 'Se déconnecter'}
           </button>
         </div>
