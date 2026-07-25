@@ -79,6 +79,7 @@ export default function DashboardPage() {
                     src={`${BASE_URL}${service.icon}`}
                     alt={service.name}
                     className="w-12 h-12 object-contain"
+                    style={{ mixBlendMode: 'multiply' }}
                     onError={(e) => {
                       (e.target as HTMLImageElement).style.display = 'none';
                     }}

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import 'tailwindcss';
 @import 'tw-animate-css';
 @plugin "@tailwindcss/typography";
@@ -102,7 +102,7 @@
   --sidebar-accent-foreground: 0 0% 0%;
   --sidebar-ring: 224 76% 48%;
 
-  --app-font-sans: 'Inter', 'Segoe UI', sans-serif;
+  --app-font-sans: 'Plus Jakarta Sans', 'Segoe UI', sans-serif;
   --app-font-serif: Georgia, serif;
   --app-font-mono: 'Courier New', monospace;
   --radius: 0.75rem;
