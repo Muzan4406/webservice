@@ -4,6 +4,7 @@ import { eq, desc, and } from "drizzle-orm";
 import { unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth";
+import { sendPushNotification, notifyAdmins } from "../lib/pushNotifications";
 
 const router: IRouter = Router();
 const UPLOADS_DIR = join(process.cwd(), "uploads");
@@ -79,6 +80,18 @@ router.post("/chat", requireAuth, async (req: AuthRequest, res): Promise<void> =
         isRead: false,
       })
       .returning();
+
+    // Notify all admins of new support message
+    const [sender] = await db
+      .select({ username: usersTable.username })
+      .from(usersTable)
+      .where(eq(usersTable.id, userId));
+
+    notifyAdmins({
+      title: "💬 Nouveau message support",
+      body: `${sender?.username ?? "Utilisateur"} : ${content?.trim() ?? "(fichier)"}`,
+      data: { type: "new_chat_message", userId: String(userId) },
+    });
 
     res.status(201).json({ message: msg });
   } catch {
@@ -259,6 +272,18 @@ router.post("/admin/chat/:userId", requireAdmin, async (req, res): Promise<void>
         isRead: false,
       })
       .returning();
+
+    // Notify the user of the admin reply
+    const [targetUser] = await db
+      .select({ pushToken: usersTable.pushToken })
+      .from(usersTable)
+      .where(eq(usersTable.id, uid));
+
+    sendPushNotification([targetUser?.pushToken], {
+      title: "💬 Réponse du support",
+      body: content?.trim() ?? "(fichier)",
+      data: { type: "admin_chat_reply", userId: String(uid) },
+    });
 
     res.status(201).json({ message: msg });
   } catch {

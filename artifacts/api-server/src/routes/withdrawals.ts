@@ -4,7 +4,7 @@ import { eq, desc } from "drizzle-orm";
 import { CreateWithdrawalBody, GetWithdrawalsQueryParams } from "@workspace/api-zod";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { tg } from "../lib/telegram";
-import { sendPushNotification } from "../lib/pushNotifications";
+import { sendPushNotification, notifyAdmins } from "../lib/pushNotifications";
 
 const router: IRouter = Router();
 
@@ -66,6 +66,13 @@ router.post("/withdrawals", requireAuth, async (req: AuthRequest, res): Promise<
     operator: withdrawal.operator,
     phone: withdrawal.phone,
     country: withdrawal.country,
+  });
+
+  // Notify admins of new withdrawal request
+  notifyAdmins({
+    title: "💸 Nouveau retrait",
+    body: `${wUser?.username ?? "Utilisateur"} demande un retrait de ${parseFloat(withdrawal.amount).toLocaleString()} XOF`,
+    data: { type: "new_withdrawal", withdrawalId: withdrawal.id },
   });
 
   res.status(201).json({ ...withdrawal, amount: parseFloat(withdrawal.amount), code: withdrawal.code ?? null });

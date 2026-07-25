@@ -4,7 +4,7 @@ import { eq, desc } from "drizzle-orm";
 import { CreateDepositBody, GetDepositsQueryParams, RejectDepositBody, ValidateDepositParams, RejectDepositParams } from "@workspace/api-zod";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { tg } from "../lib/telegram";
-import { sendPushNotification } from "../lib/pushNotifications";
+import { sendPushNotification, notifyAdmins } from "../lib/pushNotifications";
 
 const router: IRouter = Router();
 
@@ -100,6 +100,13 @@ router.post("/deposits", requireAuth, async (req: AuthRequest, res): Promise<voi
     operator: deposit.operator,
     oneXbetAccountId: deposit.oneXbetAccountId,
     country: deposit.country,
+  });
+
+  // Notify admins of new deposit
+  notifyAdmins({
+    title: "💰 Nouveau dépôt",
+    body: `${user?.username ?? "Utilisateur"} a soumis un dépôt de ${parseFloat(deposit.amount).toLocaleString()} XOF`,
+    data: { type: "new_deposit", depositId: deposit.id },
   });
 
   res.status(201).json({

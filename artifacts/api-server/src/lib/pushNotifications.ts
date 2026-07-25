@@ -1,6 +1,11 @@
 /**
  * Firebase Cloud Messaging (FCM) push notification helper.
  * Uses firebase-admin SDK to send notifications via FCM.
+ *
+ * Exports:
+ *   sendPushNotification   — send to specific token(s)
+ *   broadcastPushNotification — send to all provided tokens
+ *   notifyAdmins           — fetch all admin push tokens and send to them
  */
 
 import { initializeApp, getApps, cert } from "firebase-admin/app";
@@ -88,6 +93,25 @@ export async function sendPushNotification(
       console.log(`[FCM] Sent OK — messageId:`, result.value);
     }
   });
+}
+
+/**
+ * Notify all admin users who have a registered push token.
+ */
+export async function notifyAdmins(message: PushMessage): Promise<void> {
+  if (!getApps().length) return;
+  try {
+    // Lazy import to avoid circular deps at module load time
+    const { db, usersTable } = await import("@workspace/db");
+    const { eq, and, isNotNull } = await import("drizzle-orm");
+    const admins = await db
+      .select({ pushToken: usersTable.pushToken })
+      .from(usersTable)
+      .where(and(eq(usersTable.isAdmin, true), isNotNull(usersTable.pushToken)));
+    await sendPushNotification(admins.map((a) => a.pushToken), message);
+  } catch (err) {
+    console.error("[FCM] notifyAdmins failed:", err);
+  }
 }
 
 /**
