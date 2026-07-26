@@ -47,6 +47,28 @@ router.get("/coupons/vip", requireAuth, async (req: AuthRequest, res): Promise<v
   res.json({ coupons: result.map(formatCoupon) });
 });
 
+router.get("/coupons/validated", requireAuth, async (_req, res): Promise<void> => {
+  const coupons = await db
+    .select()
+    .from(couponsTable)
+    .where(eq(couponsTable.type, "validated"))
+    .orderBy(desc(couponsTable.createdAt));
+  res.json({ coupons: coupons.map(formatCoupon) });
+});
+
+router.get("/coupons/montante", requireAuth, async (req: AuthRequest, res): Promise<void> => {
+  if (!req.user?.isVip) {
+    res.status(403).json({ error: "VIP access required" });
+    return;
+  }
+  const coupons = await db
+    .select()
+    .from(couponsTable)
+    .where(eq(couponsTable.type, "montante"))
+    .orderBy(desc(couponsTable.createdAt));
+  res.json({ coupons: coupons.map(formatCoupon) });
+});
+
 router.get("/coupons", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   const params = GetAllCouponsQueryParams.safeParse(req.query);
   let coupons;

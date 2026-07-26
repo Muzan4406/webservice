@@ -11,4 +11,6 @@ export type CreateCouponRequestType = typeof CreateCouponRequestType[keyof typeo
 export const CreateCouponRequestType = {
   daily: 'daily',
   vip: 'vip',
+  validated: 'validated',
+  montante: 'montante',
 } as const;

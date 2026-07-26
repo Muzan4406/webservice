@@ -1539,6 +1539,74 @@ export function useGetVipCoupons<TData = Awaited<ReturnType<typeof getVipCoupons
 
 
 
+export const getGetValidatedCouponsUrl = () => `/api/coupons/validated`;
+
+/**
+ * @summary Get validated coupons
+ */
+export const getValidatedCoupons = async (options?: RequestInit): Promise<CouponListResponse> => {
+  return customFetch<CouponListResponse>(getGetValidatedCouponsUrl(), { ...options, method: 'GET' });
+};
+
+export const getGetValidatedCouponsQueryKey = () => [`/api/coupons/validated`] as const;
+
+export const getGetValidatedCouponsQueryOptions = <TData = Awaited<ReturnType<typeof getValidatedCoupons>>, TError = ErrorType<unknown>>(
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getValidatedCoupons>>, TError, TData>; request?: SecondParameter<typeof customFetch> }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getGetValidatedCouponsQueryKey();
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getValidatedCoupons>>> = ({ signal }) => getValidatedCoupons({ signal, ...requestOptions });
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<Awaited<ReturnType<typeof getValidatedCoupons>>, TError, TData> & { queryKey: QueryKey };
+};
+
+export type GetValidatedCouponsQueryResult = NonNullable<Awaited<ReturnType<typeof getValidatedCoupons>>>;
+export type GetValidatedCouponsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get validated coupons
+ */
+export function useGetValidatedCoupons<TData = Awaited<ReturnType<typeof getValidatedCoupons>>, TError = ErrorType<unknown>>(
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getValidatedCoupons>>, TError, TData>; request?: SecondParameter<typeof customFetch> }
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetValidatedCouponsQueryOptions(options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+export const getGetMontanteCouponsUrl = () => `/api/coupons/montante`;
+
+/**
+ * @summary Get montante coupons (VIP only)
+ */
+export const getMontanteCoupons = async (options?: RequestInit): Promise<CouponListResponse> => {
+  return customFetch<CouponListResponse>(getGetMontanteCouponsUrl(), { ...options, method: 'GET' });
+};
+
+export const getGetMontanteCouponsQueryKey = () => [`/api/coupons/montante`] as const;
+
+export const getGetMontanteCouponsQueryOptions = <TData = Awaited<ReturnType<typeof getMontanteCoupons>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getMontanteCoupons>>, TError, TData>; request?: SecondParameter<typeof customFetch> }
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+  const queryKey = queryOptions?.queryKey ?? getGetMontanteCouponsQueryKey();
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMontanteCoupons>>> = ({ signal }) => getMontanteCoupons({ signal, ...requestOptions });
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<Awaited<ReturnType<typeof getMontanteCoupons>>, TError, TData> & { queryKey: QueryKey };
+};
+
+export type GetMontanteCouponsQueryResult = NonNullable<Awaited<ReturnType<typeof getMontanteCoupons>>>;
+export type GetMontanteCouponsQueryError = ErrorType<ErrorResponse>;
+
+/**
+ * @summary Get montante coupons (VIP only)
+ */
+export function useGetMontanteCoupons<TData = Awaited<ReturnType<typeof getMontanteCoupons>>, TError = ErrorType<ErrorResponse>>(
+  options?: { query?: UseQueryOptions<Awaited<ReturnType<typeof getMontanteCoupons>>, TError, TData>; request?: SecondParameter<typeof customFetch> }
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMontanteCouponsQueryOptions(options);
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & { queryKey: QueryKey };
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
 export const getGetAllCouponsUrl = (params?: GetAllCouponsParams,) => {
   const normalizedParams = new URLSearchParams();
 

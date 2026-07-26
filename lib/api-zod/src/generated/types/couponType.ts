@@ -11,4 +11,6 @@ export type CouponType = typeof CouponType[keyof typeof CouponType];
 export const CouponType = {
   daily: 'daily',
   vip: 'vip',
+  validated: 'validated',
+  montante: 'montante',
 } as const;

@@ -34,7 +34,14 @@ async function uploadImage(file: File): Promise<string> {
   });
 }
 
-type CouponType = 'daily' | 'vip';
+type CouponType = 'daily' | 'vip' | 'validated' | 'montante';
+
+const TAB_CONFIG: { type: CouponType; label: string }[] = [
+  { type: 'daily',     label: 'Quotidien'  },
+  { type: 'vip',       label: 'VIP'        },
+  { type: 'validated', label: 'Validés'    },
+  { type: 'montante',  label: 'Montantes'  },
+];
 
 export default function AdminCouponsPage() {
   const [, setLocation] = useLocation();
@@ -50,7 +57,7 @@ export default function AdminCouponsPage() {
   const imageInputRef = useRef<HTMLInputElement>(null);
 
   const queryKey = getGetAllCouponsQueryKey({ type });
-  const { data, isLoading } = useGetAllCoupons({ type }, { query: { queryKey, staleTime: 0 } });
+  const { data, isLoading } = useGetAllCoupons({ type } as any, { query: { queryKey, staleTime: 0 } });
   const { mutate: createCoupon, isPending: isCreating } = useCreateCoupon();
   const { mutate: deleteCoupon } = useDeleteCoupon();
 
@@ -119,6 +126,13 @@ export default function AdminCouponsPage() {
 
   const coupons: any[] = (data as any)?.coupons ?? [];
 
+  const tabBadge = (t: CouponType) => {
+    if (t === 'vip') return <span className="ml-1 text-[10px] bg-amber-400 text-black font-bold px-1.5 py-0.5 rounded-full">VIP</span>;
+    if (t === 'montante') return <span className="ml-1 text-[10px] bg-amber-400 text-black font-bold px-1.5 py-0.5 rounded-full">VIP</span>;
+    if (t === 'validated') return <span className="ml-1 text-[10px] bg-emerald-500 text-white font-bold px-1.5 py-0.5 rounded-full">✓</span>;
+    return null;
+  };
+
   return (
     <div className="min-h-screen bg-[#F4F6FB] pb-8">
       <div className="bg-gradient-to-br from-[#1a2a5e] to-[#0f1a3e] p-6 pb-4">
@@ -134,11 +148,16 @@ export default function AdminCouponsPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex border-b bg-white">
-        {(['daily', 'vip'] as CouponType[]).map(t => (
-          <button key={t} onClick={() => setType(t)}
-            className={`flex-1 py-3 text-sm font-semibold uppercase ${type === t ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'}`}>
-            {t === 'daily' ? 'Quotidien' : 'VIP'}
+      <div className="flex border-b bg-white overflow-x-auto">
+        {TAB_CONFIG.map(({ type: t, label }) => (
+          <button
+            key={t}
+            onClick={() => setType(t)}
+            className={`flex-1 min-w-[80px] py-3 text-xs font-semibold uppercase flex items-center justify-center gap-0.5 whitespace-nowrap px-2 ${
+              type === t ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'
+            }`}
+          >
+            {label}{tabBadge(t)}
           </button>
         ))}
       </div>
@@ -149,13 +168,21 @@ export default function AdminCouponsPage() {
         ) : coupons.length === 0 ? (
           <Card>
             <CardContent className="py-10 text-center">
-              <p className="text-muted-foreground mb-4">Aucun coupon {type === 'daily' ? 'quotidien' : 'VIP'}.</p>
+              <p className="text-muted-foreground mb-4">
+                {type === 'daily' ? 'Aucun coupon quotidien.' :
+                 type === 'vip' ? 'Aucun coupon VIP.' :
+                 type === 'validated' ? 'Aucun coupon validé.' :
+                 'Aucune montante VIP.'}
+              </p>
               <Button onClick={() => setShowModal(true)}><Plus className="w-4 h-4 mr-2" />Ajouter un coupon</Button>
             </CardContent>
           </Card>
         ) : (
           coupons.map((item: any) => (
-            <Card key={item.id}>
+            <Card key={item.id} className={
+              item.type === 'validated' ? 'border-emerald-200 bg-emerald-50/30' :
+              item.type === 'montante' ? 'border-amber-200 bg-amber-50/30' : ''
+            }>
               <CardContent className="p-4">
                 {item.imageUrl && <img src={item.imageUrl} alt={item.title} className="w-full h-40 object-cover rounded-xl mb-3" />}
                 <div className="flex items-start justify-between">
@@ -183,7 +210,11 @@ export default function AdminCouponsPage() {
           <Card className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-t-2xl sm:rounded-2xl">
             <CardContent className="p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <h3 className="text-lg font-bold">Nouveau Coupon</h3>
+                <h3 className="text-lg font-bold">
+                  {type === 'validated' ? 'Coupon Validé' :
+                   type === 'montante' ? 'Montante VIP' :
+                   'Nouveau Coupon'}
+                </h3>
                 <button onClick={() => setShowModal(false)}><X className="w-5 h-5 text-muted-foreground" /></button>
               </div>
               <div className="space-y-3">
@@ -192,8 +223,12 @@ export default function AdminCouponsPage() {
                   <Input placeholder="Titre du coupon" value={form.title} onChange={e => setForm({ ...form, title: e.target.value })} />
                 </div>
                 <div className="space-y-1.5">
-                  <Label>Code du coupon</Label>
-                  <Input placeholder="PSG vs OM — 1X2" value={form.couponCode} onChange={e => setForm({ ...form, couponCode: e.target.value })} />
+                  <Label>{type === 'validated' ? 'Résultat / Détails' : 'Code du coupon'}</Label>
+                  <Input
+                    placeholder={type === 'validated' ? 'PSG 2-1 OM — Validé ✓' : 'PSG vs OM — 1X2'}
+                    value={form.couponCode}
+                    onChange={e => setForm({ ...form, couponCode: e.target.value })}
+                  />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Date *</Label>
@@ -214,11 +249,7 @@ export default function AdminCouponsPage() {
                   />
                   {imagePreview ? (
                     <div className="relative rounded-xl overflow-hidden border border-gray-200">
-                      <img
-                        src={imagePreview}
-                        alt="Aperçu"
-                        className="w-full max-h-48 object-contain bg-gray-50"
-                      />
+                      <img src={imagePreview} alt="Aperçu" className="w-full max-h-48 object-contain bg-gray-50" />
                       <button
                         type="button"
                         onClick={removeImage}

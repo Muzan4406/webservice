@@ -11,4 +11,6 @@ export type GetAllCouponsType = typeof GetAllCouponsType[keyof typeof GetAllCoup
 export const GetAllCouponsType = {
   daily: 'daily',
   vip: 'vip',
+  validated: 'validated',
+  montante: 'montante',
 } as const;

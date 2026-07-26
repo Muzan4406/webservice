@@ -404,7 +404,7 @@ export const ProcessWithdrawalResponse = zod.object({
 export const GetDailyCouponsResponse = zod.object({
   "coupons": zod.array(zod.object({
   "id": zod.number(),
-  "type": zod.enum(['daily', 'vip']),
+  "type": zod.enum(['daily', 'vip', 'validated', 'montante']),
   "title": zod.string(),
   "content": zod.string(),
   "imageUrl": zod.string().nullish(),
@@ -421,7 +421,7 @@ export const GetDailyCouponsResponse = zod.object({
 export const GetVipCouponsResponse = zod.object({
   "coupons": zod.array(zod.object({
   "id": zod.number(),
-  "type": zod.enum(['daily', 'vip']),
+  "type": zod.enum(['daily', 'vip', 'validated', 'montante']),
   "title": zod.string(),
   "content": zod.string(),
   "imageUrl": zod.string().nullish(),
@@ -436,13 +436,13 @@ export const GetVipCouponsResponse = zod.object({
  * @summary Admin - get all coupons
  */
 export const GetAllCouponsQueryParams = zod.object({
-  "type": zod.enum(['daily', 'vip']).optional()
+  "type": zod.enum(['daily', 'vip', 'validated', 'montante']).optional()
 })
 
 export const GetAllCouponsResponse = zod.object({
   "coupons": zod.array(zod.object({
   "id": zod.number(),
-  "type": zod.enum(['daily', 'vip']),
+  "type": zod.enum(['daily', 'vip', 'validated', 'montante']),
   "title": zod.string(),
   "content": zod.string(),
   "imageUrl": zod.string().nullish(),
@@ -457,7 +457,7 @@ export const GetAllCouponsResponse = zod.object({
  * @summary Admin - create a coupon
  */
 export const CreateCouponBody = zod.object({
-  "type": zod.enum(['daily', 'vip']),
+  "type": zod.enum(['daily', 'vip', 'validated', 'montante']),
   "title": zod.string(),
   "content": zod.string().optional(),
   "imageUrl": zod.string().optional(),
@@ -467,7 +467,7 @@ export const CreateCouponBody = zod.object({
 
 export const CreateCouponResponse = zod.object({
   "id": zod.number(),
-  "type": zod.enum(['daily', 'vip']),
+  "type": zod.enum(['daily', 'vip', 'validated', 'montante']),
   "title": zod.string(),
   "content": zod.string(),
   "imageUrl": zod.string().nullish(),
@@ -485,7 +485,7 @@ export const UpdateCouponParams = zod.object({
 })
 
 export const UpdateCouponBody = zod.object({
-  "type": zod.enum(['daily', 'vip']),
+  "type": zod.enum(['daily', 'vip', 'validated', 'montante']),
   "title": zod.string(),
   "content": zod.string().optional(),
   "imageUrl": zod.string().optional(),
@@ -495,7 +495,7 @@ export const UpdateCouponBody = zod.object({
 
 export const UpdateCouponResponse = zod.object({
   "id": zod.number(),
-  "type": zod.enum(['daily', 'vip']),
+  "type": zod.enum(['daily', 'vip', 'validated', 'montante']),
   "title": zod.string(),
   "content": zod.string(),
   "imageUrl": zod.string().nullish(),
