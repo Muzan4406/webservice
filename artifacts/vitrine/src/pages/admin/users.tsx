@@ -5,7 +5,7 @@ import {
 } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useQueryClient } from '@tanstack/react-query';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Search, Shield, Star, Ban, Trash2, Key, ChevronLeft, ChevronRight } from 'lucide-react';

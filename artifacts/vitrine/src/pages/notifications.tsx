@@ -3,7 +3,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useGetNotifications, useMarkNotificationRead, useMarkAllNotificationsRead, getGetNotificationsQueryKey } from '@workspace/api-client-react';
 import { BottomNav } from '@/components/BottomNav';
 import { CheckCheck, Bell, BellOff, ChevronLeft } from 'lucide-react';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { useLocation } from 'wouter';

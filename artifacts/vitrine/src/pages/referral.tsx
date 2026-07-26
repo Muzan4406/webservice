@@ -2,7 +2,7 @@ import { motion } from 'framer-motion';
 import { useGetReferrals } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { BottomNav } from '@/components/BottomNav';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { Copy, Users, UserCheck, Link as LinkIcon, Share2, CheckCircle2 } from 'lucide-react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';

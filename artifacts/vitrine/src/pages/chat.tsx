@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Send, Mic, MicOff, ImagePlus, Play, Pause, Loader2, Trash2, CheckCircle } from 'lucide-react';
 import { Link } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 
 const BASE_URL = import.meta.env.BASE_URL;
 

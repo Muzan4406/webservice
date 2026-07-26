@@ -6,7 +6,7 @@ import {
   LogOut, Calendar, AtSign, Smartphone, Shield, Phone,
 } from 'lucide-react';
 import { useLocation } from 'wouter';
-import { toast } from 'sonner';
+import { toast } from '@/lib/toast';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
