@@ -17,9 +17,13 @@ async function uploadImage(file: File): Promise<string> {
     reader.onload = async () => {
       try {
         const base64 = (reader.result as string).split(',')[1];
+        const token = localStorage.getItem('muzan_auth_token');
         const res = await fetch('/api/upload', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
           body: JSON.stringify({ base64, mimeType: file.type }),
         });
         const data = await res.json();
