@@ -43,11 +43,28 @@ import AdminDepositDetailPage from '@/pages/admin/deposit-detail';
 setBaseUrl(null);
 setAuthTokenGetter(() => localStorage.getItem('muzan_auth_token'));
 
+function handleApiError(error: unknown) {
+  const status = (error as any)?.status;
+  if (status === 401) {
+    localStorage.removeItem('muzan_auth_token');
+    localStorage.removeItem('muzan_auth_user');
+    // Hard redirect so the app re-initialises from a clean state
+    window.location.href = '/login';
+  }
+}
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      retry: 1,
+      retry: (failureCount, error) => {
+        // Never retry 401 — the session is gone, retrying won't help
+        if ((error as any)?.status === 401) return false;
+        return failureCount < 1;
+      },
       refetchOnWindowFocus: false,
+    },
+    mutations: {
+      onError: handleApiError,
     },
   },
 });
