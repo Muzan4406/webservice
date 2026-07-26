@@ -44,9 +44,6 @@ The Vite dev server proxies `/api` and `/webhooks` to the backend at `localhost:
 
 | Secret | Description |
 |--------|-------------|
-| `FIREBASE_PROJECT_ID` | FCM push notifications |
-| `FIREBASE_CLIENT_EMAIL` | FCM push notifications |
-| `FIREBASE_PRIVATE_KEY` | FCM push notifications |
 | `TELEGRAM_BOT_TOKEN` | Telegram alert notifications |
 | `TELEGRAM_CHAT_ID` | Telegram alert notifications |
 | `SENDAVAPAY_API_KEY` | Sendavapay payment gateway |
