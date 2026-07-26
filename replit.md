@@ -1,57 +1,70 @@
 # Muzan Service
 
-A full-stack financial/betting platform (Muzan Service) built as a pnpm monorepo.
+A French-language financial/gaming platform with deposits, withdrawals, coupons, VIP tiers, contests, promotions, and in-app chat.
 
 ## Stack
 
 | Layer | Tech |
-|---|---|
-| Frontend (web) | React 19 + Vite 8, Tailwind CSS v4, TanStack Query, Wouter |
-| Backend | Express 5 (TypeScript, ESM), Drizzle ORM |
-| Database | PostgreSQL (via Drizzle) |
-| Mobile | Expo / React Native |
+|-------|------|
+| Frontend | React 19, Vite 8, Tailwind CSS 4, shadcn/Radix UI, Wouter (routing), TanStack Query |
+| Backend | Express 5, TypeScript (tsx in dev), Drizzle ORM |
+| Database | PostgreSQL (via `PG_URL`) |
+| Monorepo | pnpm workspaces (`pnpm-workspace.yaml`) |
 
-## Monorepo layout
+## Project layout
 
 ```
 artifacts/
-  api-server/   – Express backend (port 3000)
-  vitrine/      – React web frontend (port 5000)
-  mobile/       – Expo React Native app
+  api-server/   — Express REST API (port 3000)
+  vitrine/      — React frontend (port 5000, proxies /api → :3000)
 lib/
-  db/           – Drizzle schema & client (@workspace/db)
-  api-zod/      – Shared Zod validators
-  api-client-react/ – React Query API client
+  db/           — Drizzle schema + PostgreSQL client
+  api-zod/      — Shared Zod validation schemas
+  api-client-react/ — Generated React Query hooks
+  api-spec/     — OpenAPI spec + Orval codegen config
 ```
 
-## Running on Replit
+## Running the project
 
-The **Project** workflow starts both services in parallel:
-- **Start Backend** — `cd artifacts/api-server && PORT=3000 pnpm exec tsx src/index.ts`
+Two workflows must both be running:
+
+- **Start Backend** — `cd artifacts/api-server && PORT=3000 NODE_ENV=development pnpm exec tsx src/index.ts`
 - **Start application** — `cd artifacts/vitrine && PORT=5000 pnpm run dev`
 
-The frontend dev server proxies `/api` and `/webhooks` to the backend on port 3000.
+The Vite dev server proxies `/api` and `/webhooks` to the backend at `localhost:3000`.
 
 ## Required secrets
 
-| Secret | Purpose |
-|---|---|
-| `PG_URL` | PostgreSQL connection string |
-| `SESSION_SECRET` | Session signing key |
+| Secret | Description |
+|--------|-------------|
+| `PG_URL` | PostgreSQL connection string (e.g. Supabase) |
+| `SESSION_SECRET` | Secret used to sign session tokens |
 
-## Optional secrets
+## Optional secrets (features degrade gracefully without them)
 
-| Secret | Purpose |
-|---|---|
-| `TELEGRAM_BOT_TOKEN` | Telegram alert bot |
-| `TELEGRAM_CHAT_ID` | Telegram chat for alerts |
+| Secret | Description |
+|--------|-------------|
+| `FIREBASE_PROJECT_ID` | FCM push notifications |
+| `FIREBASE_CLIENT_EMAIL` | FCM push notifications |
+| `FIREBASE_PRIVATE_KEY` | FCM push notifications |
+| `TELEGRAM_BOT_TOKEN` | Telegram alert notifications |
+| `TELEGRAM_CHAT_ID` | Telegram alert notifications |
+| `SENDAVAPAY_API_KEY` | Sendavapay payment gateway |
+| `SENDAVAPAY_WEBHOOK_SECRET` | Sendavapay webhook verification |
+| `PUBLIC_OBJECT_SEARCH_PATHS` | Replit Object Storage (public files) |
+| `PRIVATE_OBJECT_DIR` | Replit Object Storage (private uploads) |
 
 ## Database migrations
 
 ```bash
-cd lib/db && pnpm run push
+cd lib/db && pnpm run push       # apply schema to DB
+cd lib/db && pnpm run push-force # force-apply (drops conflicting columns)
+```
+
+## API codegen (after editing openapi.yaml)
+
+```bash
+cd lib/api-spec && pnpm run codegen
 ```
 
 ## User preferences
-
-<!-- Add any preferences here -->
