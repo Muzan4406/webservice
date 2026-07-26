@@ -97,10 +97,11 @@ function EmptyState({ message }: { message: string }) {
 export default function CouponsPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState('daily');
+  const isVip = !!user?.isVip;
   const dailyCoupons = useGetDailyCoupons();
-  const vipCoupons = useGetVipCoupons();
+  const vipCoupons = useGetVipCoupons({ query: { enabled: isVip } });
   const validatedCoupons = useGetValidatedCoupons();
-  const montanteCoupons = useGetMontanteCoupons();
+  const montanteCoupons = useGetMontanteCoupons({ query: { enabled: isVip } });
   const appSettings = useGetAppSettings();
   const vipPrice = appSettings.data?.vipPriceFcfa ?? 5000;
 
