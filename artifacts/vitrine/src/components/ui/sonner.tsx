@@ -8,33 +8,49 @@ const Toaster = ({ ...props }: ToasterProps) => {
   return (
     <Sonner
       theme="light"
+      position="bottom-center"
       className="toaster group"
-      richColors
-      closeButton
-      gap={8}
+      richColors={false}
+      closeButton={false}
+      gap={10}
       toastOptions={{
-        duration: 4000,
+        duration: 3500,
         classNames: {
           toast: [
             'group toast',
-            'flex items-start gap-3',
-            'rounded-2xl px-4 py-3.5',
-            'shadow-xl border-0',
-            'text-sm font-semibold',
-            'backdrop-blur-md',
+            'flex items-center gap-3',
+            'rounded-2xl px-4 py-3',
+            'shadow-2xl',
+            'text-sm font-medium',
+            'min-w-[220px] max-w-[340px]',
+            'border-0',
           ].join(' '),
-          title: 'font-bold text-sm leading-snug',
-          description: 'font-normal text-xs opacity-75 mt-0.5 leading-relaxed',
-          success: '!bg-emerald-500 !text-white [&>[data-icon]]:text-white',
-          error: '!bg-red-500 !text-white [&>[data-icon]]:text-white',
-          warning: '!bg-amber-400 !text-amber-900 [&>[data-icon]]:text-amber-900',
-          info: '!bg-[#1a2a5e] !text-white [&>[data-icon]]:text-white',
-          closeButton: [
-            '!bg-white/20 !border-0 !text-current',
-            'hover:!bg-white/30 rounded-full',
+          title: 'font-semibold text-sm leading-tight',
+          description: 'text-xs opacity-70 mt-0.5 leading-snug',
+          // Succès : vert profond avec icône blanche
+          success: [
+            '!bg-[#1a7a4a] !text-white',
+            '[&>[data-icon]]:text-white',
+            '[&>[data-icon]]:opacity-90',
           ].join(' '),
-          actionButton: '!bg-white/20 !text-current hover:!bg-white/30 rounded-xl font-bold',
-          cancelButton: '!bg-white/10 !text-current hover:!bg-white/20 rounded-xl',
+          // Erreur : rouge mat
+          error: [
+            '!bg-[#c0392b] !text-white',
+            '[&>[data-icon]]:text-white',
+            '[&>[data-icon]]:opacity-90',
+          ].join(' '),
+          // Avertissement : ambre foncé
+          warning: [
+            '!bg-[#d97706] !text-white',
+            '[&>[data-icon]]:text-white',
+            '[&>[data-icon]]:opacity-90',
+          ].join(' '),
+          // Info : marine Muzan
+          info: [
+            '!bg-[#1a2a5e] !text-white',
+            '[&>[data-icon]]:text-white',
+            '[&>[data-icon]]:opacity-90',
+          ].join(' '),
         },
       }}
       {...props}
