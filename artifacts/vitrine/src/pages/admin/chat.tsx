@@ -263,7 +263,7 @@ export default function AdminChatPage() {
                         title="Supprimer"
                         aria-label="Supprimer ce message"
                         onClick={() => handleDeleteMessage(msg.id)}
-                        className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+                        className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center"
                       >
                         <Trash2 className="w-3.5 h-3.5 text-red-500" />
                       </button>

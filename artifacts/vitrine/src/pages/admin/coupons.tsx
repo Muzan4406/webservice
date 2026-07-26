@@ -63,6 +63,19 @@ export default function AdminCouponsPage() {
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey });
 
+  const resetForm = () => {
+    setForm({ title: '', couponCode: '', odds: '', date: todayStr() });
+    setImageFile(null);
+    setImagePreview(null);
+    if (imageInputRef.current) imageInputRef.current.value = '';
+  };
+
+  const switchTab = (t: CouponType) => {
+    setType(t);
+    setShowModal(false);
+    resetForm();
+  };
+
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -107,9 +120,7 @@ export default function AdminCouponsPage() {
       onSuccess: () => {
         toast.success('Coupon créé.');
         setShowModal(false);
-        setForm({ title: '', couponCode: '', odds: '', date: todayStr() });
-        setImageFile(null);
-        setImagePreview(null);
+        resetForm();
         invalidate();
       },
       onError: (err: any) => toast.error(err?.data?.error ?? 'Création échouée.'),
@@ -152,7 +163,7 @@ export default function AdminCouponsPage() {
         {TAB_CONFIG.map(({ type: t, label }) => (
           <button
             key={t}
-            onClick={() => setType(t)}
+            onClick={() => switchTab(t)}
             className={`flex-1 min-w-[80px] py-3 text-xs font-semibold uppercase flex items-center justify-center gap-0.5 whitespace-nowrap px-2 ${
               type === t ? 'text-primary border-b-2 border-primary' : 'text-muted-foreground'
             }`}
@@ -184,7 +195,7 @@ export default function AdminCouponsPage() {
               item.type === 'montante' ? 'border-amber-200 bg-amber-50/30' : ''
             }>
               <CardContent className="p-4">
-                {item.imageUrl && <img src={item.imageUrl} alt={item.title} className="w-full h-40 object-cover rounded-xl mb-3" />}
+                {item.imageUrl && <img src={item.imageUrl} alt={item.title} className="w-full max-h-64 object-contain rounded-xl mb-3 bg-gray-50" />}
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <p className="font-bold text-foreground">{item.title}</p>

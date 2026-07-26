@@ -119,7 +119,7 @@ function MessageBubble({ msg, onDelete }: { msg: ChatMessage; onDelete: (message
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
       className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-      <div className={`group relative max-w-[78%] rounded-2xl px-3.5 py-2.5 shadow-sm ${
+      <div className={`relative max-w-[78%] rounded-2xl px-3.5 py-2.5 shadow-sm ${
         mine ? 'bg-[#1a2a5e] text-white rounded-br-sm' : 'bg-white text-gray-800 rounded-bl-sm border border-gray-100'
       }`}>
         {canDelete && (
@@ -128,14 +128,14 @@ function MessageBubble({ msg, onDelete }: { msg: ChatMessage; onDelete: (message
             title="Supprimer"
             aria-label="Supprimer ce message"
             onClick={() => onDelete(msg.id)}
-            className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center opacity-0 group-hover:opacity-100 focus:opacity-100 transition-opacity"
+            className="absolute -top-2 -right-2 z-10 w-6 h-6 rounded-full bg-white shadow-md border border-gray-200 flex items-center justify-center"
           >
             <Trash2 className="w-3.5 h-3.5 text-red-500" />
           </button>
         )}
         {msg.type === 'text' && <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>}
         {msg.type === 'image' && msg.fileUrl && (
-          <img src={msg.fileUrl} alt="Image" className="rounded-xl max-w-full max-h-48 object-cover" />
+          <img src={msg.fileUrl} alt="Image" className="rounded-xl max-w-full max-h-48 object-contain" />
         )}
         {msg.type === 'audio' && msg.fileUrl && (
           <AudioBubble url={msg.fileUrl} fromAdmin={msg.fromAdmin} />
