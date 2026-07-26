@@ -7,7 +7,6 @@ import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { AdminRoute } from '@/components/AdminRoute';
 import { PwaInstallBanner } from '@/components/PwaInstallBanner';
-import { useFcmToken } from '@/hooks/useFcmToken';
 
 // User pages
 import LoginPage from '@/pages/login';
@@ -141,7 +140,6 @@ function Router() {
 
 function FcmSetup() {
   const { isAuthenticated } = useAuth();
-  useFcmToken(isAuthenticated);
   return null;
 }
 

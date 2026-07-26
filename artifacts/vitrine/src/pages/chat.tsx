@@ -119,8 +119,10 @@ function MessageBubble({ msg, onDelete }: { msg: ChatMessage; onDelete: (message
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
       className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-      <div className={`relative max-w-[78%] rounded-2xl px-3.5 py-2.5 shadow-sm ${
-        mine ? 'bg-[#1a2a5e] text-white rounded-br-sm' : 'bg-white text-gray-800 rounded-bl-sm border border-gray-100'
+      <div className={`relative max-w-[78%] rounded-2xl px-3.5 py-2.5 ${
+        mine
+          ? 'bg-[#1a2a5e] text-white rounded-br-sm shadow-md'
+          : 'bg-[#e8f5e9] text-gray-900 rounded-bl-sm shadow-md border border-green-200'
       }`}>
         {canDelete && (
           <button
@@ -135,12 +137,12 @@ function MessageBubble({ msg, onDelete }: { msg: ChatMessage; onDelete: (message
         )}
         {msg.type === 'text' && <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>}
         {msg.type === 'image' && msg.fileUrl && (
-          <img src={msg.fileUrl} alt="Image" className="rounded-xl max-w-full max-h-48 object-contain" />
+          <img src={msg.fileUrl} alt="Image" className="rounded-xl max-w-full object-contain" />
         )}
         {msg.type === 'audio' && msg.fileUrl && (
           <AudioBubble url={msg.fileUrl} fromAdmin={msg.fromAdmin} />
         )}
-        <p className={`text-[10px] mt-1 ${mine ? 'text-white/50 text-right' : 'text-gray-400'}`}>
+        <p className={`text-[10px] mt-1 ${mine ? 'text-white/50 text-right' : 'text-green-800/60'}`}>
           {new Date(msg.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
           {mine && <span className="ml-1">{msg.isRead ? '✓✓' : '✓'}</span>}
         </p>
@@ -318,8 +320,8 @@ export default function ChatPage() {
 
       {/* Messages list */}
       <div
-        className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-[#101010] bg-repeat"
-        style={{ backgroundImage: `url(${BASE_URL}chat-background.png)`, backgroundSize: '270px auto' }}
+        className="flex-1 overflow-y-auto px-4 py-4 space-y-3 bg-repeat"
+        style={{ backgroundImage: `url(${BASE_URL}chat-background.jpg)`, backgroundSize: '320px auto', backgroundColor: '#f0f0f0' }}
       >
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center py-16 text-gray-400 space-y-2">
