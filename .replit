@@ -34,7 +34,7 @@ outputType = "console"
 
 [[workflows.workflow.tasks]]
 task = "shell.exec"
-args = "cd artifacts/api-server && PORT=3000 NODE_ENV=development pnpm exec tsx src/index.ts"
+args = "cd artifacts/api-server && PORT=3000 NODE_ENV=development node_modules/.bin/tsx src/index.ts"
 waitForPort = 3000
 
 [[workflows.workflow]]
