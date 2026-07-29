@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/lib/toast';
 import { ArrowLeft, Globe, Smartphone, Info, Wrench, ImagePlus, X, Check, Loader2 } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { useAuth } from '@/contexts/AuthContext';
 
 async function uploadImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -76,6 +77,7 @@ const TMONEY_USSD = '*145*5*MONTANT*1181879*CODE SECRET#';
 
 export default function DepositPage() {
   const [, setLocation] = useLocation();
+  const { user } = useAuth() as any;
   const [activeTab, setActiveTab] = useState<'national' | 'international'>('national');
 
   const { data: paymentConfig } = useGetPaymentConfig({ query: { queryKey: getGetPaymentConfigQueryKey() } });
@@ -205,7 +207,7 @@ export default function DepositPage() {
     if (!intlPayerPhone.trim()) { toast.error('Entrez votre numéro de téléphone.'); return; }
     try {
       const res: any = await intlInitiate({
-        data: { paymentToken: intlPaymentToken, operatorId: intlSelectedOperator.id, payerPhone: intlPayerPhone, payerCountry: intlCountryCode },
+        data: { paymentToken: intlPaymentToken, operatorId: intlSelectedOperator.id, payerPhone: intlPayerPhone, payerCountry: intlCountryCode, payerName: user?.username ?? 'User' },
       });
       if (res.redirectUrl) { setIntlRedirectUrl(res.redirectUrl); setIntlStep('redirect'); }
       else if (res.otpToken) { setIntlOtpToken(res.otpToken); setIntlStep('otp'); }

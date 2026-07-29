@@ -109,7 +109,7 @@ export default function VipPurchasePage() {
     if (!payerPhone.trim()) { toast.error('Entrez votre numéro de téléphone.'); return; }
     try {
       const res: any = await initiatePayment({
-        data: { paymentToken, operatorId: selectedOperator.id, payerPhone, payerCountry: countryCode },
+        data: { paymentToken, operatorId: selectedOperator.id, payerPhone, payerCountry: countryCode, payerName: user?.username ?? 'User' },
       });
       if (res.redirectUrl) { setRedirectUrl(res.redirectUrl); setStep('redirect'); }
       else if (res.otpToken) { setOtpToken(res.otpToken); setStep('otp'); }
@@ -210,7 +210,7 @@ export default function VipPurchasePage() {
                   <div className="space-y-3">
                     {operators.map((op: any) => (
                       <button
-                        key={op.code}
+                        key={op.id}
                         onClick={() => setSelectedOperator(op)}
                         className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-colors ${selectedOperator?.id === op.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'}`}
                       >
