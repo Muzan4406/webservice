@@ -211,6 +211,7 @@ export default function DepositPage() {
       });
       if (res.redirectUrl) { setIntlRedirectUrl(res.redirectUrl); setIntlStep('redirect'); }
       else if (res.otpToken) { setIntlOtpToken(res.otpToken); setIntlStep('otp'); }
+      else if (res.reference) { setIntlSpReference(res.reference); setIntlStep('waiting'); }
       else { toast.error("Réponse inattendue de l'opérateur."); }
     } catch (e: any) {
       toast.error(e?.data?.error ?? "Erreur lors de l'initiation.");

@@ -113,6 +113,7 @@ export default function VipPurchasePage() {
       });
       if (res.redirectUrl) { setRedirectUrl(res.redirectUrl); setStep('redirect'); }
       else if (res.otpToken) { setOtpToken(res.otpToken); setStep('otp'); }
+      else if (res.reference) { setSpReference(res.reference); setStep('waiting'); }
       else { toast.error('Réponse inattendue de l\'opérateur.'); }
     } catch (e: any) {
       toast.error(e?.data?.error ?? 'Erreur lors de l\'initiation du paiement.');
