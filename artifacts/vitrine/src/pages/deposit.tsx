@@ -1,12 +1,21 @@
-import { useState, useRef } from 'react';
-import { useCreateDeposit, useGetPaymentConfig, getGetPaymentConfigQueryKey } from '@workspace/api-client-react';
+import { useState, useRef, useEffect } from 'react';
+import {
+  useCreateDeposit,
+  useGetPaymentConfig,
+  getGetPaymentConfigQueryKey,
+  useCreateDepositPayment,
+  useGetSendavapayOperators,
+  useInitiateSendavapayPayment,
+  useSubmitPaymentOtp,
+  useGetSendavapayPaymentStatus,
+} from '@workspace/api-client-react';
 import { BottomNav } from '@/components/BottomNav';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/lib/toast';
-import { ArrowLeft, Globe, Smartphone, Info, Wrench, ImagePlus, X } from 'lucide-react';
+import { ArrowLeft, Globe, Smartphone, Info, Wrench, ImagePlus, X, Check, Loader2 } from 'lucide-react';
 import { useLocation } from 'wouter';
 
 async function uploadImage(file: File): Promise<string> {
@@ -49,6 +58,20 @@ const COUNTRIES = [
   'Niger',
 ];
 
+const COUNTRY_CODES: Record<string, string> = {
+  'Togo': 'TG', 'Bénin': 'BJ', "Côte d'Ivoire": 'CI',
+  'Burkina Faso': 'BF', 'Cameroun': 'CM', 'Congo démocratique': 'CD',
+  'Congo Brazzaville': 'CG', 'Sénégal': 'SN', 'Mali': 'ML', 'Niger': 'NE',
+};
+
+const COUNTRY_CURRENCIES: Record<string, string> = {
+  'Togo': 'XOF', 'Bénin': 'XOF', "Côte d'Ivoire": 'XOF',
+  'Burkina Faso': 'XOF', 'Cameroun': 'XAF', 'Congo démocratique': 'CDF',
+  'Congo Brazzaville': 'XAF', 'Sénégal': 'XOF', 'Mali': 'XOF', 'Niger': 'XOF',
+};
+
+type IntlStep = 'form' | 'operators' | 'otp' | 'redirect' | 'waiting' | 'done' | 'failed';
+
 const TMONEY_USSD = '*145*5*MONTANT*1181879*CODE SECRET#';
 
 export default function DepositPage() {
@@ -67,10 +90,41 @@ export default function DepositPage() {
   const [isUploading, setIsUploading] = useState(false);
   const screenshotInputRef = useRef<HTMLInputElement>(null);
 
-  // International
+  // International — multi-step SendavaPay
+  const [intlStep, setIntlStep] = useState<IntlStep>('form');
   const [intlCountry, setIntlCountry] = useState('');
   const [intlAmount, setIntlAmount] = useState('');
   const [intlAccountId, setIntlAccountId] = useState('');
+  const [intlPaymentToken, setIntlPaymentToken] = useState('');
+  const [intlSpReference, setIntlSpReference] = useState('');
+  const [intlSelectedOperator, setIntlSelectedOperator] = useState<any>(null);
+  const [intlPayerPhone, setIntlPayerPhone] = useState('');
+  const [intlOtpToken, setIntlOtpToken] = useState('');
+  const [intlOtpCode, setIntlOtpCode] = useState('');
+  const [intlRedirectUrl, setIntlRedirectUrl] = useState('');
+
+  const intlCountryCode = COUNTRY_CODES[intlCountry] ?? '';
+  const { data: intlOperatorsData, isLoading: intlLoadingOperators } = useGetSendavapayOperators(
+    intlCountryCode || '_',
+    { query: { enabled: !!intlCountryCode && intlStep === 'operators' } }
+  );
+  const intlOperators: any[] = (intlOperatorsData as any)?.operators ?? [];
+
+  const { mutateAsync: createDepositPayment, isPending: intlCreating } = useCreateDepositPayment();
+  const { mutateAsync: intlInitiate, isPending: intlInitiating } = useInitiateSendavapayPayment();
+  const { mutateAsync: intlSubmitOtp, isPending: intlSubmittingOtp } = useSubmitPaymentOtp();
+
+  const { data: intlStatusData } = useGetSendavapayPaymentStatus(
+    intlSpReference || '_',
+    { query: { enabled: !!intlSpReference && intlStep === 'waiting', refetchInterval: 5000 } }
+  );
+
+  useEffect(() => {
+    if (!intlStatusData) return;
+    const s = (intlStatusData as any)?.status;
+    if (s === 'completed') setIntlStep('done');
+    else if (s === 'failed' || s === 'expired') setIntlStep('failed');
+  }, [intlStatusData]);
 
   const createDeposit = useCreateDeposit();
 
@@ -128,28 +182,48 @@ export default function DepositPage() {
     );
   };
 
-  const handleInternationalSubmit = (e: React.FormEvent) => {
+  const handleInternationalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    createDeposit.mutate(
-      {
+    if (!intlCountry) { toast.error('Sélectionnez votre pays.'); return; }
+    try {
+      const res: any = await createDepositPayment({
         data: {
-          type: 'international',
-          operator: 'other',
-          oneXbetAccountId: intlAccountId,
           amount: Number(intlAmount),
-          country: intlCountry,
+          currency: COUNTRY_CURRENCIES[intlCountry] ?? 'XOF',
+          payerCountry: intlCountryCode,
+          oneXbetAccountId: intlAccountId,
         },
-      },
-      {
-        onSuccess: () => {
-          toast.success('Demande de dépôt soumise avec succès');
-          setLocation('/transactions');
-        },
-        onError: (error: any) => {
-          toast.error(error?.error || 'Erreur lors de la soumission');
-        },
-      }
-    );
+      });
+      setIntlPaymentToken(res.paymentToken);
+      setIntlStep('operators');
+    } catch (e: any) {
+      toast.error(e?.data?.error ?? 'Erreur lors de la création du paiement.');
+    }
+  };
+
+  const handleIntlInitiate = async () => {
+    if (!intlPayerPhone.trim()) { toast.error('Entrez votre numéro de téléphone.'); return; }
+    try {
+      const res: any = await intlInitiate({
+        data: { paymentToken: intlPaymentToken, operatorId: intlSelectedOperator.id, payerPhone: intlPayerPhone, payerCountry: intlCountryCode },
+      });
+      if (res.redirectUrl) { setIntlRedirectUrl(res.redirectUrl); setIntlStep('redirect'); }
+      else if (res.otpToken) { setIntlOtpToken(res.otpToken); setIntlStep('otp'); }
+      else { toast.error("Réponse inattendue de l'opérateur."); }
+    } catch (e: any) {
+      toast.error(e?.data?.error ?? "Erreur lors de l'initiation.");
+    }
+  };
+
+  const handleIntlOtp = async () => {
+    if (!intlOtpCode.trim()) { toast.error('Entrez le code OTP.'); return; }
+    try {
+      const res: any = await intlSubmitOtp({ data: { otpToken: intlOtpToken, otpCode: intlOtpCode } });
+      setIntlSpReference(res.reference);
+      setIntlStep('waiting');
+    } catch (e: any) {
+      toast.error(e?.data?.error ?? 'Code OTP incorrect.');
+    }
   };
 
   return (
@@ -365,76 +439,159 @@ export default function DepositPage() {
           </div>
         )}
 
-        {/* International Form */}
+        {/* International Form — multi-step SendavaPay */}
         {activeTab === 'international' && (
-          <div className="bg-white rounded-2xl p-5 shadow-sm">
-            {/* SendavaPay banner */}
-            <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-5">
-              <div className="flex items-center gap-2 text-purple-600 font-semibold text-sm mb-1">
-                <Globe className="w-4 h-4" />
-                Dépôt via SendavaPay
-              </div>
-              <p className="text-sm text-gray-600">
-                Payez depuis votre pays avec votre opérateur mobile local.
-              </p>
-            </div>
+          <div className="space-y-4">
 
-            <form onSubmit={handleInternationalSubmit} className="space-y-5">
-              {/* Amount */}
-              <div className="space-y-2">
-                <Label className="text-gray-700 font-medium">Montant (FCFA)</Label>
-                <div className="relative">
-                  <Input
-                    type="number"
-                    value={intlAmount}
-                    onChange={(e) => setIntlAmount(e.target.value)}
-                    placeholder="Ex: 5000"
-                    required
-                    className="pr-16 h-14 text-base bg-gray-50 border-gray-200 rounded-xl"
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
-                    FCFA
-                  </span>
+            {/* Step: form */}
+            {intlStep === 'form' && (
+              <div className="bg-white rounded-2xl p-5 shadow-sm">
+                <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-5">
+                  <div className="flex items-center gap-2 text-purple-600 font-semibold text-sm mb-1">
+                    <Globe className="w-4 h-4" />
+                    Dépôt via SendavaPay
+                  </div>
+                  <p className="text-sm text-gray-600">Payez depuis votre pays avec votre opérateur mobile local.</p>
+                </div>
+                <form onSubmit={handleInternationalSubmit} className="space-y-5">
+                  <div className="space-y-2">
+                    <Label className="text-gray-700 font-medium">Montant (FCFA)</Label>
+                    <div className="relative">
+                      <Input type="number" value={intlAmount} onChange={e => setIntlAmount(e.target.value)}
+                        placeholder="Ex: 5000" required className="pr-16 h-14 text-base bg-gray-50 border-gray-200 rounded-xl" />
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">FCFA</span>
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-gray-700 font-medium">ID de compte 1xbet</Label>
+                    <Input value={intlAccountId} onChange={e => setIntlAccountId(e.target.value)}
+                      placeholder="Votre ID de compte 1xbet" required className="h-14 text-base bg-gray-50 border-gray-200 rounded-xl" />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-gray-700 font-medium">Votre pays</Label>
+                    <Select value={intlCountry} onValueChange={setIntlCountry} required>
+                      <SelectTrigger className="h-14 text-base bg-gray-50 border-gray-200 rounded-xl">
+                        <SelectValue placeholder="Sélectionner votre pays" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {COUNTRIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button type="submit" disabled={intlCreating || !intlCountry || !intlAmount || !intlAccountId}
+                    className="w-full h-14 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-2xl text-base">
+                    {intlCreating ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Création...</> : '→  Continuer vers le paiement'}
+                  </Button>
+                </form>
+              </div>
+            )}
+
+            {/* Step: operators */}
+            {intlStep === 'operators' && (
+              <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+                <div>
+                  <h3 className="text-lg font-bold mb-1">Choisir l'opérateur</h3>
+                  <p className="text-sm text-gray-500">Sélectionnez votre opérateur Mobile Money</p>
+                </div>
+                {intlLoadingOperators ? (
+                  <div className="flex justify-center py-8"><Loader2 className="w-8 h-8 animate-spin text-purple-600" /></div>
+                ) : (
+                  <div className="space-y-3">
+                    {intlOperators.map((op: any) => (
+                      <button key={op.id} onClick={() => setIntlSelectedOperator(op)}
+                        className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-colors ${intlSelectedOperator?.id === op.id ? 'border-purple-600 bg-purple-50' : 'border-gray-200 hover:border-purple-300'}`}>
+                        <span className="font-semibold">{op.name}</span>
+                        {intlSelectedOperator?.id === op.id && <Check className="w-5 h-5 text-purple-600" />}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {intlSelectedOperator && (
+                  <div className="space-y-3 pt-2">
+                    <div className="space-y-2">
+                      <Label className="text-gray-700 font-medium">Numéro de téléphone</Label>
+                      <Input placeholder="Ex: 90000000" value={intlPayerPhone} onChange={e => setIntlPayerPhone(e.target.value)} type="tel"
+                        className="h-14 text-base bg-gray-50 border-gray-200 rounded-xl" />
+                    </div>
+                    <Button onClick={handleIntlInitiate} disabled={intlInitiating} className="w-full h-12 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl">
+                      {intlInitiating ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                      Payer {Number(intlAmount).toLocaleString()} {COUNTRY_CURRENCIES[intlCountry] ?? 'XOF'}
+                    </Button>
+                  </div>
+                )}
+                <button onClick={() => setIntlStep('form')} className="w-full text-center text-sm text-gray-400 hover:text-gray-700 py-2">← Retour</button>
+              </div>
+            )}
+
+            {/* Step: OTP */}
+            {intlStep === 'otp' && (
+              <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
+                <div className="text-center">
+                  <p className="text-lg font-bold">Code de confirmation</p>
+                  <p className="text-sm text-gray-500">Entrez le code OTP reçu par SMS</p>
+                </div>
+                <Input placeholder="Code OTP" value={intlOtpCode} onChange={e => setIntlOtpCode(e.target.value)}
+                  className="text-center text-lg tracking-widest h-14 bg-gray-50 border-gray-200 rounded-xl" />
+                <Button onClick={handleIntlOtp} disabled={intlSubmittingOtp} className="w-full h-12 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl">
+                  {intlSubmittingOtp ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+                  Valider le code
+                </Button>
+              </div>
+            )}
+
+            {/* Step: redirect */}
+            {intlStep === 'redirect' && (
+              <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4 text-center">
+                <p className="text-lg font-bold">Finaliser le paiement</p>
+                <p className="text-sm text-gray-500">Cliquez pour être redirigé vers la page de paiement de votre opérateur.</p>
+                <Button onClick={() => { window.open(intlRedirectUrl, '_blank'); setIntlStep('waiting'); }}
+                  className="w-full h-12 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl">
+                  Ouvrir la page de paiement
+                </Button>
+                <button onClick={() => setIntlStep('waiting')} className="text-sm text-gray-400 hover:text-gray-700">J'ai déjà payé, vérifier le statut</button>
+              </div>
+            )}
+
+            {/* Step: waiting */}
+            {intlStep === 'waiting' && (
+              <div className="bg-white rounded-2xl p-5 shadow-sm">
+                <div className="py-12 text-center space-y-4">
+                  <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto" />
+                  <p className="text-lg font-bold">Vérification en cours…</p>
+                  <p className="text-sm text-gray-500">Nous attendons la confirmation de votre paiement. Cette page se met à jour automatiquement.</p>
                 </div>
               </div>
+            )}
 
-              {/* Account ID */}
-              <div className="space-y-2">
-                <Label className="text-gray-700 font-medium">ID de compte 1xbet</Label>
-                <Input
-                  value={intlAccountId}
-                  onChange={(e) => setIntlAccountId(e.target.value)}
-                  placeholder="Votre ID de compte 1xbet"
-                  required
-                  className="h-14 text-base bg-gray-50 border-gray-200 rounded-xl"
-                />
+            {/* Step: done */}
+            {intlStep === 'done' && (
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-green-200 bg-green-50">
+                <div className="py-10 text-center space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mx-auto">
+                    <Check className="w-8 h-8 text-green-600" />
+                  </div>
+                  <p className="text-xl font-bold text-green-800">Paiement reçu ! 🎉</p>
+                  <p className="text-sm text-green-700">Votre dépôt est en cours de traitement.</p>
+                  <Button onClick={() => setLocation('/transactions')} className="bg-green-600 hover:bg-green-700 w-full">Voir mes transactions</Button>
+                </div>
               </div>
+            )}
 
-              {/* Country */}
-              <div className="space-y-2">
-                <Label className="text-gray-700 font-medium">Votre pays</Label>
-                <Select value={intlCountry} onValueChange={setIntlCountry} required>
-                  <SelectTrigger className="h-14 text-base bg-gray-50 border-gray-200 rounded-xl">
-                    <SelectValue placeholder="Sélectionner votre pays" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {COUNTRIES.map((country) => (
-                      <SelectItem key={country} value={country}>
-                        {country}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+            {/* Step: failed */}
+            {intlStep === 'failed' && (
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-red-200 bg-red-50">
+                <div className="py-10 text-center space-y-4">
+                  <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center mx-auto">
+                    <span className="text-3xl">❌</span>
+                  </div>
+                  <p className="text-xl font-bold text-red-800">Paiement échoué</p>
+                  <p className="text-sm text-red-700">Le paiement a échoué ou a expiré. Veuillez réessayer.</p>
+                  <Button variant="outline" onClick={() => { setIntlStep('form'); setIntlSelectedOperator(null); setIntlPayerPhone(''); setIntlOtpCode(''); }}
+                    className="w-full border-red-300">Réessayer</Button>
+                </div>
               </div>
+            )}
 
-              <Button
-                type="submit"
-                disabled={createDeposit.isPending}
-                className="w-full h-14 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-2xl text-base"
-              >
-                {createDeposit.isPending ? 'Redirection...' : '→  Continuer vers le paiement'}
-              </Button>
-            </form>
           </div>
         )}
       </div>

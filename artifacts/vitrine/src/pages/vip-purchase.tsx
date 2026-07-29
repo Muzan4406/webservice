@@ -109,7 +109,7 @@ export default function VipPurchasePage() {
     if (!payerPhone.trim()) { toast.error('Entrez votre numéro de téléphone.'); return; }
     try {
       const res: any = await initiatePayment({
-        data: { paymentToken, operatorCode: selectedOperator.code, payerPhone, countryCode },
+        data: { paymentToken, operatorId: selectedOperator.id, payerPhone, payerCountry: countryCode },
       });
       if (res.redirectUrl) { setRedirectUrl(res.redirectUrl); setStep('redirect'); }
       else if (res.otpToken) { setOtpToken(res.otpToken); setStep('otp'); }
@@ -212,10 +212,10 @@ export default function VipPurchasePage() {
                       <button
                         key={op.code}
                         onClick={() => setSelectedOperator(op)}
-                        className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-colors ${selectedOperator?.code === op.code ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'}`}
+                        className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-colors ${selectedOperator?.id === op.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'}`}
                       >
                         <span className="font-semibold">{op.name}</span>
-                        {selectedOperator?.code === op.code && <Check className="w-5 h-5 text-primary" />}
+                        {selectedOperator?.id === op.id && <Check className="w-5 h-5 text-primary" />}
                       </button>
                     ))}
                   </div>
