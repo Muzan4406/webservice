@@ -9,7 +9,6 @@ A French-language financial/gaming platform (sports betting / points system). Mo
 | Frontend | React 19, Vite 8, Tailwind CSS 4, TanStack Query, Wouter, shadcn/ui |
 | Backend | Express 5, TypeScript, tsx (dev server) |
 | Database | PostgreSQL via Drizzle ORM |
-| Push notifications | Firebase (FCM) — frontend only |
 | File storage | Google Cloud Storage via Replit Object Storage sidecar |
 | Alerts | Telegram bot (optional) |
 
@@ -42,10 +41,6 @@ Set these in Replit Secrets before the backend will start:
 | Secret | Description |
 |--------|-------------|
 | `PG_URL` | PostgreSQL connection string (e.g. from Supabase or Neon) |
-| `VITE_FIREBASE_API_KEY` | Firebase project API key |
-| `VITE_FIREBASE_MESSAGING_SENDER_ID` | Firebase messaging sender ID |
-| `VITE_FIREBASE_APP_ID` | Firebase app ID |
-| `VITE_FIREBASE_VAPID_KEY` | Firebase VAPID key for push notifications |
 
 Optional secrets (silently skipped if absent):
 

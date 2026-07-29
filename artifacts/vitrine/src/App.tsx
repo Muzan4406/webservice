@@ -3,7 +3,7 @@ import { ToastDisplay } from '@/components/ToastDisplay';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 import { setBaseUrl, setAuthTokenGetter } from '@workspace/api-client-react';
-import { AuthProvider, useAuth } from '@/contexts/AuthContext';
+import { AuthProvider } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { AdminRoute } from '@/components/AdminRoute';
 import { PwaInstallBanner } from '@/components/PwaInstallBanner';
@@ -138,16 +138,10 @@ function Router() {
   );
 }
 
-function FcmSetup() {
-  const { isAuthenticated } = useAuth();
-  return null;
-}
-
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
-        <FcmSetup />
         <TooltipProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
             <Router />
