@@ -25,6 +25,11 @@ const COUNTRY_CODES: Record<string, string> = {
   'Burkina Faso': 'BF', 'Cameroun': 'CM', 'Congo démocratique': 'CD', 'Congo Brazzaville': 'CG',
 };
 
+const COUNTRY_CURRENCIES: Record<string, string> = {
+  'Togo': 'XOF', 'Bénin': 'XOF', "Côte d'Ivoire": 'XOF',
+  'Burkina Faso': 'XOF', 'Cameroun': 'XAF', 'Congo démocratique': 'CDF', 'Congo Brazzaville': 'XAF',
+};
+
 const VIP_BENEFITS = [
   { icon: '⚽', text: 'Jeux virtuels FIFA (accès exclusif VIP)' },
   { icon: '📈', text: 'Coupon montante (gains progressifs)' },
@@ -83,7 +88,12 @@ export default function VipPurchasePage() {
   async function handleContinue() {
     if (!selectedCountry) { toast.error('Sélectionnez votre pays.'); return; }
     try {
-      const res: any = await createVipPayment({ data: {} });
+      const res: any = await createVipPayment({
+        data: {
+          currency: COUNTRY_CURRENCIES[selectedCountry] ?? 'XOF',
+          payerCountry: countryCode,
+        } as any,
+      });
       setPaymentToken(res.paymentToken);
       setStep('operators');
     } catch (e: any) {
