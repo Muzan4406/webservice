@@ -8,6 +8,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (token: string, user: UserProfile) => void;
   logout: () => void;
+  updateUser: (updated: Partial<UserProfile>) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -47,6 +48,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem('muzan_auth_user');
   }, []);
 
+  const updateUser = useCallback((updated: Partial<UserProfile>) => {
+    setUser(prev => {
+      if (!prev) return prev;
+      const next = { ...prev, ...updated };
+      localStorage.setItem('muzan_auth_user', JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -56,6 +66,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoading,
         login,
         logout,
+        updateUser,
       }}
     >
       {children}

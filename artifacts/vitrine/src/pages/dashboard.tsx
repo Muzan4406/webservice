@@ -1,14 +1,36 @@
 import { Link } from 'wouter';
 import { motion } from 'framer-motion';
+import { useEffect } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useGetProfile } from '@workspace/api-client-react';
 import { BottomNav } from '@/components/BottomNav';
 import { WhatsAppPopup } from '@/components/WhatsAppPopup';
 
 const BASE_URL = import.meta.env.BASE_URL;
 
 export default function DashboardPage() {
-  const { user } = useAuth();
-  const isVip = (user as any)?.isVip;
+  const { user, updateUser } = useAuth();
+  const isVip = !!user?.isVip;
+
+  // Re-fetch fresh profile on every dashboard visit and sync VIP status into context
+  const profileQuery = useGetProfile();
+  useEffect(() => {
+    const fresh = profileQuery.data as any;
+    if (fresh && user) {
+      // Only update if something meaningful changed (avoids infinite loops)
+      if (
+        fresh.isVip !== user.isVip ||
+        fresh.username !== user.username ||
+        fresh.referralCount !== user.referralCount
+      ) {
+        updateUser({
+          isVip: fresh.isVip,
+          username: fresh.username,
+          referralCount: fresh.referralCount,
+        });
+      }
+    }
+  }, [profileQuery.data]);
 
   const services = [
     { name: 'Dépôt',        path: '/deposit',                              icon: 'deposit.png'   },
@@ -26,16 +48,40 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="bg-gradient-to-br from-[#1a2a5e] to-[#0f1a3e] px-5 pt-8 pb-6 rounded-b-3xl shadow-lg shrink-0">
         <div className="flex items-center gap-4">
-          <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
-            <img src="/logo.png" alt="avatar" className="w-full h-full object-cover" />
+          <div className="relative w-14 h-14 shrink-0">
+            <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center overflow-hidden">
+              <img src="/logo.png" alt="avatar" className="w-full h-full object-cover" />
+            </div>
+            {/* VIP crown on avatar */}
+            {isVip && (
+              <div className="absolute -top-2 -right-1 w-6 h-6 bg-[#FFD700] rounded-full flex items-center justify-center shadow-md border-2 border-[#0f1a3e]">
+                <svg viewBox="0 0 24 24" fill="currentColor" className="w-3 h-3 text-[#7a5c00]">
+                  <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
+                </svg>
+              </div>
+            )}
           </div>
+
           <div className="flex-1 min-w-0">
             <p className="text-white/60 text-sm font-medium">Bonjour,</p>
-            <h2 className="text-xl font-bold text-white leading-tight truncate">{user?.username}</h2>
-            <p className="text-white/50 text-xs mt-0.5">
-              {isVip ? 'Statut : VIP' : 'Statut : Standard'} • ID: {(user as any)?.userId}
-            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <h2 className="text-xl font-bold text-white leading-tight truncate">{user?.username}</h2>
+              {isVip && (
+                <motion.span
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  className="inline-flex items-center gap-1 bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-sm"
+                >
+                  <svg viewBox="0 0 24 24" fill="currentColor" className="w-2.5 h-2.5">
+                    <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
+                  </svg>
+                  VIP
+                </motion.span>
+              )}
+            </div>
+            <p className="text-white/50 text-xs mt-0.5">ID: {(user as any)?.userId}</p>
           </div>
+
           <div className="flex items-center gap-2 shrink-0">
             {(user as any)?.isAdmin && (
               <Link href="/admin">
@@ -59,6 +105,20 @@ export default function DashboardPage() {
             </Link>
           </div>
         </div>
+
+        {/* VIP banner strip */}
+        {isVip && (
+          <motion.div
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mt-4 rounded-xl bg-gradient-to-r from-[#FFD700]/20 to-[#FFA500]/10 border border-[#FFD700]/30 px-4 py-2 flex items-center gap-2"
+          >
+            <svg viewBox="0 0 24 24" fill="currentColor" className="w-4 h-4 text-[#FFD700] shrink-0">
+              <path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4L12 17l-6.2 4.3 2.4-7.4L2 9.4h7.6z" />
+            </svg>
+            <p className="text-[#FFD700] text-xs font-semibold">Membre VIP — accès complet aux coupons premium</p>
+          </motion.div>
+        )}
       </div>
 
       {/* Services grid — fills remaining space, no scroll */}
@@ -89,7 +149,7 @@ export default function DashboardPage() {
                   {service.name}
                 </span>
                 {service.vip && (
-                  <span className="absolute top-2 right-2 bg-[#FFD700] text-black text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  <span className="absolute top-2 right-2 bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black text-[10px] font-extrabold px-2 py-0.5 rounded-full shadow-sm">
                     VIP
                   </span>
                 )}

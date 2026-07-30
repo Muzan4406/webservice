@@ -1,5 +1,7 @@
 import { useGetProfile, useGetAppSettings, useLogout } from '@workspace/api-client-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { BottomNav } from '@/components/BottomNav';
 import {
   Star, ChevronRight, MessageCircle, Send, History, Users,
@@ -27,11 +29,23 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
 }
 
 export default function ProfilePage() {
-  const { logout: authLogout } = useAuth();
+  const { logout: authLogout, updateUser } = useAuth();
   const [, setLocation] = useLocation();
   const profile = useGetProfile();
   const appSettings = useGetAppSettings();
   const logoutMutation = useLogout();
+
+  // Sync fresh profile data back into AuthContext so other pages (dashboard) reflect VIP status immediately
+  useEffect(() => {
+    const fresh = profile.data as any;
+    if (fresh) {
+      updateUser({
+        isVip: fresh.isVip,
+        username: fresh.username,
+        referralCount: fresh.referralCount,
+      });
+    }
+  }, [profile.data]);
 
   const handleLogout = () => {
     logoutMutation.mutate(undefined, {
@@ -71,9 +85,13 @@ export default function ProfilePage() {
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-lg font-bold text-white truncate">{user.username}</span>
                 {user.isVip && (
-                  <span className="inline-flex items-center gap-1 bg-[#FFD700] text-black text-[11px] font-bold px-2 py-0.5 rounded-full">
-                    <Star className="w-3 h-3" /> VIP
-                  </span>
+                  <motion.span
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="inline-flex items-center gap-1 bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black text-[11px] font-extrabold px-2.5 py-0.5 rounded-full shadow-md"
+                  >
+                    <Star className="w-3 h-3 fill-current" /> VIP
+                  </motion.span>
                 )}
               </div>
               <p className="text-white/50 text-xs mt-0.5">ID: {user.userId}</p>
