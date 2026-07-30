@@ -1,5 +1,12 @@
 {
   "name": "workspace",
   "version": "0.0.0",
-  "private": true
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "pnpm --filter @workspace/vitrine run build && pnpm --filter @workspace/api-server run build",
+    "start": "node --enable-source-maps artifacts/api-server/dist/index.mjs"
+  }
 }

@@ -2,10 +2,11 @@
 import express from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
-import { join as join2 } from "node:path";
+import { join as join3, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 // src/routes/index.ts
-import { Router as Router17 } from "express";
+import { Router as Router18 } from "express";
 
 // src/routes/health.ts
 import { Router } from "express";
@@ -62,6 +63,15 @@ async function requireAuth(req, res, next) {
   req.user = user;
   req.isAdmin = user.isAdmin;
   next();
+}
+async function requireAdmin(req, res, next) {
+  await requireAuth(req, res, async () => {
+    if (!req.isAdmin) {
+      res.status(403).json({ error: "Admin access required" });
+      return;
+    }
+    next();
+  });
 }
 
 // src/lib/logger.ts
@@ -451,60 +461,11 @@ import { eq as eq4, desc } from "drizzle-orm";
 import { CreateDepositBody, GetDepositsQueryParams, RejectDepositBody } from "@workspace/api-zod";
 
 // src/lib/pushNotifications.ts
-var EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
-async function sendPushNotification(tokens, message) {
-  const validTokens = tokens.filter(
-    (t) => typeof t === "string" && t.startsWith("ExponentPushToken[")
-  );
-  if (validTokens.length === 0) return;
-  const messages = validTokens.map((to) => ({
-    to,
-    sound: "default",
-    title: message.title,
-    body: message.body,
-    data: message.data ?? {},
-    channelId: "muzan-default",
-    priority: "high"
-  }));
-  console.log("[push] Sending to tokens:", validTokens);
-  try {
-    const res = await fetch(EXPO_PUSH_URL, {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        "Accept-Encoding": "gzip, deflate",
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify(messages),
-      signal: AbortSignal.timeout(1e4)
-    });
-    const responseBody = await res.json();
-    if (!res.ok) {
-      console.error("[push] Expo push API HTTP error:", res.status, JSON.stringify(responseBody));
-    } else {
-      console.log("[push] Expo response:", JSON.stringify(responseBody));
-      const tickets = responseBody?.data ?? [];
-      tickets.forEach((ticket, i) => {
-        if (ticket.status === "error") {
-          console.error(`[push] Ticket ${i} error:`, ticket.message, JSON.stringify(ticket.details));
-        } else {
-          console.log(`[push] Ticket ${i} OK \u2014 receiptId:`, ticket.id);
-        }
-      });
-    }
-  } catch (err) {
-    console.error("[push] Failed to send push notification:", err);
-  }
+async function sendPushNotification(_tokens, _message) {
 }
-async function broadcastPushNotification(allTokens, message) {
-  const valid = allTokens.filter(
-    (t) => typeof t === "string" && t.startsWith("ExponentPushToken[")
-  );
-  const BATCH_SIZE = 100;
-  for (let i = 0; i < valid.length; i += BATCH_SIZE) {
-    const batch = valid.slice(i, i + BATCH_SIZE);
-    await sendPushNotification(batch, message);
-  }
+async function notifyAdmins(_message) {
+}
+async function broadcastPushNotification(_allTokens, _message) {
 }
 
 // src/routes/deposits.ts
@@ -579,6 +540,11 @@ router4.post("/deposits", requireAuth, async (req, res) => {
     operator: deposit.operator,
     oneXbetAccountId: deposit.oneXbetAccountId,
     country: deposit.country
+  });
+  notifyAdmins({
+    title: "\u{1F4B0} Nouveau d\xE9p\xF4t",
+    body: `${user?.username ?? "Utilisateur"} a soumis un d\xE9p\xF4t de ${parseFloat(deposit.amount).toLocaleString()} XOF`,
+    data: { type: "new_deposit", depositId: deposit.id }
   });
   res.status(201).json({
     ...deposit,
@@ -718,6 +684,11 @@ router5.post("/withdrawals", requireAuth, async (req, res) => {
     phone: withdrawal.phone,
     country: withdrawal.country
   });
+  notifyAdmins({
+    title: "\u{1F4B8} Nouveau retrait",
+    body: `${wUser?.username ?? "Utilisateur"} demande un retrait de ${parseFloat(withdrawal.amount).toLocaleString()} XOF`,
+    data: { type: "new_withdrawal", withdrawalId: withdrawal.id }
+  });
   res.status(201).json({ ...withdrawal, amount: parseFloat(withdrawal.amount), code: withdrawal.code ?? null });
 });
 router5.put("/withdrawals/:id/process", requireAuth, async (req, res) => {
@@ -745,6 +716,40 @@ router5.put("/withdrawals/:id/process", requireAuth, async (req, res) => {
     data: { type: "withdrawal_processed", withdrawalId: withdrawal.id }
   });
   db5.insert(notificationsTable2).values({ userId: withdrawal.userId, title: "\u2705 Retrait approuv\xE9", message: `Votre retrait de ${parseFloat(withdrawal.amount).toLocaleString()} XOF a \xE9t\xE9 approuv\xE9 et est en cours de traitement.`, isRead: false }).catch(() => {
+  });
+  res.json({ ...withdrawal, amount: parseFloat(withdrawal.amount), username: user?.username, code: withdrawal.code ?? null });
+});
+router5.put("/withdrawals/:id/reject", requireAuth, async (req, res) => {
+  if (!req.isAdmin) {
+    res.status(403).json({ error: "Admin access required" });
+    return;
+  }
+  const rawId = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+  const id = parseInt(rawId, 10);
+  const reason = req.body?.reason ?? "Retrait rejet\xE9 par l'administrateur";
+  const [withdrawal] = await db5.update(withdrawalsTable).set({ status: "rejected", updatedAt: /* @__PURE__ */ new Date() }).where(eq5(withdrawalsTable.id, id)).returning();
+  if (!withdrawal) {
+    res.status(404).json({ error: "Withdrawal not found" });
+    return;
+  }
+  const [user] = await db5.select({ username: usersTable5.username, userId: usersTable5.userId, pushToken: usersTable5.pushToken }).from(usersTable5).where(eq5(usersTable5.id, withdrawal.userId));
+  tg.withdrawalProcessed({
+    username: user?.username ?? String(withdrawal.userId),
+    userId: user?.userId ?? String(withdrawal.userId),
+    amount: parseFloat(withdrawal.amount),
+    withdrawalId: withdrawal.id
+  });
+  sendPushNotification([user?.pushToken], {
+    title: "\u274C Retrait rejet\xE9",
+    body: `Votre retrait de ${parseFloat(withdrawal.amount).toLocaleString()} XOF a \xE9t\xE9 rejet\xE9. Motif : ${reason}`,
+    data: { type: "withdrawal_rejected", withdrawalId: withdrawal.id }
+  });
+  db5.insert(notificationsTable2).values({
+    userId: withdrawal.userId,
+    title: "\u274C Retrait rejet\xE9",
+    message: `Votre retrait de ${parseFloat(withdrawal.amount).toLocaleString()} XOF a \xE9t\xE9 rejet\xE9. Motif : ${reason}`,
+    isRead: false
+  }).catch(() => {
   });
   res.json({ ...withdrawal, amount: parseFloat(withdrawal.amount), username: user?.username, code: withdrawal.code ?? null });
 });
@@ -795,6 +800,18 @@ router6.get("/coupons/vip", requireAuth, async (req, res) => {
   const todayCoupons = coupons.filter((c) => c.date === today);
   const result = todayCoupons.length > 0 ? todayCoupons : coupons.slice(0, 5);
   res.json({ coupons: result.map(formatCoupon) });
+});
+router6.get("/coupons/validated", requireAuth, async (_req, res) => {
+  const coupons = await db6.select().from(couponsTable).where(eq6(couponsTable.type, "validated")).orderBy(desc3(couponsTable.createdAt));
+  res.json({ coupons: coupons.map(formatCoupon) });
+});
+router6.get("/coupons/montante", requireAuth, async (req, res) => {
+  if (!req.user?.isVip) {
+    res.status(403).json({ error: "VIP access required" });
+    return;
+  }
+  const coupons = await db6.select().from(couponsTable).where(eq6(couponsTable.type, "montante")).orderBy(desc3(couponsTable.createdAt));
+  res.json({ coupons: coupons.map(formatCoupon) });
 });
 router6.get("/coupons", requireAuth, async (req, res) => {
   const params = GetAllCouponsQueryParams.safeParse(req.query);
@@ -866,7 +883,7 @@ var coupons_default = router6;
 
 // src/routes/vip.ts
 import { Router as Router7 } from "express";
-import { db as db7, usersTable as usersTable7, appSettingsTable } from "@workspace/db";
+import { db as db7, usersTable as usersTable7, appSettingsTable, notificationsTable as notificationsTable3 } from "@workspace/db";
 import { eq as eq7 } from "drizzle-orm";
 import { ConfirmVipPurchaseBody } from "@workspace/api-zod";
 var router7 = Router7();
@@ -878,6 +895,11 @@ router7.post("/vip/purchase", requireAuth, async (req, res) => {
   }
   let [settings] = await db7.select().from(appSettingsTable).limit(1);
   const vipPrice = settings ? parseFloat(settings.vipPriceFcfa) : 5e3;
+  notifyAdmins({
+    title: "\u2B50 Demande VIP",
+    body: `${user.username} souhaite activer le VIP (${vipPrice.toLocaleString("fr-FR")} FCFA)`,
+    data: { type: "vip_request", userId: String(user.id) }
+  });
   res.json({
     message: `L'acc\xE8s VIP co\xFBte ${vipPrice.toLocaleString("fr-FR")} FCFA. Effectuez le paiement via le moyen configur\xE9 puis attendez la confirmation de l'administrateur.`,
     paymentUrl: null
@@ -898,6 +920,18 @@ router7.post("/vip/confirm", requireAuth, async (req, res) => {
     res.status(404).json({ error: "User not found" });
     return;
   }
+  sendPushNotification([user.pushToken], {
+    title: "\u2B50 Acc\xE8s VIP activ\xE9 !",
+    body: "F\xE9licitations ! Votre acc\xE8s VIP est maintenant actif. Profitez des coupons exclusifs.",
+    data: { type: "vip_confirmed" }
+  });
+  db7.insert(notificationsTable3).values({
+    userId: user.id,
+    title: "\u2B50 Acc\xE8s VIP activ\xE9 !",
+    message: "F\xE9licitations ! Votre acc\xE8s VIP est maintenant actif. Profitez des coupons exclusifs.",
+    isRead: false
+  }).catch(() => {
+  });
   res.json({ success: true, message: `VIP activated for ${user.username}` });
 });
 var vip_default = router7;
@@ -1072,14 +1106,14 @@ var contest_default = router10;
 
 // src/routes/notifications.ts
 import { Router as Router11 } from "express";
-import { db as db11, notificationsTable as notificationsTable3, usersTable as usersTable10, notificationReadsTable } from "@workspace/db";
+import { db as db11, notificationsTable as notificationsTable4, usersTable as usersTable10, notificationReadsTable } from "@workspace/db";
 import { eq as eq11, or as or2, desc as desc7, and as and4, inArray as inArray2 } from "drizzle-orm";
 import { BroadcastNotificationBody } from "@workspace/api-zod";
 var router11 = Router11();
 router11.get("/notifications", requireAuth, async (req, res) => {
   try {
     const userId = req.userId;
-    const rows = await db11.select().from(notificationsTable3).where(or2(eq11(notificationsTable3.userId, userId), eq11(notificationsTable3.userId, -1))).orderBy(desc7(notificationsTable3.createdAt)).limit(50);
+    const rows = await db11.select().from(notificationsTable4).where(or2(eq11(notificationsTable4.userId, userId), eq11(notificationsTable4.userId, -1))).orderBy(desc7(notificationsTable4.createdAt)).limit(50);
     const broadcastIds = rows.filter((n) => n.userId === -1).map((n) => n.id);
     let readBroadcastIds = /* @__PURE__ */ new Set();
     if (broadcastIds.length > 0) {
@@ -1112,7 +1146,7 @@ router11.patch("/notifications/:id/read", requireAuth, async (req, res) => {
       res.status(400).json({ error: "Invalid notification id" });
       return;
     }
-    const [notif] = await db11.select().from(notificationsTable3).where(eq11(notificationsTable3.id, notifId));
+    const [notif] = await db11.select().from(notificationsTable4).where(eq11(notificationsTable4.id, notifId));
     if (!notif) {
       res.status(404).json({ error: "Notification not found" });
       return;
@@ -1120,7 +1154,7 @@ router11.patch("/notifications/:id/read", requireAuth, async (req, res) => {
     if (notif.userId === -1) {
       await db11.insert(notificationReadsTable).values({ userId, notificationId: notifId }).onConflictDoNothing();
     } else if (notif.userId === userId) {
-      await db11.update(notificationsTable3).set({ isRead: true }).where(eq11(notificationsTable3.id, notifId));
+      await db11.update(notificationsTable4).set({ isRead: true }).where(eq11(notificationsTable4.id, notifId));
     } else {
       res.status(403).json({ error: "Not your notification" });
       return;
@@ -1133,8 +1167,8 @@ router11.patch("/notifications/:id/read", requireAuth, async (req, res) => {
 router11.patch("/notifications/read-all", requireAuth, async (req, res) => {
   try {
     const userId = req.userId;
-    await db11.update(notificationsTable3).set({ isRead: true }).where(and4(eq11(notificationsTable3.userId, userId), eq11(notificationsTable3.isRead, false)));
-    const broadcasts = await db11.select().from(notificationsTable3).where(eq11(notificationsTable3.userId, -1));
+    await db11.update(notificationsTable4).set({ isRead: true }).where(and4(eq11(notificationsTable4.userId, userId), eq11(notificationsTable4.isRead, false)));
+    const broadcasts = await db11.select().from(notificationsTable4).where(eq11(notificationsTable4.userId, -1));
     if (broadcasts.length > 0) {
       const broadcastIds = broadcasts.map((b) => b.id);
       const alreadyRead = await db11.select({ notificationId: notificationReadsTable.notificationId }).from(notificationReadsTable).where(
@@ -1168,7 +1202,7 @@ router11.delete("/notifications/:id", requireAuth, async (req, res) => {
       return;
     }
     await db11.delete(notificationReadsTable).where(eq11(notificationReadsTable.notificationId, notifId));
-    const [deleted] = await db11.delete(notificationsTable3).where(eq11(notificationsTable3.id, notifId)).returning();
+    const [deleted] = await db11.delete(notificationsTable4).where(eq11(notificationsTable4.id, notifId)).returning();
     if (!deleted) {
       res.status(404).json({ error: "Notification not found" });
       return;
@@ -1203,7 +1237,7 @@ router11.post("/notifications/broadcast", requireAuth, async (req, res) => {
       return;
     }
     const { title, message } = parsed.data;
-    await db11.insert(notificationsTable3).values({ userId: -1, title, message, isRead: false });
+    await db11.insert(notificationsTable4).values({ userId: -1, title, message, isRead: false });
     const usersWithTokens = await db11.select({ pushToken: usersTable10.pushToken }).from(usersTable10).where(eq11(usersTable10.isBanned, false));
     broadcastPushNotification(
       usersWithTokens.map((u) => u.pushToken),
@@ -1575,7 +1609,7 @@ router13.post("/upload", requireAuth, async (req, res) => {
       res.status(400).json({ error: "base64 and mimeType are required" });
       return;
     }
-    const ext = mimeType.includes("png") ? "png" : "jpg";
+    const ext = mimeType.includes("png") ? "png" : mimeType.includes("webm") ? "webm" : mimeType.includes("ogg") ? "ogg" : mimeType.includes("mp4") && mimeType.startsWith("audio") ? "m4a" : "jpg";
     const filename = `${randomBytes(16).toString("hex")}.${ext}`;
     const filepath = join(UPLOADS_DIR, filename);
     const buffer = Buffer.from(base64, "base64");
@@ -1603,7 +1637,7 @@ router13.get("/uploads/:filename", async (req, res) => {
     }
     const buffer = await readFile(filepath);
     const ext = filename.split(".").pop()?.toLowerCase();
-    const contentType = ext === "png" ? "image/png" : "image/jpeg";
+    const contentType = ext === "png" ? "image/png" : ext === "webm" ? "audio/webm" : ext === "ogg" ? "audio/ogg" : ext === "m4a" ? "audio/mp4" : "image/jpeg";
     res.setHeader("Content-Type", contentType);
     res.setHeader("Cache-Control", "public, max-age=86400");
     res.send(buffer);
@@ -1948,36 +1982,250 @@ router16.get("/sendavapay/status/:reference", requireAuth, async (req, res) => {
 });
 var sendavapay_default = router16;
 
-// src/routes/index.ts
+// src/routes/chat.ts
+import { Router as Router17 } from "express";
+import { db as db16, chatMessagesTable, usersTable as usersTable13 } from "@workspace/db";
+import { eq as eq15, desc as desc10, and as and5 } from "drizzle-orm";
+import { unlink } from "node:fs/promises";
+import { join as join2 } from "node:path";
 var router17 = Router17();
-router17.use(health_default);
-router17.use(auth_default);
-router17.use(profile_default);
-router17.use(deposits_default);
-router17.use(withdrawals_default);
-router17.use(coupons_default);
-router17.use(vip_default);
-router17.use(promotions_default);
-router17.use(referrals_default);
-router17.use(contest_default);
-router17.use(notifications_default);
-router17.use(admin_default);
-router17.use(upload_default);
-router17.use(app_settings_default);
-router17.use(transactions_default);
-router17.use(sendavapay_default);
-var routes_default = router17;
+var UPLOADS_DIR2 = join2(process.cwd(), "uploads");
+async function removeMessageFile(fileUrl) {
+  if (!fileUrl?.startsWith("/api/uploads/")) return;
+  const filename = fileUrl.slice("/api/uploads/".length);
+  if (!/^[a-zA-Z0-9._-]+$/.test(filename)) return;
+  await unlink(join2(UPLOADS_DIR2, filename)).catch(() => {
+  });
+}
+router17.get("/chat", requireAuth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const messages = await db16.select().from(chatMessagesTable).where(eq15(chatMessagesTable.userId, userId)).orderBy(desc10(chatMessagesTable.createdAt)).limit(100);
+    await db16.update(chatMessagesTable).set({ isRead: true }).where(
+      and5(
+        eq15(chatMessagesTable.userId, userId),
+        eq15(chatMessagesTable.fromAdmin, true),
+        eq15(chatMessagesTable.isRead, false)
+      )
+    );
+    res.json({ messages: messages.reverse() });
+  } catch {
+    res.status(500).json({ error: "Erreur lors du chargement des messages" });
+  }
+});
+router17.post("/chat", requireAuth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const { content, type = "text", fileUrl } = req.body;
+    if (type === "text" && !content?.trim()) {
+      res.status(400).json({ error: "Le message ne peut pas \xEAtre vide" });
+      return;
+    }
+    if ((type === "audio" || type === "image") && !fileUrl) {
+      res.status(400).json({ error: "fileUrl requis pour ce type de message" });
+      return;
+    }
+    const [msg] = await db16.insert(chatMessagesTable).values({
+      userId,
+      fromAdmin: false,
+      content: content?.trim() ?? null,
+      type,
+      fileUrl: fileUrl ?? null,
+      isRead: false
+    }).returning();
+    const [sender] = await db16.select({ username: usersTable13.username }).from(usersTable13).where(eq15(usersTable13.id, userId));
+    notifyAdmins({
+      title: "\u{1F4AC} Nouveau message support",
+      body: `${sender?.username ?? "Utilisateur"} : ${content?.trim() ?? "(fichier)"}`,
+      data: { type: "new_chat_message", userId: String(userId) }
+    });
+    res.status(201).json({ message: msg });
+  } catch {
+    res.status(500).json({ error: "Erreur lors de l'envoi du message" });
+  }
+});
+router17.delete("/chat/:messageId", requireAuth, async (req, res) => {
+  try {
+    const messageId = Number.parseInt(req.params.messageId, 10);
+    if (Number.isNaN(messageId)) {
+      res.status(400).json({ error: "Invalid messageId" });
+      return;
+    }
+    const [message] = await db16.select().from(chatMessagesTable).where(and5(eq15(chatMessagesTable.id, messageId), eq15(chatMessagesTable.userId, req.userId)));
+    if (!message) {
+      res.status(404).json({ error: "Message introuvable" });
+      return;
+    }
+    if (message.fromAdmin || message.type !== "audio" && message.type !== "image") {
+      res.status(403).json({ error: "Seuls vos messages vocaux et images peuvent \xEAtre supprim\xE9s" });
+      return;
+    }
+    await db16.delete(chatMessagesTable).where(eq15(chatMessagesTable.id, messageId));
+    await removeMessageFile(message.fileUrl);
+    res.status(204).send();
+  } catch {
+    res.status(500).json({ error: "Erreur lors de la suppression" });
+  }
+});
+router17.get("/chat/unread", requireAuth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const rows = await db16.select().from(chatMessagesTable).where(
+      and5(
+        eq15(chatMessagesTable.userId, userId),
+        eq15(chatMessagesTable.fromAdmin, true),
+        eq15(chatMessagesTable.isRead, false)
+      )
+    );
+    res.json({ count: rows.length });
+  } catch {
+    res.status(500).json({ error: "Erreur" });
+  }
+});
+router17.get("/admin/chat/users", requireAdmin, async (_req, res) => {
+  try {
+    const rows = await db16.selectDistinct({ userId: chatMessagesTable.userId }).from(chatMessagesTable).orderBy(chatMessagesTable.userId);
+    const userIds = rows.map((r) => r.userId);
+    if (userIds.length === 0) {
+      res.json({ users: [] });
+      return;
+    }
+    const result = await Promise.all(
+      userIds.map(async (uid) => {
+        const [user] = await db16.select({ id: usersTable13.id, username: usersTable13.username, userId: usersTable13.userId }).from(usersTable13).where(eq15(usersTable13.id, uid));
+        const [lastMsg] = await db16.select().from(chatMessagesTable).where(eq15(chatMessagesTable.userId, uid)).orderBy(desc10(chatMessagesTable.createdAt)).limit(1);
+        const unreadRows = await db16.select().from(chatMessagesTable).where(
+          and5(
+            eq15(chatMessagesTable.userId, uid),
+            eq15(chatMessagesTable.fromAdmin, false),
+            eq15(chatMessagesTable.isRead, false)
+          )
+        );
+        return {
+          user: user ?? { id: uid, username: "Inconnu", userId: "" },
+          lastMessage: lastMsg ?? null,
+          unreadCount: unreadRows.length
+        };
+      })
+    );
+    result.sort((a, b) => {
+      const ta = a.lastMessage?.createdAt?.getTime() ?? 0;
+      const tb = b.lastMessage?.createdAt?.getTime() ?? 0;
+      return tb - ta;
+    });
+    res.json({ users: result });
+  } catch {
+    res.status(500).json({ error: "Erreur" });
+  }
+});
+router17.get("/admin/chat/:userId", requireAdmin, async (req, res) => {
+  try {
+    const uid = parseInt(req.params.userId, 10);
+    if (isNaN(uid)) {
+      res.status(400).json({ error: "Invalid userId" });
+      return;
+    }
+    const messages = await db16.select().from(chatMessagesTable).where(eq15(chatMessagesTable.userId, uid)).orderBy(desc10(chatMessagesTable.createdAt)).limit(100);
+    await db16.update(chatMessagesTable).set({ isRead: true }).where(
+      and5(
+        eq15(chatMessagesTable.userId, uid),
+        eq15(chatMessagesTable.fromAdmin, false),
+        eq15(chatMessagesTable.isRead, false)
+      )
+    );
+    res.json({ messages: messages.reverse() });
+  } catch {
+    res.status(500).json({ error: "Erreur" });
+  }
+});
+router17.post("/admin/chat/:userId", requireAdmin, async (req, res) => {
+  try {
+    const uid = parseInt(req.params.userId, 10);
+    if (isNaN(uid)) {
+      res.status(400).json({ error: "Invalid userId" });
+      return;
+    }
+    const { content, type = "text", fileUrl } = req.body;
+    if (type === "text" && !content?.trim()) {
+      res.status(400).json({ error: "Message vide" });
+      return;
+    }
+    const [msg] = await db16.insert(chatMessagesTable).values({
+      userId: uid,
+      fromAdmin: true,
+      content: content?.trim() ?? null,
+      type,
+      fileUrl: fileUrl ?? null,
+      isRead: false
+    }).returning();
+    const [targetUser] = await db16.select({ pushToken: usersTable13.pushToken }).from(usersTable13).where(eq15(usersTable13.id, uid));
+    sendPushNotification([targetUser?.pushToken], {
+      title: "\u{1F4AC} R\xE9ponse du support",
+      body: content?.trim() ?? "(fichier)",
+      data: { type: "admin_chat_reply", userId: String(uid) }
+    });
+    res.status(201).json({ message: msg });
+  } catch {
+    res.status(500).json({ error: "Erreur lors de l'envoi" });
+  }
+});
+router17.delete("/admin/chat/:userId/:messageId", requireAdmin, async (req, res) => {
+  try {
+    const userId = Number.parseInt(req.params.userId, 10);
+    const messageId = Number.parseInt(req.params.messageId, 10);
+    if (Number.isNaN(userId) || Number.isNaN(messageId)) {
+      res.status(400).json({ error: "Identifiants invalides" });
+      return;
+    }
+    const [message] = await db16.select().from(chatMessagesTable).where(and5(eq15(chatMessagesTable.id, messageId), eq15(chatMessagesTable.userId, userId)));
+    if (!message) {
+      res.status(404).json({ error: "Message introuvable" });
+      return;
+    }
+    if (message.type !== "audio" && message.type !== "image") {
+      res.status(403).json({ error: "Seuls les messages vocaux et images peuvent \xEAtre supprim\xE9s" });
+      return;
+    }
+    await db16.delete(chatMessagesTable).where(eq15(chatMessagesTable.id, messageId));
+    await removeMessageFile(message.fileUrl);
+    res.status(204).send();
+  } catch {
+    res.status(500).json({ error: "Erreur lors de la suppression" });
+  }
+});
+var chat_default = router17;
+
+// src/routes/index.ts
+var router18 = Router18();
+router18.use(health_default);
+router18.use(auth_default);
+router18.use(profile_default);
+router18.use(deposits_default);
+router18.use(withdrawals_default);
+router18.use(coupons_default);
+router18.use(vip_default);
+router18.use(promotions_default);
+router18.use(referrals_default);
+router18.use(contest_default);
+router18.use(notifications_default);
+router18.use(admin_default);
+router18.use(upload_default);
+router18.use(app_settings_default);
+router18.use(transactions_default);
+router18.use(sendavapay_default);
+router18.use(chat_default);
+var routes_default = router18;
 
 // src/routes/webhooks.ts
-import { Router as Router18 } from "express";
+import { Router as Router19 } from "express";
 import crypto2 from "node:crypto";
-import { db as db16, depositsTable as depositsTable8, vipPaymentsTable as vipPaymentsTable2, usersTable as usersTable13, paymentConfigTable as paymentConfigTable3, pendingSpDepositsTable as pendingSpDepositsTable2 } from "@workspace/db";
-import { eq as eq15 } from "drizzle-orm";
-var router18 = Router18();
-router18.post("/webhooks/sendavapay", async (req, res) => {
+import { db as db17, depositsTable as depositsTable8, vipPaymentsTable as vipPaymentsTable2, usersTable as usersTable14, paymentConfigTable as paymentConfigTable3, pendingSpDepositsTable as pendingSpDepositsTable2 } from "@workspace/db";
+import { eq as eq16 } from "drizzle-orm";
+var router19 = Router19();
+router19.post("/", async (req, res) => {
   const rawBody = req.body;
   try {
-    const [config] = await db16.select().from(paymentConfigTable3).limit(1);
+    const [config] = await db17.select().from(paymentConfigTable3).limit(1);
     const secret = process.env["SENDAVAPAY_WEBHOOK_SECRET"] ?? config?.sendavapayWebhookSecret;
     if (secret) {
       const sig = req.headers["x-sendavapay-signature"];
@@ -1992,9 +2240,9 @@ router18.post("/webhooks/sendavapay", async (req, res) => {
     const { event, reference } = payload;
     logger.info({ event, reference }, "SendavaPay webhook re\xE7u");
     if (event === "payment.completed") {
-      const [pendingDep] = await db16.select().from(pendingSpDepositsTable2).where(eq15(pendingSpDepositsTable2.sendavapayReference, reference));
+      const [pendingDep] = await db17.select().from(pendingSpDepositsTable2).where(eq16(pendingSpDepositsTable2.sendavapayReference, reference));
       if (pendingDep) {
-        await db16.insert(depositsTable8).values({
+        await db17.insert(depositsTable8).values({
           userId: pendingDep.userId,
           type: "international",
           operator: "other",
@@ -2006,9 +2254,9 @@ router18.post("/webhooks/sendavapay", async (req, res) => {
           status: "pending"
           // admin still needs to credit 1xBet account
         });
-        await db16.delete(pendingSpDepositsTable2).where(eq15(pendingSpDepositsTable2.id, pendingDep.id));
+        await db17.delete(pendingSpDepositsTable2).where(eq16(pendingSpDepositsTable2.id, pendingDep.id));
         logger.info({ userId: pendingDep.userId, reference }, "D\xE9p\xF4t SP cr\xE9\xE9 pour l'admin apr\xE8s confirmation");
-        const [depUser] = await db16.select({ username: usersTable13.username, userId: usersTable13.userId }).from(usersTable13).where(eq15(usersTable13.id, pendingDep.userId));
+        const [depUser] = await db17.select({ username: usersTable14.username, userId: usersTable14.userId }).from(usersTable14).where(eq16(usersTable14.id, pendingDep.userId));
         tg.depositSendavapay({
           username: depUser?.username ?? String(pendingDep.userId),
           userId: depUser?.userId ?? String(pendingDep.userId),
@@ -2017,12 +2265,12 @@ router18.post("/webhooks/sendavapay", async (req, res) => {
           country: pendingDep.payerCountry
         });
       }
-      const [vipPayment] = await db16.select().from(vipPaymentsTable2).where(eq15(vipPaymentsTable2.sendavapayReference, reference));
+      const [vipPayment] = await db17.select().from(vipPaymentsTable2).where(eq16(vipPaymentsTable2.sendavapayReference, reference));
       if (vipPayment && vipPayment.status === "pending") {
-        await db16.update(vipPaymentsTable2).set({ status: "completed", updatedAt: /* @__PURE__ */ new Date() }).where(eq15(vipPaymentsTable2.id, vipPayment.id));
-        await db16.update(usersTable13).set({ isVip: true, updatedAt: /* @__PURE__ */ new Date() }).where(eq15(usersTable13.id, vipPayment.userId));
+        await db17.update(vipPaymentsTable2).set({ status: "completed", updatedAt: /* @__PURE__ */ new Date() }).where(eq16(vipPaymentsTable2.id, vipPayment.id));
+        await db17.update(usersTable14).set({ isVip: true, updatedAt: /* @__PURE__ */ new Date() }).where(eq16(usersTable14.id, vipPayment.userId));
         logger.info({ userId: vipPayment.userId }, "VIP activ\xE9 via SendavaPay");
-        const [vipUser] = await db16.select({ username: usersTable13.username, userId: usersTable13.userId }).from(usersTable13).where(eq15(usersTable13.id, vipPayment.userId));
+        const [vipUser] = await db17.select({ username: usersTable14.username, userId: usersTable14.userId }).from(usersTable14).where(eq16(usersTable14.id, vipPayment.userId));
         tg.vipActivated({
           username: vipUser?.username ?? String(vipPayment.userId),
           userId: vipUser?.userId ?? String(vipPayment.userId),
@@ -2031,14 +2279,14 @@ router18.post("/webhooks/sendavapay", async (req, res) => {
       }
     }
     if (event === "payment.failed" || event === "payment.expired") {
-      const [pendingDep] = await db16.select().from(pendingSpDepositsTable2).where(eq15(pendingSpDepositsTable2.sendavapayReference, reference));
+      const [pendingDep] = await db17.select().from(pendingSpDepositsTable2).where(eq16(pendingSpDepositsTable2.sendavapayReference, reference));
       if (pendingDep) {
-        await db16.delete(pendingSpDepositsTable2).where(eq15(pendingSpDepositsTable2.id, pendingDep.id));
+        await db17.delete(pendingSpDepositsTable2).where(eq16(pendingSpDepositsTable2.id, pendingDep.id));
         logger.info({ reference }, "Paiement SP \xE9chou\xE9 \u2014 aucun d\xE9p\xF4t cr\xE9\xE9");
       }
-      const [vipPayment] = await db16.select().from(vipPaymentsTable2).where(eq15(vipPaymentsTable2.sendavapayReference, reference));
+      const [vipPayment] = await db17.select().from(vipPaymentsTable2).where(eq16(vipPaymentsTable2.sendavapayReference, reference));
       if (vipPayment && vipPayment.status === "pending") {
-        await db16.update(vipPaymentsTable2).set({ status: "failed", updatedAt: /* @__PURE__ */ new Date() }).where(eq15(vipPaymentsTable2.id, vipPayment.id));
+        await db17.update(vipPaymentsTable2).set({ status: "failed", updatedAt: /* @__PURE__ */ new Date() }).where(eq16(vipPaymentsTable2.id, vipPayment.id));
       }
     }
     res.json({ received: true });
@@ -2047,20 +2295,20 @@ router18.post("/webhooks/sendavapay", async (req, res) => {
     res.status(500).json({ error: "Internal error" });
   }
 });
-var webhooks_default = router18;
+var webhooks_default = router19;
 
 // src/middlewares/maintenance.ts
-import { db as db17, appSettingsTable as appSettingsTable5, sessionsTable as sessionsTable3, usersTable as usersTable14 } from "@workspace/db";
-import { eq as eq16, and as and5, gt as gt2 } from "drizzle-orm";
+import { db as db18, appSettingsTable as appSettingsTable5, sessionsTable as sessionsTable3, usersTable as usersTable15 } from "@workspace/db";
+import { eq as eq17, and as and6, gt as gt2 } from "drizzle-orm";
 var ALWAYS_ALLOWED_PREFIXES = ["/app-settings", "/healthz", "/auth/login"];
 async function maintenanceGate(req, res, next) {
   if (ALWAYS_ALLOWED_PREFIXES.some((p) => req.path.startsWith(p))) {
     next();
     return;
   }
-  let [settings] = await db17.select().from(appSettingsTable5).limit(1);
+  let [settings] = await db18.select().from(appSettingsTable5).limit(1);
   if (!settings) {
-    [settings] = await db17.insert(appSettingsTable5).values({}).returning();
+    [settings] = await db18.insert(appSettingsTable5).values({}).returning();
   }
   if (!settings.maintenanceMode) {
     next();
@@ -2069,9 +2317,9 @@ async function maintenanceGate(req, res, next) {
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith("Bearer ")) {
     const token = authHeader.slice(7);
-    const [session] = await db17.select().from(sessionsTable3).where(and5(eq16(sessionsTable3.token, token), gt2(sessionsTable3.expiresAt, /* @__PURE__ */ new Date())));
+    const [session] = await db18.select().from(sessionsTable3).where(and6(eq17(sessionsTable3.token, token), gt2(sessionsTable3.expiresAt, /* @__PURE__ */ new Date())));
     if (session) {
-      const [user] = await db17.select().from(usersTable14).where(eq16(usersTable14.id, session.userId));
+      const [user] = await db18.select().from(usersTable15).where(eq17(usersTable15.id, session.userId));
       if (user?.isAdmin) {
         next();
         return;
@@ -2109,8 +2357,16 @@ app.use(cors());
 app.use("/webhooks/sendavapay", express.raw({ type: "application/json" }), webhooks_default);
 app.use(express.json({ limit: "25mb" }));
 app.use(express.urlencoded({ extended: true }));
-app.use("/api/uploads", express.static(join2(process.cwd(), "uploads")));
+app.use("/api/uploads", express.static(join3(process.cwd(), "uploads")));
 app.use("/api", maintenanceGate, routes_default);
+if (process.env.NODE_ENV === "production") {
+  const __dirname = dirname(fileURLToPath(import.meta.url));
+  const frontendDist = join3(__dirname, "../../vitrine/dist");
+  app.use(express.static(frontendDist));
+  app.get("*", (_req, res) => {
+    res.sendFile(join3(frontendDist, "index.html"));
+  });
+}
 app.use((err, _req, res, _next) => {
   logger.error({ err }, "Unhandled error");
   res.status(500).json({ error: "Internal server error" });
