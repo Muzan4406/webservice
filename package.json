@@ -9,6 +9,6 @@
   "scripts": {
     "build": "echo 'Pre-built dist files are committed to the repository. Use pnpm run build:full to rebuild locally.'",
     "build:full": "pnpm --filter @workspace/vitrine run build && pnpm --filter @workspace/api-server run build",
-    "start": "node artifacts/api-server/dist/index.cjs"
+    "start": "NODE_ENV=production node artifacts/api-server/dist/index.cjs"
   }
 }
