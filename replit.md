@@ -65,6 +65,30 @@ Uses **pnpm workspaces**. Install all dependencies from the root:
 pnpm install
 ```
 
+## Production build (Hostinger / VPS)
+
+```bash
+pnpm install --frozen-lockfile
+pnpm run build
+NODE_ENV=production PORT=3000 node artifacts/api-server/dist/index.cjs
+```
+
+In production, Express serves the React frontend as static files — a single
+Node.js process handles everything. See `HOSTINGER.md` for the full deployment
+guide (PM2, Nginx/Apache reverse proxy, SSL).
+
+**Build output:**
+- `artifacts/api-server/dist/index.cjs` — backend bundle (fully self-contained, no `node_modules` needed at runtime)
+- `artifacts/vitrine/dist/` — frontend static files (served by Express)
+
+**Required env vars for production** (see `.env.example`):
+
+| Variable | Description |
+|----------|-------------|
+| `NODE_ENV` | Must be `production` |
+| `PORT` | Server port (default: `3000`) |
+| `PG_URL` | PostgreSQL connection string |
+
 ## User preferences
 
 - Keep existing project structure and stack — do not restructure or migrate.

@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+artifacts/api-server/dist/
+artifacts/vitrine/dist/
+
+# Environment — NEVER commit secrets
+.env
+
+# Logs
+logs/
+*.log
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# pnpm
+.pnpm-store/
+
+# TypeScript build info
+*.tsbuildinfo

@@ -7,6 +7,8 @@
   },
   "scripts": {
     "build": "pnpm --filter @workspace/vitrine run build && pnpm --filter @workspace/api-server run build",
-    "start": "node --enable-source-maps artifacts/api-server/dist/index.mjs"
-  }
+    "start": "node --enable-source-maps artifacts/api-server/dist/index.cjs",
+    "setup": "npm install -g pnpm && pnpm install --frozen-lockfile && pnpm run build"
+  },
+  "packageManager": "pnpm@10.26.1"
 }

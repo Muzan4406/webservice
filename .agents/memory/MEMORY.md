@@ -1,0 +1,1 @@
+- [Backend build strategy](backend-build.md) — must use CJS full-bundle (not ESM + external packages) for production

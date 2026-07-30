@@ -8,6 +8,14 @@ import webhookRouter from "./routes/webhooks";
 import { logger } from "./lib/logger";
 import { maintenanceGate } from "./middlewares/maintenance";
 
+// Cross-format __dirname: works in both CJS bundles (where __dirname is a
+// global) and native ESM (where import.meta.url is defined).
+declare const __dirname: string | undefined;
+const _dirname: string =
+  typeof __dirname !== "undefined"
+    ? __dirname
+    : dirname(fileURLToPath(import.meta.url));
+
 const app: Express = express();
 
 app.use(
@@ -29,22 +37,40 @@ app.use(
     },
   }),
 );
-app.use(cors());
+
+// ── CORS ─────────────────────────────────────────────────────────────────────
+// In production the frontend is served by this same Express process, so
+// same-origin requests never hit CORS. The header is only needed for external
+// clients (webhooks, mobile apps). Restrict to ALLOWED_ORIGIN when set.
+const allowedOrigin = process.env.ALLOWED_ORIGIN;
+app.use(
+  cors(
+    allowedOrigin
+      ? { origin: allowedOrigin, credentials: true }
+      : undefined, // allow all in dev / when not configured
+  ),
+);
+
 app.use("/webhooks/sendavapay", express.raw({ type: "application/json" }), webhookRouter);
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true }));
-app.use("/api/uploads", express.static(join(process.cwd(), "uploads")));
+
+// ── Uploads — path is relative to the compiled file, not process.cwd() ───────
+// Built file lives at artifacts/api-server/dist/index.cjs
+// uploads/ folder lives at artifacts/api-server/uploads/
+const uploadsDir = join(_dirname, "../uploads");
+app.use("/api/uploads", express.static(uploadsDir));
 app.use("/api", maintenanceGate, router);
 
 // ── Serve frontend in production ──────────────────────────────────────────
 // The bundled backend sits at artifacts/api-server/dist/index.mjs,
 // so the Vite build output is two levels up: artifacts/vitrine/dist/
 if (process.env.NODE_ENV === "production") {
-  const __dirname = dirname(fileURLToPath(import.meta.url));
-  const frontendDist = join(__dirname, "../../vitrine/dist");
+  const frontendDist = join(_dirname, "../../vitrine/dist");
   app.use(express.static(frontendDist));
   // SPA fallback — let React Router handle all non-API routes
-  app.get("*", (_req: Request, res: Response) => {
+  // Express 5 requires a named wildcard parameter (not bare "*")
+  app.get("/*path", (_req: Request, res: Response) => {
     res.sendFile(join(frontendDist, "index.html"));
   });
 }

@@ -1,13 +1,21 @@
 import { Router, type IRouter } from "express";
 import { randomBytes } from "node:crypto";
 import { writeFile, readFile, access, mkdir } from "node:fs/promises";
-import { join } from "node:path";
+import { join, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
-// Store uploads locally in the uploads/ directory next to the server
-const UPLOADS_DIR = join(process.cwd(), "uploads");
+// Store uploads in artifacts/api-server/uploads/ — resolved relative to the
+// compiled file (dist/index.cjs → ../uploads) so it works regardless of
+// which directory the process is started from.
+declare const __dirname: string | undefined;
+const _uploadDirname: string =
+  typeof __dirname !== "undefined"
+    ? __dirname
+    : dirname(fileURLToPath(import.meta.url));
+const UPLOADS_DIR = join(_uploadDirname, "../uploads");
 
 // Ensure the uploads directory exists at startup
 mkdir(UPLOADS_DIR, { recursive: true }).catch(() => {/* already exists */});
