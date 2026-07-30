@@ -7,7 +7,7 @@ import { tg } from "../lib/telegram";
 
 const router: IRouter = Router();
 
-router.post("/webhooks/sendavapay", async (req: Request, res: Response): Promise<void> => {
+router.post("/", async (req: Request, res: Response): Promise<void> => {
   const rawBody = req.body as Buffer;
 
   try {
