@@ -58993,8 +58993,8 @@ var insertChatMessageSchema = createInsertSchema(chatMessagesTable).omit({
 // ../../lib/db/src/index.ts
 var { Pool: Pool3 } = esm_default;
 if (!process.env.PG_URL) {
-  throw new Error(
-    "PG_URL must be set. Add your Supabase connection string as PG_URL secret."
+  console.warn(
+    "[db] PG_URL is not set \u2014 the server will start but all database queries will fail. Set PG_URL in your environment variables to connect to PostgreSQL."
   );
 }
 var pool = new Pool3({ connectionString: process.env.PG_URL });
