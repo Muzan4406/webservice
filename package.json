@@ -5,8 +5,10 @@
   "engines": {
     "node": ">=20"
   },
+  "packageManager": "pnpm@10.26.1",
   "scripts": {
-    "build": "pnpm --filter @workspace/vitrine run build && pnpm --filter @workspace/api-server run build",
-    "start": "node --enable-source-maps artifacts/api-server/dist/index.cjs"
+    "build": "echo 'Pre-built dist files are committed to the repository. Use pnpm run build:full to rebuild locally.'",
+    "build:full": "pnpm --filter @workspace/vitrine run build && pnpm --filter @workspace/api-server run build",
+    "start": "node artifacts/api-server/dist/index.cjs"
   }
 }
