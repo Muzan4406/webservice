@@ -1,9 +1,10 @@
 # Dependencies
 node_modules/
 
-# Build outputs
-artifacts/api-server/dist/
-artifacts/vitrine/dist/
+# Build outputs are committed for deployment (Hostinger reads directly from Git)
+# Uncomment these lines only if you want to exclude them locally:
+# artifacts/api-server/dist/
+# artifacts/vitrine/dist/
 
 # Environment — NEVER commit secrets
 .env
