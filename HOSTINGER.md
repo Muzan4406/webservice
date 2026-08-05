@@ -128,3 +128,7 @@ pm2 save && pm2 startup
 ```
 
 Voir `ecosystem.config.cjs` pour la config PM2 et adapter le chemin `cwd`.
+
+> Pour Plesk, utilisez le fichier de démarrage `app.js` à la racine et
+> consultez `DEPLOY.md`. Le fichier `index.cjs` reste le bundle lancé par
+> `app.js`.
