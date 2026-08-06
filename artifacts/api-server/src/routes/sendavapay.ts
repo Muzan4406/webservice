@@ -204,6 +204,27 @@ router.post("/sendavapay/initiate", requireAuth, async (req: AuthRequest, res): 
     return;
   }
 
+  // Keep the payment decision observable without logging credentials,
+  // payment tokens, or the payer's phone number. A redirect is decided by
+  // SendavaPay; the domain/SSL only affect the later webhook callback.
+  let redirectHost: string | null = null;
+  if (data.redirectUrl) {
+    try {
+      redirectHost = new URL(data.redirectUrl).host;
+    } catch {
+      redirectHost = "invalid-url";
+    }
+  }
+  logger.info({
+    operatorId,
+    payerCountry,
+    reference: data.reference ?? null,
+    requiresRedirect: data.requiresRedirect ?? false,
+    redirectHost,
+    requiresOtp: data.requiresOtp ?? false,
+    message: data.message ?? null,
+  }, "SendavaPay payment initiation result");
+
   res.json({
     success: true,
     reference: data.reference,

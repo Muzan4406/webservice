@@ -60811,6 +60811,23 @@ router16.post("/sendavapay/initiate", requireAuth, async (req, res) => {
     res.status(400).json({ error: data.error ?? "Erreur d'initiation" });
     return;
   }
+  let redirectHost = null;
+  if (data.redirectUrl) {
+    try {
+      redirectHost = new URL(data.redirectUrl).host;
+    } catch {
+      redirectHost = "invalid-url";
+    }
+  }
+  logger.info({
+    operatorId,
+    payerCountry,
+    reference: data.reference ?? null,
+    requiresRedirect: data.requiresRedirect ?? false,
+    redirectHost,
+    requiresOtp: data.requiresOtp ?? false,
+    message: data.message ?? null
+  }, "SendavaPay payment initiation result");
   res.json({
     success: true,
     reference: data.reference,

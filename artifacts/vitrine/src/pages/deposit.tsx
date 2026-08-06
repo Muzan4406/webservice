@@ -209,7 +209,7 @@ export default function DepositPage() {
       const res: any = await intlInitiate({
         data: { paymentToken: intlPaymentToken, operatorId: intlSelectedOperator.id, payerPhone: intlPayerPhone, payerCountry: intlCountryCode, payerName: user?.username ?? 'User' },
       });
-      if (res.redirectUrl) { setIntlRedirectUrl(res.redirectUrl); setIntlStep('redirect'); }
+      if (res.requiresRedirect && res.redirectUrl) { setIntlRedirectUrl(res.redirectUrl); setIntlStep('redirect'); }
       else if (res.otpToken) { setIntlOtpToken(res.otpToken); setIntlStep('otp'); }
       else if (res.reference) { setIntlSpReference(res.reference); setIntlStep('waiting'); }
       else { toast.error("Réponse inattendue de l'opérateur."); }
@@ -221,7 +221,7 @@ export default function DepositPage() {
   const handleIntlOtp = async () => {
     if (!intlOtpCode.trim()) { toast.error('Entrez le code OTP.'); return; }
     try {
-      const res: any = await intlSubmitOtp({ data: { otpToken: intlOtpToken, otpCode: intlOtpCode } });
+      const res: any = await intlSubmitOtp({ data: { otpToken: intlOtpToken, otp: intlOtpCode } as any });
       setIntlSpReference(res.reference);
       setIntlStep('waiting');
     } catch (e: any) {

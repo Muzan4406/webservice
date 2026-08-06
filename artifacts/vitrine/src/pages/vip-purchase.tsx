@@ -111,7 +111,7 @@ export default function VipPurchasePage() {
       const res: any = await initiatePayment({
         data: { paymentToken, operatorId: selectedOperator.id, payerPhone, payerCountry: countryCode, payerName: user?.username ?? 'User' },
       });
-      if (res.redirectUrl) { setRedirectUrl(res.redirectUrl); setStep('redirect'); }
+      if (res.requiresRedirect && res.redirectUrl) { setRedirectUrl(res.redirectUrl); setStep('redirect'); }
       else if (res.otpToken) { setOtpToken(res.otpToken); setStep('otp'); }
       else if (res.reference) { setSpReference(res.reference); setStep('waiting'); }
       else { toast.error('Réponse inattendue de l\'opérateur.'); }
@@ -123,7 +123,7 @@ export default function VipPurchasePage() {
   async function handleOtp() {
     if (!otpCode.trim()) { toast.error('Entrez le code OTP.'); return; }
     try {
-      const res: any = await submitOtp({ data: { otpToken, otpCode } });
+      const res: any = await submitOtp({ data: { otpToken, otp: otpCode } as any });
       setSpReference(res.reference);
       setStep('waiting');
     } catch (e: any) {
