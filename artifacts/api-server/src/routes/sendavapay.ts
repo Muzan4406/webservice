@@ -188,9 +188,13 @@ router.post("/sendavapay/initiate", requireAuth, async (req: AuthRequest, res): 
     return;
   }
 
+  // The SendavaPay initiate endpoint must receive the merchant authorization
+  // too. Without it, providers can reject the push flow or fall back to a
+  // hosted checkout/redirect response.
+  const apiKey = await getApiKey();
   const r = await fetch(`${SENDAVAPAY_BASE}/initiate-payment`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders(apiKey),
     body: JSON.stringify({ paymentToken, payerName, payerPhone, payerEmail, payerCountry, operatorId }),
   });
 
@@ -216,9 +220,10 @@ router.post("/sendavapay/submit-otp", requireAuth, async (req: AuthRequest, res)
   const { otpToken, otp } = req.body;
   if (!otpToken || !otp) { res.status(400).json({ error: "otpToken et otp sont requis" }); return; }
 
+  const apiKey = await getApiKey();
   const r = await fetch(`${SENDAVAPAY_BASE}/submit-otp`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders(apiKey),
     body: JSON.stringify({ otpToken, otp }),
   });
 

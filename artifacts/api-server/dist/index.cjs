@@ -60800,9 +60800,10 @@ router16.post("/sendavapay/initiate", requireAuth, async (req, res) => {
     res.status(400).json({ error: "Param\xE8tres manquants" });
     return;
   }
+  const apiKey = await getApiKey();
   const r = await fetch(`${SENDAVAPAY_BASE}/initiate-payment`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders(apiKey),
     body: JSON.stringify({ paymentToken, payerName, payerPhone, payerEmail, payerCountry, operatorId })
   });
   const data = await r.json();
@@ -60826,9 +60827,10 @@ router16.post("/sendavapay/submit-otp", requireAuth, async (req, res) => {
     res.status(400).json({ error: "otpToken et otp sont requis" });
     return;
   }
+  const apiKey = await getApiKey();
   const r = await fetch(`${SENDAVAPAY_BASE}/submit-otp`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: authHeaders(apiKey),
     body: JSON.stringify({ otpToken, otp })
   });
   const data = await r.json();
