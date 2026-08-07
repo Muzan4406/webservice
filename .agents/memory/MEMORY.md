@@ -1,1 +1,2 @@
 - [Backend build strategy](backend-build.md) — must use CJS full-bundle (not ESM + external packages) for production
+- [PWA cache policy](pwa-cache-policy.md) — navigation HTML and the service worker must revalidate after deployments

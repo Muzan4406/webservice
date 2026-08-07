@@ -67,10 +67,26 @@ app.use("/api", maintenanceGate, router);
 // so the Vite build output is two levels up: artifacts/vitrine/dist/
 if (process.env.NODE_ENV === "production") {
   const frontendDist = join(_dirname, "../../vitrine/dist");
-  app.use(express.static(frontendDist));
+  app.use(
+    express.static(frontendDist, {
+      setHeaders(res, filePath) {
+        // These files control the installed PWA and must be revalidated after
+        // every deployment. A stale HTML file can point to a deleted Vite
+        // chunk and leave an installed app on a blank screen.
+        if (
+          filePath.endsWith("/index.html") ||
+          filePath.endsWith("/manifest.json") ||
+          filePath.endsWith("/sw.js")
+        ) {
+          res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        }
+      },
+    }),
+  );
   // SPA fallback — let React Router handle all non-API routes
   // Express 5 requires a named wildcard parameter (not bare "*")
   app.get("/*path", (_req: Request, res: Response) => {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     res.sendFile(join(frontendDist, "index.html"));
   });
 }

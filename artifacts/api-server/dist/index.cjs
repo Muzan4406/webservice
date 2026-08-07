@@ -61318,8 +61318,17 @@ app.use("/api/uploads", import_express20.default.static(uploadsDir));
 app.use("/api", maintenanceGate, routes_default);
 if (process.env.NODE_ENV === "production") {
   const frontendDist = (0, import_node_path3.join)(_dirname, "../../vitrine/dist");
-  app.use(import_express20.default.static(frontendDist));
+  app.use(
+    import_express20.default.static(frontendDist, {
+      setHeaders(res, filePath) {
+        if (filePath.endsWith("/index.html") || filePath.endsWith("/manifest.json") || filePath.endsWith("/sw.js")) {
+          res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+        }
+      }
+    })
+  );
   app.get("/*path", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     res.sendFile((0, import_node_path3.join)(frontendDist, "index.html"));
   });
 }
