@@ -10,7 +10,9 @@ export const paymentConfigTable = pgTable("payment_config", {
   moovMoneyUssdCode: text("moov_money_ussd_code"),
   internationalPaymentApiUrl: text("international_payment_api_url"),
   internationalPaymentApiKey: text("international_payment_api_key"),
-  sendavapayApiKey: text("sendavapay_api_key"),
+  // Reuses the sendavapay_api_key column — no migration needed
+  ashtechpayApiKey: text("sendavapay_api_key"),
+  // Kept for schema compatibility (column exists in DB, no longer used)
   sendavapayWebhookSecret: text("sendavapay_webhook_secret"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

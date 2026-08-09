@@ -15,7 +15,7 @@ export const depositsTable = pgTable(
     referenceId: text("reference_id"), // unique enforced via DB index below
     screenshotUrl: text("screenshot_url"),
     country: text("country"),
-    sendavapayReference: text("sendavapay_reference"),
+    ashtechpayReference: text("sendavapay_reference"),
     status: text("status").notNull().default("pending"), // 'pending' | 'validated' | 'rejected'
     rejectionReason: text("rejection_reason"),
     createdAt: timestamp("created_at").notNull().defaultNow(),

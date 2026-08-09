@@ -28,7 +28,7 @@ export default function AdminConfigPage() {
     tmoneyEnabled: true, moovMoneyEnabled: true,
     moovMoneyNumber: '', moovMoneyUssdCode: '',
     internationalPaymentApiUrl: '', internationalPaymentApiKey: '',
-    sendavapayApiKey: '', sendavapayWebhookSecret: '',
+    ashtechpayApiKey: '',
   });
   const [appForm, setAppForm] = useState({
     maintenanceMode: false, maintenanceMessage: '',
@@ -47,8 +47,7 @@ export default function AdminConfigPage() {
         moovMoneyUssdCode: config.moovMoneyUssdCode || '',
         internationalPaymentApiUrl: config.internationalPaymentApiUrl || '',
         internationalPaymentApiKey: config.internationalPaymentApiKey || '',
-        sendavapayApiKey: (config as any).sendavapayApiKey || '',
-        sendavapayWebhookSecret: (config as any).sendavapayWebhookSecret || '',
+        ashtechpayApiKey: (config as any).ashtechpayApiKey || '',
       });
     }
   }, [config]);
@@ -158,11 +157,17 @@ export default function AdminConfigPage() {
           <CardContent className="p-5 space-y-4">
             <p className="text-sm font-semibold text-muted-foreground uppercase">Configuration Paiements</p>
             <div className="flex items-center justify-between">
-              <p className="font-semibold">TMoney activé</p>
+              <div>
+                <p className="font-semibold">TMoney activé</p>
+                <p className="text-xs text-muted-foreground">Visible pour les utilisateurs si activé</p>
+              </div>
               <input type="checkbox" checked={form.tmoneyEnabled} onChange={e => sf('tmoneyEnabled', e.target.checked)} className="w-5 h-5 rounded" />
             </div>
             <div className="flex items-center justify-between">
-              <p className="font-semibold">Moov Money activé</p>
+              <div>
+                <p className="font-semibold">Moov Money activé</p>
+                <p className="text-xs text-muted-foreground">Visible pour les utilisateurs si activé</p>
+              </div>
               <input type="checkbox" checked={form.moovMoneyEnabled} onChange={e => sf('moovMoneyEnabled', e.target.checked)} className="w-5 h-5 rounded" />
             </div>
             <Separator />
@@ -171,12 +176,16 @@ export default function AdminConfigPage() {
               { key: 'moovMoneyUssdCode', label: 'Code USSD Moov Money', ph: '*144#' },
               { key: 'internationalPaymentApiUrl', label: 'API URL (international)', ph: 'https://…' },
               { key: 'internationalPaymentApiKey', label: 'Clé API (international)', ph: 'sk_…' },
-              { key: 'sendavapayApiKey', label: 'Clé API SendavaPay', ph: 'sp_…' },
-              { key: 'sendavapayWebhookSecret', label: 'Secret Webhook SendavaPay', ph: 'whsec_…' },
+              { key: 'ashtechpayApiKey', label: 'Clé API AshtechPay', ph: 'ak_…' },
             ].map(({ key, label, ph }) => (
               <div key={key} className="space-y-1.5">
                 <Label>{label}</Label>
-                <Input placeholder={ph} value={(form as any)[key]} onChange={e => sf(key, e.target.value)} type={key.includes('Key') || key.includes('Secret') ? 'password' : 'text'} />
+                <Input
+                  placeholder={ph}
+                  value={(form as any)[key]}
+                  onChange={e => sf(key, e.target.value)}
+                  type={key.includes('Key') || key.includes('Secret') ? 'password' : 'text'}
+                />
               </div>
             ))}
             <Button className="w-full" onClick={handleSaveConfig} disabled={isUpdating}>
@@ -185,6 +194,24 @@ export default function AdminConfigPage() {
           </CardContent>
         </Card>
 
+        {/* VIP manuel */}
+        <Card>
+          <CardContent className="p-5 space-y-4">
+            <p className="text-sm font-semibold text-muted-foreground uppercase">Accès VIP Manuel</p>
+            <div className="space-y-1.5">
+              <Label>ID Utilisateur</Label>
+              <Input
+                type="number"
+                placeholder="ID de l'utilisateur"
+                value={vipUserId}
+                onChange={e => setVipUserId(e.target.value)}
+              />
+            </div>
+            <Button className="w-full" onClick={handleConfirmVip} disabled={isConfirming}>
+              {isConfirming ? 'Traitement…' : 'Accorder le statut VIP'}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </div>
   );

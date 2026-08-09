@@ -57,19 +57,19 @@ export const tg = {
     );
   },
 
-  depositSendavapay(opts: {
+  depositAshtechpay(opts: {
     username: string;
     userId: string;
     amount: number;
-    reference: string;
+    transactionId: string;
     country?: string | null;
   }) {
     const flag = countryFlag(opts.country);
     return sendAlert(
-      `💰 <b>Dépôt SendavaPay confirmé</b>\n` +
+      `💰 <b>Dépôt AshtechPay confirmé</b>\n` +
       `👤 ${opts.username} (${opts.userId})\n` +
       `💵 ${fmt(opts.amount)} FCFA${flag ? ` • ${flag}` : ""}\n` +
-      `🔖 Réf : <code>${opts.reference}</code>`
+      `🔖 TX : <code>${opts.transactionId}</code>`
     );
   },
 

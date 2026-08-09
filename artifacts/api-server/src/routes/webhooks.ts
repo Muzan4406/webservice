@@ -1,82 +1,70 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import crypto from "node:crypto";
-import { db, depositsTable, vipPaymentsTable, usersTable, paymentConfigTable, pendingSpDepositsTable } from "@workspace/db";
+import { db, depositsTable, vipPaymentsTable, usersTable, pendingSpDepositsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { tg } from "../lib/telegram";
 
 const router: IRouter = Router();
 
+// POST /webhooks/ashtechpay
 router.post("/", async (req: Request, res: Response): Promise<void> => {
   const rawBody = req.body as Buffer;
 
   try {
-    // Prefer env var (Replit Secret), fall back to DB
-    const [config] = await db.select().from(paymentConfigTable).limit(1);
-    const secret = process.env["SENDAVAPAY_WEBHOOK_SECRET"] ?? config?.sendavapayWebhookSecret;
-
-    if (secret) {
-      const sig = req.headers["x-sendavapay-signature"] as string | undefined;
-      const expected = "sha256=" + crypto
-        .createHmac("sha256", secret)
-        .update(rawBody)
-        .digest("hex");
-
-      if (!sig || sig !== expected) {
-        logger.warn("SendavaPay webhook: signature invalide");
-        res.status(401).json({ error: "Invalid signature" });
-        return;
-      }
-    }
-
     const payload = JSON.parse(rawBody.toString()) as any;
-    const { event, reference } = payload;
+    const { event, transaction_id } = payload;
 
-    logger.info({ event, reference }, "SendavaPay webhook reçu");
+    logger.info({ event, transaction_id }, "AshtechPay webhook reçu");
 
-    // ── Payment completed ──────────────────────────────────────────────
+    // Répondre immédiatement
+    res.json({ received: true });
+
+    // ── Paiement confirmé ──────────────────────────────────────────────────
     if (event === "payment.completed") {
-
-      // Deposit flow: create deposit record NOW (admin sees it only on success)
+      // Flux dépôt : créer l'enregistrement dépôt (l'admin voit la demande)
       const [pendingDep] = await db
         .select()
         .from(pendingSpDepositsTable)
-        .where(eq(pendingSpDepositsTable.sendavapayReference, reference));
+        .where(eq(pendingSpDepositsTable.ashtechpayReference, transaction_id));
 
       if (pendingDep) {
-        await db.insert(depositsTable).values({
-          userId: pendingDep.userId,
-          type: "international",
-          operator: "other",
-          oneXbetAccountId: pendingDep.oneXbetAccountId,
-          amount: pendingDep.amount,
-          referenceId: pendingDep.externalReference,
-          sendavapayReference: reference,
-          country: pendingDep.payerCountry,
-          status: "pending", // admin still needs to credit 1xBet account
-        });
+        const existing = await db.select().from(depositsTable).where(eq(depositsTable.ashtechpayReference, transaction_id));
+        if (existing.length === 0) {
+          await db.insert(depositsTable).values({
+            userId: pendingDep.userId,
+            type: "international",
+            operator: "other",
+            oneXbetAccountId: pendingDep.oneXbetAccountId,
+            amount: pendingDep.amount,
+            referenceId: pendingDep.externalReference,
+            ashtechpayReference: transaction_id,
+            country: pendingDep.payerCountry,
+            status: "pending", // l'admin doit encore créditer le compte 1xBet
+          });
+        }
 
-        await db
-          .delete(pendingSpDepositsTable)
-          .where(eq(pendingSpDepositsTable.id, pendingDep.id));
+        await db.delete(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.id, pendingDep.id));
+        logger.info({ userId: pendingDep.userId, transaction_id }, "Dépôt AshtechPay créé pour l'admin");
 
-        logger.info({ userId: pendingDep.userId, reference }, "Dépôt SP créé pour l'admin après confirmation");
+        const [depUser] = await db
+          .select({ username: usersTable.username, userId: usersTable.userId })
+          .from(usersTable)
+          .where(eq(usersTable.id, pendingDep.userId));
 
-        const [depUser] = await db.select({ username: usersTable.username, userId: usersTable.userId }).from(usersTable).where(eq(usersTable.id, pendingDep.userId));
-        tg.depositSendavapay({
+        tg.depositAshtechpay({
           username: depUser?.username ?? String(pendingDep.userId),
           userId: depUser?.userId ?? String(pendingDep.userId),
           amount: parseFloat(pendingDep.amount),
-          reference,
+          transactionId: transaction_id,
           country: pendingDep.payerCountry,
         });
       }
 
-      // VIP flow: activate VIP
+      // Flux VIP : activer le VIP
       const [vipPayment] = await db
         .select()
         .from(vipPaymentsTable)
-        .where(eq(vipPaymentsTable.sendavapayReference, reference));
+        .where(eq(vipPaymentsTable.ashtechpayReference, transaction_id));
 
       if (vipPayment && vipPayment.status === "pending") {
         await db
@@ -89,9 +77,13 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
           .set({ isVip: true, updatedAt: new Date() })
           .where(eq(usersTable.id, vipPayment.userId));
 
-        logger.info({ userId: vipPayment.userId }, "VIP activé via SendavaPay");
+        logger.info({ userId: vipPayment.userId }, "VIP activé via AshtechPay");
 
-        const [vipUser] = await db.select({ username: usersTable.username, userId: usersTable.userId }).from(usersTable).where(eq(usersTable.id, vipPayment.userId));
+        const [vipUser] = await db
+          .select({ username: usersTable.username, userId: usersTable.userId })
+          .from(usersTable)
+          .where(eq(usersTable.id, vipPayment.userId));
+
         tg.vipActivated({
           username: vipUser?.username ?? String(vipPayment.userId),
           userId: vipUser?.userId ?? String(vipPayment.userId),
@@ -100,27 +92,24 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
       }
     }
 
-    // ── Payment failed / expired ───────────────────────────────────────
-    if (event === "payment.failed" || event === "payment.expired") {
-
-      // Deposit: delete pending record — admin sees NOTHING (no deposit created)
+    // ── Paiement échoué ───────────────────────────────────────────────────
+    if (event === "payment.failed") {
+      // Dépôt : supprimer le pending (aucun dépôt créé)
       const [pendingDep] = await db
         .select()
         .from(pendingSpDepositsTable)
-        .where(eq(pendingSpDepositsTable.sendavapayReference, reference));
+        .where(eq(pendingSpDepositsTable.ashtechpayReference, transaction_id));
 
       if (pendingDep) {
-        await db
-          .delete(pendingSpDepositsTable)
-          .where(eq(pendingSpDepositsTable.id, pendingDep.id));
-        logger.info({ reference }, "Paiement SP échoué — aucun dépôt créé");
+        await db.delete(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.id, pendingDep.id));
+        logger.info({ transaction_id }, "Paiement AshtechPay échoué — aucun dépôt créé");
       }
 
-      // VIP: mark as failed
+      // VIP : marquer comme échoué
       const [vipPayment] = await db
         .select()
         .from(vipPaymentsTable)
-        .where(eq(vipPaymentsTable.sendavapayReference, reference));
+        .where(eq(vipPaymentsTable.ashtechpayReference, transaction_id));
 
       if (vipPayment && vipPayment.status === "pending") {
         await db
@@ -129,11 +118,8 @@ router.post("/", async (req: Request, res: Response): Promise<void> => {
           .where(eq(vipPaymentsTable.id, vipPayment.id));
       }
     }
-
-    res.json({ received: true });
   } catch (err: any) {
-    logger.error({ err }, "Erreur webhook SendavaPay");
-    res.status(500).json({ error: "Internal error" });
+    logger.error({ err }, "Erreur webhook AshtechPay");
   }
 });
 

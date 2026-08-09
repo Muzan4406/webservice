@@ -3,7 +3,7 @@ import { pgTable, serial, integer, text, numeric, timestamp } from "drizzle-orm/
 export const pendingSpDepositsTable = pgTable("pending_sp_deposits", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
-  sendavapayReference: text("sendavapay_reference").notNull().unique(),
+  ashtechpayReference: text("sendavapay_reference").notNull().unique(),
   externalReference: text("external_reference").notNull(),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   currency: text("currency").notNull(),

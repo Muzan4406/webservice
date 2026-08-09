@@ -320,8 +320,7 @@ router.get("/admin/payment-config", requireAuth, async (req: AuthRequest, res): 
     moovMoneyUssdCode: config.moovMoneyUssdCode ?? null,
     internationalPaymentApiUrl: config.internationalPaymentApiUrl ?? null,
     internationalPaymentApiKey: config.internationalPaymentApiKey ?? null,
-    sendavapayApiKey: config.sendavapayApiKey ?? null,
-    sendavapayWebhookSecret: config.sendavapayWebhookSecret ?? null,
+    ashtechpayApiKey: config.ashtechpayApiKey ?? null,
   });
 });
 
@@ -331,19 +330,19 @@ router.put("/admin/payment-config", requireAuth, async (req: AuthRequest, res): 
     return;
   }
 
-  const { tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, sendavapayApiKey, sendavapayWebhookSecret } = req.body;
+  const { tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey } = req.body;
 
   let [existing] = await db.select().from(paymentConfigTable).limit(1);
 
   if (!existing) {
     [existing] = await db
       .insert(paymentConfigTable)
-      .values({ tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, sendavapayApiKey, sendavapayWebhookSecret })
+      .values({ tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey })
       .returning();
   } else {
     [existing] = await db
       .update(paymentConfigTable)
-      .set({ tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, sendavapayApiKey, sendavapayWebhookSecret, updatedAt: new Date() })
+      .set({ tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey, updatedAt: new Date() })
       .where(eq(paymentConfigTable.id, existing.id))
       .returning();
   }
@@ -355,8 +354,7 @@ router.put("/admin/payment-config", requireAuth, async (req: AuthRequest, res): 
     moovMoneyUssdCode: existing.moovMoneyUssdCode ?? null,
     internationalPaymentApiUrl: existing.internationalPaymentApiUrl ?? null,
     internationalPaymentApiKey: existing.internationalPaymentApiKey ?? null,
-    sendavapayApiKey: existing.sendavapayApiKey ?? null,
-    sendavapayWebhookSecret: existing.sendavapayWebhookSecret ?? null,
+    ashtechpayApiKey: existing.ashtechpayApiKey ?? null,
   });
 });
 
