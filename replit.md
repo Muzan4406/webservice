@@ -89,6 +89,14 @@ guide (PM2, Nginx/Apache reverse proxy, SSL).
 | `PORT` | Server port (default: `3000`) |
 | `PG_URL` | PostgreSQL connection string |
 
+## Replit setup notes
+
+- Dependencies installed via `pnpm install` from the workspace root (resolves all workspace packages).
+- Both workflows verified running and healthy on Replit (August 2026):
+  - **Start Backend** — Express API on port 3000; logs `Server listening` on startup. Reports `PG_URL is not set` until the secret is added, but the process stays up.
+  - **Start application** — Vite dev server on port 5000; frontend renders the login page correctly.
+- `PG_URL` must be added as a Replit Secret before database-dependent features work. See **Required secrets** above.
+
 ## User preferences
 
 - Keep existing project structure and stack — do not restructure or migrate.
