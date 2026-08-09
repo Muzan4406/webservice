@@ -8,6 +8,9 @@ channel = "stable-25_05"
 BASE_PATH = "/"
 LOG_LEVEL = "info"
 NODE_ENV = "development"
+VAPID_CONTACT = "mailto:admin@muzanservice.com"
+VAPID_PRIVATE_KEY = "p_mzolS6lEawJ8Rj2J0l4z7mKxQaMnPWQDuxI41opk4"
+VAPID_PUBLIC_KEY = "BHTu14LTQKHkADm7T8ZPssxl3qskuz0DotRRweUmK_H2YuULMvHsWvnKTep8RO_yDTum8gtXwEIOWtqLIdW2AWM"
 
 [workflows]
 runButton = "Project"

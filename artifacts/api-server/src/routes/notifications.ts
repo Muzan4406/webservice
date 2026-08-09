@@ -167,7 +167,14 @@ router.delete("/notifications/:id", requireAuth, async (req: AuthRequest, res): 
   }
 });
 
-// Register / update the caller's Expo push token
+// Expose the VAPID public key so the frontend can subscribe
+router.get("/push/vapid-public-key", (_req, res): void => {
+  const publicKey = process.env["VAPID_PUBLIC_KEY"];
+  if (!publicKey) { res.status(503).json({ error: "Push notifications not configured" }); return; }
+  res.json({ publicKey });
+});
+
+// Register / update the caller's push subscription (Web Push JSON)
 router.post("/push-token", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   try {
     const { token } = req.body as { token?: string };

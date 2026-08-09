@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { subscribeToPush } from '@/lib/pushSubscription';
 import type { UserProfile } from '@workspace/api-client-react';
 
 interface AuthContextType {
@@ -26,6 +27,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setToken(storedToken);
       try {
         setUser(JSON.parse(storedUser));
+        // Réabonner au push si la session était déjà active
+        setTimeout(() => subscribeToPush(), 2000);
       } catch (e) {
         localStorage.removeItem('muzan_auth_token');
         localStorage.removeItem('muzan_auth_user');
@@ -39,6 +42,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(newUser);
     localStorage.setItem('muzan_auth_token', newToken);
     localStorage.setItem('muzan_auth_user', JSON.stringify(newUser));
+    // Abonnement aux notifications push (silencieux si refusé)
+    setTimeout(() => subscribeToPush(), 1500);
   }, []);
 
   const logout = useCallback(() => {

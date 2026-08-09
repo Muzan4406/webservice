@@ -19,16 +19,10 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Only cache GET requests; pass everything else (API, etc.) through
   if (event.request.method !== 'GET') return;
   const url = new URL(event.request.url);
-  // Never cache API calls
   if (url.pathname.startsWith('/api') || url.pathname.startsWith('/webhooks')) return;
 
-  // Always prefer the network for document navigations. The old service
-  // worker cached "/" as the app shell, which could leave an installed PWA
-  // serving an old HTML file pointing to a deleted, hashed JS bundle after a
-  // deployment. Use the cached shell only when the device is offline.
   if (event.request.mode === 'navigate') {
     event.respondWith(
       fetch(event.request)
@@ -44,8 +38,6 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Hashed Vite assets are safe to cache, while the service worker itself
-  // must always be checked so installed clients can receive updates.
   if (url.pathname === '/sw.js' || url.pathname.endsWith('.html')) {
     event.respondWith(fetch(event.request));
     return;
@@ -53,5 +45,40 @@ self.addEventListener('fetch', (event) => {
 
   event.respondWith(
     caches.match(event.request).then((cached) => cached ?? fetch(event.request))
+  );
+});
+
+// ── Web Push ──────────────────────────────────────────────────────────────────
+
+self.addEventListener('push', (event) => {
+  let data = { title: 'Muzan Service', body: 'Vous avez une nouvelle notification.' };
+  try {
+    if (event.data) data = event.data.json();
+  } catch {}
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: '/icon-192.png',
+      badge: '/icon-192.png',
+      data: data.data ?? {},
+      vibrate: [200, 100, 200],
+    })
+  );
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url ?? '/';
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(url);
+    })
   );
 });
