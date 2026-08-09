@@ -297,6 +297,19 @@ router.get("/admin/withdrawals", requireAuth, async (req: AuthRequest, res): Pro
 });
 
 // Payment Config
+// Route publique — retourne juste la ville et rue du point de retrait 1xBet
+router.get("/config/withdrawal-location", async (_req, res): Promise<void> => {
+  try {
+    let [config] = await db.select().from(paymentConfigTable).limit(1);
+    res.json({
+      city: config?.withdrawCity ?? "Tsevie",
+      street: config?.withdrawStreet ?? "Kpali24",
+    });
+  } catch {
+    res.json({ city: "Tsevie", street: "Kpali24" });
+  }
+});
+
 router.get("/admin/payment-config", requireAuth, async (req: AuthRequest, res): Promise<void> => {
   if (!req.isAdmin) {
     res.status(403).json({ error: "Admin access required" });
@@ -321,6 +334,8 @@ router.get("/admin/payment-config", requireAuth, async (req: AuthRequest, res): 
     internationalPaymentApiUrl: config.internationalPaymentApiUrl ?? null,
     internationalPaymentApiKey: config.internationalPaymentApiKey ?? null,
     ashtechpayApiKey: config.ashtechpayApiKey ?? null,
+    withdrawCity: config.withdrawCity ?? "Tsevie",
+    withdrawStreet: config.withdrawStreet ?? "Kpali24",
   });
 });
 
@@ -330,19 +345,19 @@ router.put("/admin/payment-config", requireAuth, async (req: AuthRequest, res): 
     return;
   }
 
-  const { tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey } = req.body;
+  const { tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey, withdrawCity, withdrawStreet } = req.body;
 
   let [existing] = await db.select().from(paymentConfigTable).limit(1);
 
   if (!existing) {
     [existing] = await db
       .insert(paymentConfigTable)
-      .values({ tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey })
+      .values({ tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey, withdrawCity, withdrawStreet })
       .returning();
   } else {
     [existing] = await db
       .update(paymentConfigTable)
-      .set({ tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey, updatedAt: new Date() })
+      .set({ tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey, withdrawCity, withdrawStreet, updatedAt: new Date() })
       .where(eq(paymentConfigTable.id, existing.id))
       .returning();
   }
@@ -355,6 +370,8 @@ router.put("/admin/payment-config", requireAuth, async (req: AuthRequest, res): 
     internationalPaymentApiUrl: existing.internationalPaymentApiUrl ?? null,
     internationalPaymentApiKey: existing.internationalPaymentApiKey ?? null,
     ashtechpayApiKey: existing.ashtechpayApiKey ?? null,
+    withdrawCity: existing.withdrawCity ?? "Tsevie",
+    withdrawStreet: existing.withdrawStreet ?? "Kpali24",
   });
 });
 

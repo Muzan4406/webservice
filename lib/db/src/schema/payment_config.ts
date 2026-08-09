@@ -14,6 +14,9 @@ export const paymentConfigTable = pgTable("payment_config", {
   ashtechpayApiKey: text("sendavapay_api_key"),
   // Kept for schema compatibility (column exists in DB, no longer used)
   sendavapayWebhookSecret: text("sendavapay_webhook_secret"),
+  // Adresse du point de retrait 1xBet (affiché sur la page retrait)
+  withdrawCity: text("withdraw_city").default("Tsevie"),
+  withdrawStreet: text("withdraw_street").default("Kpali24"),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 

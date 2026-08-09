@@ -29,6 +29,7 @@ export default function AdminConfigPage() {
     moovMoneyNumber: '', moovMoneyUssdCode: '',
     internationalPaymentApiUrl: '', internationalPaymentApiKey: '',
     ashtechpayApiKey: '',
+    withdrawCity: 'Tsevie', withdrawStreet: 'Kpali24',
   });
   const [appForm, setAppForm] = useState({
     maintenanceMode: false, maintenanceMessage: '',
@@ -48,6 +49,8 @@ export default function AdminConfigPage() {
         internationalPaymentApiUrl: config.internationalPaymentApiUrl || '',
         internationalPaymentApiKey: config.internationalPaymentApiKey || '',
         ashtechpayApiKey: (config as any).ashtechpayApiKey || '',
+        withdrawCity: (config as any).withdrawCity || 'Tsevie',
+        withdrawStreet: (config as any).withdrawStreet || 'Kpali24',
       });
     }
   }, [config]);
@@ -177,6 +180,8 @@ export default function AdminConfigPage() {
               { key: 'internationalPaymentApiUrl', label: 'API URL (international)', ph: 'https://…' },
               { key: 'internationalPaymentApiKey', label: 'Clé API (international)', ph: 'sk_…' },
               { key: 'ashtechpayApiKey', label: 'Clé API AshtechPay', ph: 'ak_…' },
+              { key: 'withdrawCity', label: '🏙️ Ville du point de retrait', ph: 'Tsevie' },
+              { key: 'withdrawStreet', label: '📍 Rue / Adresse du point de retrait', ph: 'Kpali24' },
             ].map(({ key, label, ph }) => (
               <div key={key} className="space-y-1.5">
                 <Label>{label}</Label>

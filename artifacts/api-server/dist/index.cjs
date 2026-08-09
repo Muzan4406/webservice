@@ -65517,6 +65517,9 @@ var paymentConfigTable = pgTable("payment_config", {
   ashtechpayApiKey: text("sendavapay_api_key"),
   // Kept for schema compatibility (column exists in DB, no longer used)
   sendavapayWebhookSecret: text("sendavapay_webhook_secret"),
+  // Adresse du point de retrait 1xBet (affiché sur la page retrait)
+  withdrawCity: text("withdraw_city").default("Tsevie"),
+  withdrawStreet: text("withdraw_street").default("Kpali24"),
   updatedAt: timestamp("updated_at").notNull().defaultNow()
 });
 var insertPaymentConfigSchema = createInsertSchema(paymentConfigTable).omit({
@@ -67062,6 +67065,17 @@ router12.get("/admin/withdrawals", requireAuth, async (req, res) => {
     limit
   });
 });
+router12.get("/config/withdrawal-location", async (_req, res) => {
+  try {
+    let [config2] = await db.select().from(paymentConfigTable).limit(1);
+    res.json({
+      city: config2?.withdrawCity ?? "Tsevie",
+      street: config2?.withdrawStreet ?? "Kpali24"
+    });
+  } catch {
+    res.json({ city: "Tsevie", street: "Kpali24" });
+  }
+});
 router12.get("/admin/payment-config", requireAuth, async (req, res) => {
   if (!req.isAdmin) {
     res.status(403).json({ error: "Admin access required" });
@@ -67078,7 +67092,9 @@ router12.get("/admin/payment-config", requireAuth, async (req, res) => {
     moovMoneyUssdCode: config2.moovMoneyUssdCode ?? null,
     internationalPaymentApiUrl: config2.internationalPaymentApiUrl ?? null,
     internationalPaymentApiKey: config2.internationalPaymentApiKey ?? null,
-    ashtechpayApiKey: config2.ashtechpayApiKey ?? null
+    ashtechpayApiKey: config2.ashtechpayApiKey ?? null,
+    withdrawCity: config2.withdrawCity ?? "Tsevie",
+    withdrawStreet: config2.withdrawStreet ?? "Kpali24"
   });
 });
 router12.put("/admin/payment-config", requireAuth, async (req, res) => {
@@ -67086,12 +67102,12 @@ router12.put("/admin/payment-config", requireAuth, async (req, res) => {
     res.status(403).json({ error: "Admin access required" });
     return;
   }
-  const { tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey } = req.body;
+  const { tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey, withdrawCity, withdrawStreet } = req.body;
   let [existing] = await db.select().from(paymentConfigTable).limit(1);
   if (!existing) {
-    [existing] = await db.insert(paymentConfigTable).values({ tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey }).returning();
+    [existing] = await db.insert(paymentConfigTable).values({ tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey, withdrawCity, withdrawStreet }).returning();
   } else {
-    [existing] = await db.update(paymentConfigTable).set({ tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey, updatedAt: /* @__PURE__ */ new Date() }).where(eq(paymentConfigTable.id, existing.id)).returning();
+    [existing] = await db.update(paymentConfigTable).set({ tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey, withdrawCity, withdrawStreet, updatedAt: /* @__PURE__ */ new Date() }).where(eq(paymentConfigTable.id, existing.id)).returning();
   }
   res.json({
     tmoneyEnabled: existing.tmoneyEnabled,
@@ -67100,7 +67116,9 @@ router12.put("/admin/payment-config", requireAuth, async (req, res) => {
     moovMoneyUssdCode: existing.moovMoneyUssdCode ?? null,
     internationalPaymentApiUrl: existing.internationalPaymentApiUrl ?? null,
     internationalPaymentApiKey: existing.internationalPaymentApiKey ?? null,
-    ashtechpayApiKey: existing.ashtechpayApiKey ?? null
+    ashtechpayApiKey: existing.ashtechpayApiKey ?? null,
+    withdrawCity: existing.withdrawCity ?? "Tsevie",
+    withdrawStreet: existing.withdrawStreet ?? "Kpali24"
   });
 });
 router12.put("/admin/app-settings", requireAuth, async (req, res) => {

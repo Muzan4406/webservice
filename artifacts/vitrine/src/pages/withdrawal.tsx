@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useCreateWithdrawal } from '@workspace/api-client-react';
 import { BottomNav } from '@/components/BottomNav';
 import { Button } from '@/components/ui/button';
@@ -69,6 +69,15 @@ function StepIndicator({ step }: { step: number }) {
 export default function WithdrawalPage() {
   const [, setLocation] = useLocation();
   const [step, setStep] = useState(1);
+  const [withdrawCity, setWithdrawCity] = useState('Tsevie');
+  const [withdrawStreet, setWithdrawStreet] = useState('Kpali24');
+
+  useEffect(() => {
+    fetch('/api/config/withdrawal-location')
+      .then(r => r.json())
+      .then(d => { if (d.city) setWithdrawCity(d.city); if (d.street) setWithdrawStreet(d.street); })
+      .catch(() => {});
+  }, []);
 
   const [country, setCountry] = useState('Togo');
   const [operator, setOperator] = useState('tmoney');
@@ -137,8 +146,8 @@ export default function WithdrawalPage() {
                   vers le bas puis sélectionnez <strong>Espèces</strong> (logo 1xbet).
                 </p>
                 <p>
-                  Choisissez ensuite Ville : <strong>Tsevie</strong> et Rue :{' '}
-                  <strong>Kpali24</strong>, indiquez le montant puis confirmez votre demande.
+                  Choisissez ensuite Ville : <strong>{withdrawCity}</strong> et Rue :{' '}
+                  <strong>{withdrawStreet}</strong>, indiquez le montant puis confirmez votre demande.
                 </p>
                 <p>Revenez ensuite en haut de la page de retrait pour voir le retrait en attente.</p>
                 <p>Une fois votre retrait approuvé, vous recevrez un code de retrait.</p>
@@ -150,7 +159,7 @@ export default function WithdrawalPage() {
               <MapPin className="w-5 h-5 text-green-600 shrink-0" />
               <div>
                 <p className="text-xs text-green-600 font-medium">Point de retrait à sélectionner</p>
-                <p className="text-base font-bold text-green-700">Tsevie — Kpali24</p>
+                <p className="text-base font-bold text-green-700">{withdrawCity} — {withdrawStreet}</p>
               </div>
             </div>
 
