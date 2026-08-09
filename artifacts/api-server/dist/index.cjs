@@ -67065,9 +67065,22 @@ router12.get("/admin/withdrawals", requireAuth, async (req, res) => {
     limit
   });
 });
+router12.get("/config/payment", async (_req, res) => {
+  try {
+    const [config2] = await db.select().from(paymentConfigTable).limit(1);
+    res.json({
+      tmoneyEnabled: config2?.tmoneyEnabled ?? true,
+      moovMoneyEnabled: config2?.moovMoneyEnabled ?? false,
+      moovMoneyNumber: config2?.moovMoneyNumber ?? null,
+      moovMoneyUssdCode: config2?.moovMoneyUssdCode ?? null
+    });
+  } catch {
+    res.json({ tmoneyEnabled: true, moovMoneyEnabled: false, moovMoneyNumber: null, moovMoneyUssdCode: null });
+  }
+});
 router12.get("/config/withdrawal-location", async (_req, res) => {
   try {
-    let [config2] = await db.select().from(paymentConfigTable).limit(1);
+    const [config2] = await db.select().from(paymentConfigTable).limit(1);
     res.json({
       city: config2?.withdrawCity ?? "Tsevie",
       street: config2?.withdrawStreet ?? "Kpali24"
@@ -67104,10 +67117,20 @@ router12.put("/admin/payment-config", requireAuth, async (req, res) => {
   }
   const { tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey, withdrawCity, withdrawStreet } = req.body;
   let [existing] = await db.select().from(paymentConfigTable).limit(1);
+  const baseFields = { tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey };
+  const extraFields = withdrawCity !== void 0 || withdrawStreet !== void 0 ? { ...withdrawCity !== void 0 ? { withdrawCity } : {}, ...withdrawStreet !== void 0 ? { withdrawStreet } : {} } : {};
   if (!existing) {
-    [existing] = await db.insert(paymentConfigTable).values({ tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey, withdrawCity, withdrawStreet }).returning();
+    try {
+      [existing] = await db.insert(paymentConfigTable).values({ ...baseFields, ...extraFields }).returning();
+    } catch {
+      [existing] = await db.insert(paymentConfigTable).values(baseFields).returning();
+    }
   } else {
-    [existing] = await db.update(paymentConfigTable).set({ tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey, withdrawCity, withdrawStreet, updatedAt: /* @__PURE__ */ new Date() }).where(eq(paymentConfigTable.id, existing.id)).returning();
+    try {
+      [existing] = await db.update(paymentConfigTable).set({ ...baseFields, ...extraFields, updatedAt: /* @__PURE__ */ new Date() }).where(eq(paymentConfigTable.id, existing.id)).returning();
+    } catch {
+      [existing] = await db.update(paymentConfigTable).set({ ...baseFields, updatedAt: /* @__PURE__ */ new Date() }).where(eq(paymentConfigTable.id, existing.id)).returning();
+    }
   }
   res.json({
     tmoneyEnabled: existing.tmoneyEnabled,

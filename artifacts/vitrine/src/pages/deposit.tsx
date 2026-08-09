@@ -1,9 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import {
-  useCreateDeposit,
-  useGetPaymentConfig,
-  getGetPaymentConfigQueryKey,
-} from '@workspace/api-client-react';
+import { useCreateDeposit } from '@workspace/api-client-react';
 import { BottomNav } from '@/components/BottomNav';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,7 +86,19 @@ export default function DepositPage() {
   const { user } = useAuth() as any;
   const [activeTab, setActiveTab] = useState<'national' | 'international'>('national');
 
-  const { data: paymentConfig } = useGetPaymentConfig({ query: { queryKey: getGetPaymentConfigQueryKey() } });
+  const [paymentConfig, setPaymentConfig] = useState<{
+    tmoneyEnabled: boolean;
+    moovMoneyEnabled: boolean;
+    moovMoneyNumber: string | null;
+    moovMoneyUssdCode: string | null;
+  } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/config/payment')
+      .then(r => r.json())
+      .then(d => setPaymentConfig(d))
+      .catch(() => {});
+  }, []);
 
   // National — initialise l'opérateur par défaut selon ce qui est activé
   const defaultNational = (): 'tmoney' | 'moov_money' => {

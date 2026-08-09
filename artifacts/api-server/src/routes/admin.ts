@@ -297,10 +297,25 @@ router.get("/admin/withdrawals", requireAuth, async (req: AuthRequest, res): Pro
 });
 
 // Payment Config
+// Route publique — retourne la visibilité des opérateurs nationaux (utilisée par la page dépôt)
+router.get("/config/payment", async (_req, res): Promise<void> => {
+  try {
+    const [config] = await db.select().from(paymentConfigTable).limit(1);
+    res.json({
+      tmoneyEnabled: config?.tmoneyEnabled ?? true,
+      moovMoneyEnabled: config?.moovMoneyEnabled ?? false,
+      moovMoneyNumber: config?.moovMoneyNumber ?? null,
+      moovMoneyUssdCode: config?.moovMoneyUssdCode ?? null,
+    });
+  } catch {
+    res.json({ tmoneyEnabled: true, moovMoneyEnabled: false, moovMoneyNumber: null, moovMoneyUssdCode: null });
+  }
+});
+
 // Route publique — retourne juste la ville et rue du point de retrait 1xBet
 router.get("/config/withdrawal-location", async (_req, res): Promise<void> => {
   try {
-    let [config] = await db.select().from(paymentConfigTable).limit(1);
+    const [config] = await db.select().from(paymentConfigTable).limit(1);
     res.json({
       city: config?.withdrawCity ?? "Tsevie",
       street: config?.withdrawStreet ?? "Kpali24",
@@ -349,17 +364,30 @@ router.put("/admin/payment-config", requireAuth, async (req: AuthRequest, res): 
 
   let [existing] = await db.select().from(paymentConfigTable).limit(1);
 
+  // Champs de base toujours présents en DB
+  const baseFields = { tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey };
+  // Champs ajoutés par migration — inclus uniquement s'ils sont définis
+  const extraFields = (withdrawCity !== undefined || withdrawStreet !== undefined)
+    ? { ...(withdrawCity !== undefined ? { withdrawCity } : {}), ...(withdrawStreet !== undefined ? { withdrawStreet } : {}) }
+    : {};
+
   if (!existing) {
-    [existing] = await db
-      .insert(paymentConfigTable)
-      .values({ tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey, withdrawCity, withdrawStreet })
-      .returning();
+    try {
+      [existing] = await db.insert(paymentConfigTable).values({ ...baseFields, ...extraFields }).returning();
+    } catch {
+      [existing] = await db.insert(paymentConfigTable).values(baseFields).returning();
+    }
   } else {
-    [existing] = await db
-      .update(paymentConfigTable)
-      .set({ tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey, withdrawCity, withdrawStreet, updatedAt: new Date() })
-      .where(eq(paymentConfigTable.id, existing.id))
-      .returning();
+    try {
+      [existing] = await db.update(paymentConfigTable)
+        .set({ ...baseFields, ...extraFields, updatedAt: new Date() })
+        .where(eq(paymentConfigTable.id, existing.id)).returning();
+    } catch {
+      // Fallback si les colonnes withdraw_* n'existent pas encore en DB (migration en attente)
+      [existing] = await db.update(paymentConfigTable)
+        .set({ ...baseFields, updatedAt: new Date() })
+        .where(eq(paymentConfigTable.id, existing.id)).returning();
+    }
   }
 
   res.json({
