@@ -1,0 +1,274 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Guide d'implantation Web Push — Muzan Service</title>
+  <style>
+    :root { color-scheme: dark; --bg:#071225; --card:#101d35; --muted:#9ba9c2; --blue:#3155ff; --green:#28c76f; --border:#263858; }
+    * { box-sizing:border-box; }
+    body { margin:0; background:var(--bg); color:#edf3ff; font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif; line-height:1.55; }
+    main { width:min(980px,calc(100% - 32px)); margin:32px auto 64px; }
+    h1 { margin-bottom:8px; font-size:clamp(27px,5vw,42px); line-height:1.1; }
+    h2 { margin-top:36px; font-size:24px; }
+    h3 { margin-bottom:8px; }
+    p,li { color:#d1daea; }
+    .intro,.warning,.section { background:var(--card); border:1px solid var(--border); border-radius:16px; padding:20px; margin:16px 0; }
+    .intro { border-color:#3452aa; background:linear-gradient(135deg,#142653,#101d35); }
+    .warning { border-color:#8e6e2e; background:#2b2414; }
+    code { color:#b9d0ff; }
+    pre { position:relative; overflow:auto; margin:12px 0 4px; padding:46px 16px 16px; border:1px solid #304262; border-radius:12px; background:#07101f; font:13px/1.55 ui-monospace,SFMono-Regular,Consolas,monospace; white-space:pre; }
+    .copy { position:absolute; top:10px; right:10px; border:0; border-radius:8px; padding:7px 11px; background:var(--blue); color:white; cursor:pointer; font-weight:700; }
+    .copy:hover { filter:brightness(1.15); }
+    .copy.ok { background:var(--green); }
+    .copy-all { display:inline-block; border:0; border-radius:10px; padding:12px 16px; background:var(--green); color:#062114; cursor:pointer; font-weight:800; }
+    .small { color:var(--muted); font-size:13px; }
+    .check { color:#72e5a1; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>Implantation des notifications Web Push</h1>
+  <p class="small">Guide à envoyer à un autre agent pour reproduire l'implantation sur un projet React/Vite + Express + PostgreSQL.</p>
+
+  <div class="intro">
+    <h3>Objectif</h3>
+    <p>Envoyer des notifications système aux utilisateurs et aux administrateurs, même quand l'application est en arrière-plan, avec le protocole Web Push et des clés VAPID.</p>
+    <button class="copy-all" onclick="copyAll(this)">Copier tout le guide technique</button>
+  </div>
+
+  <div class="warning">
+    <strong>Sécurité :</strong> la clé VAPID privée ne doit jamais être copiée dans un chat, un commit GitHub ou le frontend. Elle doit être ajoutée uniquement dans les secrets du serveur.
+  </div>
+
+  <h2>1. Installer la dépendance backend</h2>
+  <div class="section">
+    <p>Dans le dossier du backend :</p>
+    <pre data-copy><button class="copy" onclick="copyBlock(this)">Copier</button>pnpm add web-push
+pnpm add -D @types/web-push</pre>
+  </div>
+
+  <h2>2. Générer et configurer les clés VAPID</h2>
+  <div class="section">
+    <p>Générer une seule paire de clés :</p>
+    <pre data-copy><button class="copy" onclick="copyBlock(this)">Copier</button>node -e "const w=require('web-push'); console.log(w.generateVAPIDKeys())"</pre>
+    <p>Ajouter ensuite ces variables dans les secrets du serveur (Replit Secrets, Plesk Environment Variables, etc.) :</p>
+    <pre data-copy><button class="copy" onclick="copyBlock(this)">Copier</button>VAPID_PUBLIC_KEY=&lt;clé publique générée&gt;
+VAPID_PRIVATE_KEY=&lt;clé privée générée&gt;
+VAPID_CONTACT=mailto:admin@example.com</pre>
+    <p class="small">La clé publique peut être envoyée au navigateur. La clé privée reste uniquement sur le backend.</p>
+  </div>
+
+  <h2>3. Backend : envoyer les notifications</h2>
+  <div class="section">
+    <p>Créer un module similaire à <code>src/lib/pushNotifications.ts</code>. La colonne existante <code>pushToken</code> contient le JSON de la souscription navigateur.</p>
+    <pre data-copy><button class="copy" onclick="copyBlock(this)">Copier</button>import webpush from "web-push";
+
+let initialized = false;
+
+function initPush() {
+  if (initialized) return;
+  const publicKey = process.env.VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  if (!publicKey || !privateKey) return;
+
+  webpush.setVapidDetails(
+    process.env.VAPID_CONTACT ?? "mailto:admin@example.com",
+    publicKey,
+    privateKey
+  );
+  initialized = true;
+}
+
+export interface PushMessage {
+  title: string;
+  body: string;
+  data?: Record&lt;string, unknown&gt;;
+}
+
+function parseSubscription(token: string | null | undefined) {
+  if (!token) return null;
+  try {
+    const value = JSON.parse(token);
+    return value?.endpoint ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function sendPushNotification(
+  tokens: (string | null | undefined)[],
+  message: PushMessage
+) {
+  initPush();
+  if (!initialized) return;
+
+  const payload = JSON.stringify(message);
+  await Promise.allSettled(
+    tokens
+      .map(parseSubscription)
+      .filter(Boolean)
+      .map((subscription) =&gt;
+        webpush.sendNotification(subscription!, payload)
+      )
+  );
+}
+
+export async function broadcastPushNotification(
+  tokens: (string | null | undefined)[],
+  message: PushMessage
+) {
+  return sendPushNotification(tokens, message);
+}</pre>
+  </div>
+
+  <h2>4. Backend : routes API</h2>
+  <div class="section">
+    <p>Ajouter une route publique pour la clé publique et une route protégée pour enregistrer la souscription :</p>
+    <pre data-copy><button class="copy" onclick="copyBlock(this)">Copier</button>router.get("/config/push/vapid-public-key", (_req, res) =&gt; {
+  const publicKey = process.env.VAPID_PUBLIC_KEY;
+  if (!publicKey) {
+    res.status(503).json({ error: "Push non configuré" });
+    return;
+  }
+  res.json({ publicKey });
+});
+
+router.post("/push-token", requireAuth, async (req, res) =&gt; {
+  const { token } = req.body;
+  if (typeof token !== "string" || !token) {
+    res.status(400).json({ error: "token requis" });
+    return;
+  }
+  await db.update(usersTable)
+    .set({ pushToken: token })
+    .where(eq(usersTable.id, req.userId!));
+  res.json({ success: true });
+});</pre>
+    <p>Lors d'un événement (nouveau dépôt, retrait, VIP ou message admin), appeler :</p>
+    <pre data-copy><button class="copy" onclick="copyBlock(this)">Copier</button>await sendPushNotification([user.pushToken], {
+  title: "Dépôt confirmé",
+  body: "Votre dépôt a été confirmé.",
+  data: { url: "/transactions" }
+});
+
+await broadcastPushNotification(allUserTokens, {
+  title: "Message de l'administration",
+  body: "Votre message ici.",
+  data: { url: "/notifications" }
+});</pre>
+  </div>
+
+  <h2>5. Service Worker : afficher la notification</h2>
+  <div class="section">
+    <p>Dans <code>public/sw.js</code>, conserver le cache PWA existant et ajouter :</p>
+    <pre data-copy><button class="copy" onclick="copyBlock(this)">Copier</button>self.addEventListener("push", (event) =&gt; {
+  let data = {
+    title: "Nouvelle notification",
+    body: "Vous avez une nouvelle notification."
+  };
+  try {
+    if (event.data) data = event.data.json();
+  } catch {}
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      data: data.data ?? {},
+      vibrate: [200, 100, 200]
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) =&gt; {
+  event.notification.close();
+  const url = event.notification.data?.url ?? "/";
+  event.waitUntil(clients.openWindow(url));
+});</pre>
+  </div>
+
+  <h2>6. Frontend : créer la souscription</h2>
+  <div class="section">
+    <p>Créer <code>src/lib/pushSubscription.ts</code> :</p>
+    <pre data-copy><button class="copy" onclick="copyBlock(this)">Copier</button>function keyToBytes(key: string) {
+  const padding = "=".repeat((4 - key.length % 4) % 4);
+  const base64 = (key + padding).replace(/-/g, "+").replace(/_/g, "/");
+  return Uint8Array.from(atob(base64), c =&gt; c.charCodeAt(0));
+}
+
+export async function subscribeToPush() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+  if (Notification.permission === "denied") return;
+
+  const keyResponse = await fetch("/api/config/push/vapid-public-key");
+  if (!keyResponse.ok) return;
+  const { publicKey } = await keyResponse.json();
+  const registration = await navigator.serviceWorker.ready;
+
+  let subscription = await registration.pushManager.getSubscription();
+  if (!subscription) {
+    if (Notification.permission === "default") {
+      if (await Notification.requestPermission() !== "granted") return;
+    }
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: keyToBytes(publicKey)
+    });
+  }
+
+  const token = localStorage.getItem("auth_token");
+  await fetch("/api/push-token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify({ token: JSON.stringify(subscription) })
+  });
+}</pre>
+  </div>
+
+  <h2>7. Appeler après la connexion</h2>
+  <div class="section">
+    <pre data-copy><button class="copy" onclick="copyBlock(this)">Copier</button>import { subscribeToPush } from "@/lib/pushSubscription";
+
+// Après login réussi, ou au chargement d'une session déjà connectée :
+setTimeout(() =&gt; subscribeToPush().catch(() =&gt; {}), 1500);</pre>
+  </div>
+
+  <h2>8. Vérification avant déploiement</h2>
+  <div class="section">
+    <ul>
+      <li class="check">Vérifier que le site est en HTTPS (obligatoire hors localhost).</li>
+      <li class="check">Vérifier que <code>sw.js</code> est accessible à la racine du domaine.</li>
+      <li class="check">Connecter un utilisateur et accepter la permission de notification.</li>
+      <li class="check">Vérifier que le champ <code>pushToken</code> est rempli en base.</li>
+      <li class="check">Déclencher une notification depuis l'admin et vérifier l'affichage téléphone.</li>
+      <li class="check">Redémarrer le backend après avoir ajouté les variables VAPID.</li>
+    </ul>
+  </div>
+</main>
+<script>
+  function clean(text) {
+    return text.replace(/^\s*<button[\s\S]*?<\/button>/, "").trim();
+  }
+  async function copyBlock(button) {
+    const block = button.parentElement;
+    await navigator.clipboard.writeText(clean(block.innerText));
+    const old = button.textContent;
+    button.textContent = "Copié !";
+    button.classList.add("ok");
+    setTimeout(() => { button.textContent = old; button.classList.remove("ok"); }, 1400);
+  }
+  async function copyAll(button) {
+    const text = [...document.querySelectorAll("pre[data-copy]")].map(clean).join("\n\n");
+    await navigator.clipboard.writeText(text);
+    const old = button.textContent;
+    button.textContent = "Guide copié !";
+    setTimeout(() => { button.textContent = old; }, 1600);
+  }
+</script>
+</body>
+</html>
