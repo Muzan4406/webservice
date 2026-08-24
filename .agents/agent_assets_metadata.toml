@@ -1,0 +1,16 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "5lcOxFIazcYNMKX1L2Cpy"
+uri = "file://attached_assets/web-push-implementation-guide.html"
+type = "text"
+title = "Guide d'implantation Web Push"
+description = "Guide HTML prêt à envoyer à un autre agent, avec boutons Copier pour chaque bloc de code et Copier tout le guide. Les clés privées ne sont pas incluses."
+logical_id = "5047e0c1-e621-4cf5-a485-8d3bddd79c11"
+content_hash = "sha256:44b9b156251872bfb60dd651719db11c368a8829520796568fa4e22b2c6d45da"
+size = 10904
+mtime_ms = 1787587554837
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:e1c3c502-3967-4837-a824-6cb251ef154c/5047e0c1-e621-4cf5-a485-8d3bddd79c11/3fc17d19-1c98-448a-8f36-13ebea4ae825"
+storage_version_token = "1787587568128782"
+content_type = "text/html"
