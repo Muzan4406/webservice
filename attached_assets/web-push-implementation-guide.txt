@@ -1,0 +1,202 @@
+GUIDE D'IMPLANTATION DES NOTIFICATIONS WEB PUSH — MUZAN SERVICE
+
+Objectif : envoyer des notifications système aux utilisateurs et aux administrateurs,
+même quand l'application est en arrière-plan, avec Web Push et VAPID.
+
+IMPORTANT : ne jamais mettre VAPID_PRIVATE_KEY dans un chat, GitHub ou le frontend.
+
+1. INSTALLATION BACKEND
+
+Dans le dossier backend :
+
+pnpm add web-push
+pnpm add -D @types/web-push
+
+2. CLES VAPID
+
+Générer une seule paire :
+
+node -e "const w=require('web-push'); console.log(w.generateVAPIDKeys())"
+
+Ajouter les résultats dans les variables secrètes du serveur :
+
+VAPID_PUBLIC_KEY=<clé publique générée>
+VAPID_PRIVATE_KEY=<clé privée générée>
+VAPID_CONTACT=mailto:admin@example.com
+
+3. BACKEND — MODULE PUSH
+
+Créer src/lib/pushNotifications.ts :
+
+import webpush from "web-push";
+
+let initialized = false;
+
+function initPush() {
+  if (initialized) return;
+  const publicKey = process.env.VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  if (!publicKey || !privateKey) return;
+  webpush.setVapidDetails(
+    process.env.VAPID_CONTACT ?? "mailto:admin@example.com",
+    publicKey,
+    privateKey
+  );
+  initialized = true;
+}
+
+export interface PushMessage {
+  title: string;
+  body: string;
+  data?: Record<string, unknown>;
+}
+
+function parseSubscription(token: string | null | undefined) {
+  if (!token) return null;
+  try {
+    const value = JSON.parse(token);
+    return value?.endpoint ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function sendPushNotification(
+  tokens: (string | null | undefined)[],
+  message: PushMessage
+) {
+  initPush();
+  if (!initialized) return;
+  const payload = JSON.stringify(message);
+  await Promise.allSettled(
+    tokens
+      .map(parseSubscription)
+      .filter(Boolean)
+      .map((subscription) =>
+        webpush.sendNotification(subscription!, payload)
+      )
+  );
+}
+
+export async function broadcastPushNotification(
+  tokens: (string | null | undefined)[],
+  message: PushMessage
+) {
+  return sendPushNotification(tokens, message);
+}
+
+4. ROUTES API
+
+Route publique pour la clé publique :
+
+router.get("/config/push/vapid-public-key", (_req, res) => {
+  const publicKey = process.env.VAPID_PUBLIC_KEY;
+  if (!publicKey) {
+    res.status(503).json({ error: "Push non configuré" });
+    return;
+  }
+  res.json({ publicKey });
+});
+
+Route protégée pour enregistrer la souscription :
+
+router.post("/push-token", requireAuth, async (req, res) => {
+  const { token } = req.body;
+  if (typeof token !== "string" || !token) {
+    res.status(400).json({ error: "token requis" });
+    return;
+  }
+  await db.update(usersTable)
+    .set({ pushToken: token })
+    .where(eq(usersTable.id, req.userId!));
+  res.json({ success: true });
+});
+
+Exemple d'envoi :
+
+await sendPushNotification([user.pushToken], {
+  title: "Dépôt confirmé",
+  body: "Votre dépôt a été confirmé.",
+  data: { url: "/transactions" }
+});
+
+5. SERVICE WORKER
+
+Dans public/sw.js, ajouter :
+
+self.addEventListener("push", (event) => {
+  let data = {
+    title: "Nouvelle notification",
+    body: "Vous avez une nouvelle notification."
+  };
+  try {
+    if (event.data) data = event.data.json();
+  } catch {}
+  event.waitUntil(
+    self.registration.showNotification(data.title, {
+      body: data.body,
+      icon: "/icon-192.png",
+      badge: "/icon-192.png",
+      data: data.data ?? {},
+      vibrate: [200, 100, 200]
+    })
+  );
+});
+
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const url = event.notification.data?.url ?? "/";
+  event.waitUntil(clients.openWindow(url));
+});
+
+6. FRONTEND — SOUSCRIPTION
+
+Créer src/lib/pushSubscription.ts :
+
+function keyToBytes(key: string) {
+  const padding = "=".repeat((4 - key.length % 4) % 4);
+  const base64 = (key + padding).replace(/-/g, "+").replace(/_/g, "/");
+  return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+}
+
+export async function subscribeToPush() {
+  if (!("serviceWorker" in navigator) || !("PushManager" in window)) return;
+  if (Notification.permission === "denied") return;
+  const keyResponse = await fetch("/api/config/push/vapid-public-key");
+  if (!keyResponse.ok) return;
+  const { publicKey } = await keyResponse.json();
+  const registration = await navigator.serviceWorker.ready;
+  let subscription = await registration.pushManager.getSubscription();
+  if (!subscription) {
+    if (Notification.permission === "default") {
+      if (await Notification.requestPermission() !== "granted") return;
+    }
+    subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: keyToBytes(publicKey)
+    });
+  }
+  const token = localStorage.getItem("auth_token");
+  await fetch("/api/push-token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...(token ? { Authorization: `Bearer ${token}` } : {})
+    },
+    body: JSON.stringify({ token: JSON.stringify(subscription) })
+  });
+}
+
+7. APPEL APRES CONNEXION
+
+import { subscribeToPush } from "@/lib/pushSubscription";
+setTimeout(() => subscribeToPush().catch(() => {}), 1500);
+
+8. VERIFICATION
+
+- Le site doit être en HTTPS.
+- sw.js doit être accessible à la racine du domaine.
+- Se connecter et accepter la permission de notification.
+- Vérifier que pushToken est rempli en base.
+- Déclencher une notification depuis l'admin.
+- Redémarrer le backend après l'ajout des variables VAPID.

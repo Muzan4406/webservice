@@ -254,9 +254,32 @@ setTimeout(() =&gt; subscribeToPush().catch(() =&gt; {}), 1500);</pre>
   function clean(text) {
     return text.replace(/^\s*<button[\s\S]*?<\/button>/, "").trim();
   }
+  async function copyText(text) {
+    try {
+      if (navigator.clipboard && window.isSecureContext) {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch {}
+    const area = document.createElement("textarea");
+    area.value = text;
+    area.style.position = "fixed";
+    area.style.left = "-9999px";
+    area.style.top = "0";
+    document.body.appendChild(area);
+    area.focus();
+    area.select();
+    const copied = document.execCommand("copy");
+    area.remove();
+    return copied;
+  }
   async function copyBlock(button) {
     const block = button.parentElement;
-    await navigator.clipboard.writeText(clean(block.innerText));
+    const copied = await copyText(clean(block.innerText));
+    if (!copied) {
+      alert("Sélection automatique impossible. Maintiens le doigt sur le texte pour le copier.");
+      return;
+    }
     const old = button.textContent;
     button.textContent = "Copié !";
     button.classList.add("ok");
@@ -264,7 +287,11 @@ setTimeout(() =&gt; subscribeToPush().catch(() =&gt; {}), 1500);</pre>
   }
   async function copyAll(button) {
     const text = [...document.querySelectorAll("pre[data-copy]")].map(clean).join("\n\n");
-    await navigator.clipboard.writeText(text);
+    const copied = await copyText(text);
+    if (!copied) {
+      alert("Sélection automatique impossible. Utilise le fichier texte téléchargeable.");
+      return;
+    }
     const old = button.textContent;
     button.textContent = "Guide copié !";
     setTimeout(() => { button.textContent = old; }, 1600);
