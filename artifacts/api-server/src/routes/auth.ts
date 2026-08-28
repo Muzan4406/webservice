@@ -6,6 +6,7 @@ import { RegisterBody, LoginBody } from "@workspace/api-zod";
 import { generateToken, generateUserId, generateReferralCode } from "../lib/auth";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { tg } from "../lib/telegram";
+import { sendPushNotification } from "../lib/pushNotifications";
 
 const router: IRouter = Router();
 
@@ -110,12 +111,24 @@ router.post("/auth/register", async (req, res): Promise<void> => {
   const { token } = await createSession(user.id);
 
   let referredByUsername: string | null = null;
+  let referredByPushToken: string | null = null;
   if (referredById) {
-    const [referrer] = await db.select({ username: usersTable.username }).from(usersTable).where(eq(usersTable.id, referredById));
+    const [referrer] = await db
+      .select({ username: usersTable.username, pushToken: usersTable.pushToken })
+      .from(usersTable)
+      .where(eq(usersTable.id, referredById));
     referredByUsername = referrer?.username ?? null;
+    referredByPushToken = referrer?.pushToken ?? null;
   }
 
   tg.newUser({ username: user.username, userId: user.userId, country: user.country, referredBy: referredByUsername });
+  if (referredById) {
+    void sendPushNotification([referredByPushToken], {
+      title: "🎉 Nouveau filleul",
+      body: `${user.username} vient de s'inscrire avec votre lien de parrainage.`,
+      data: { type: "new_referral", userId: String(user.id), url: "/profile" },
+    }).catch(() => {});
+  }
 
   res.status(201).json({ user: buildUserResponse(user, 0), token });
 });
@@ -271,12 +284,24 @@ router.post("/auth/google", async (req, res): Promise<void> => {
     .returning();
 
   let referredByUsername: string | null = null;
+  let referredByPushToken: string | null = null;
   if (referredById) {
-    const [referrer] = await db.select({ username: usersTable.username }).from(usersTable).where(eq(usersTable.id, referredById));
+    const [referrer] = await db
+      .select({ username: usersTable.username, pushToken: usersTable.pushToken })
+      .from(usersTable)
+      .where(eq(usersTable.id, referredById));
     referredByUsername = referrer?.username ?? null;
+    referredByPushToken = referrer?.pushToken ?? null;
   }
 
   tg.newUser({ username: user.username, userId: user.userId, country: user.country, referredBy: referredByUsername });
+  if (referredById) {
+    void sendPushNotification([referredByPushToken], {
+      title: "🎉 Nouveau filleul",
+      body: `${user.username} vient de s'inscrire avec votre lien de parrainage.`,
+      data: { type: "new_referral", userId: String(user.id), url: "/profile" },
+    }).catch(() => {});
+  }
 
   const { token } = await createSession(user.id);
   res.status(201).json({ user: buildUserResponse(user, 0), token });

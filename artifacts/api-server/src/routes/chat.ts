@@ -4,7 +4,8 @@ import { eq, desc, and } from "drizzle-orm";
 import { unlink } from "node:fs/promises";
 import { join } from "node:path";
 import { requireAuth, requireAdmin, type AuthRequest } from "../middlewares/auth";
-import { sendPushNotification, notifyAdmins } from "../lib/pushNotifications";
+import { sendPushNotification } from "../lib/pushNotifications";
+import { tg } from "../lib/telegram";
 
 const router: IRouter = Router();
 const UPLOADS_DIR = join(process.cwd(), "uploads");
@@ -83,14 +84,17 @@ router.post("/chat", requireAuth, async (req: AuthRequest, res): Promise<void> =
 
     // Notify all admins of new support message
     const [sender] = await db
-      .select({ username: usersTable.username })
+      .select({ username: usersTable.username, userId: usersTable.userId })
       .from(usersTable)
       .where(eq(usersTable.id, userId));
 
-    notifyAdmins({
-      title: "💬 Nouveau message support",
-      body: `${sender?.username ?? "Utilisateur"} : ${content?.trim() ?? "(fichier)"}`,
-      data: { type: "new_chat_message", userId: String(userId) },
+    // Alerte Telegram dédiée au groupe support. L'alerte ne bloque jamais le chat.
+    void tg.supportMessage({
+      username: sender?.username ?? "Utilisateur",
+      userId: sender?.userId ?? String(userId),
+      type,
+      content,
+      fileUrl,
     });
 
     res.status(201).json({ message: msg });
@@ -279,11 +283,11 @@ router.post("/admin/chat/:userId", requireAdmin, async (req, res): Promise<void>
       .from(usersTable)
       .where(eq(usersTable.id, uid));
 
-    sendPushNotification([targetUser?.pushToken], {
+    void sendPushNotification([targetUser?.pushToken], {
       title: "💬 Réponse du support",
       body: content?.trim() ?? "(fichier)",
-      data: { type: "admin_chat_reply", userId: String(uid) },
-    });
+      data: { type: "admin_chat_reply", userId: String(uid), url: "/chat" },
+    }).catch(() => {});
 
     res.status(201).json({ message: msg });
   } catch {

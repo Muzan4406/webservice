@@ -18501,8 +18501,8 @@ var require_escape_html = __commonJS({
   "../../node_modules/.pnpm/escape-html@1.0.3/node_modules/escape-html/index.js"(exports2, module2) {
     "use strict";
     var matchHtmlRegExp = /["'&<>]/;
-    module2.exports = escapeHtml;
-    function escapeHtml(string4) {
+    module2.exports = escapeHtml2;
+    function escapeHtml2(string4) {
       var str = "" + string4;
       var match = matchHtmlRegExp.exec(str);
       if (!match) {
@@ -18633,13 +18633,13 @@ var require_finalhandler = __commonJS({
     "use strict";
     var debug = require_src()("finalhandler");
     var encodeUrl = require_encodeurl();
-    var escapeHtml = require_escape_html();
+    var escapeHtml2 = require_escape_html();
     var onFinished = require_on_finished();
     var parseUrl = require_parseurl();
     var statuses = require_statuses();
     var isFinished = onFinished.isFinished;
     function createHtmlDocument(message) {
-      var body = escapeHtml(message).replaceAll("\n", "<br>").replaceAll("  ", " &nbsp;");
+      var body = escapeHtml2(message).replaceAll("\n", "<br>").replaceAll("  ", " &nbsp;");
       return '<!DOCTYPE html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n<title>Error</title>\n</head>\n<body>\n<pre>' + body + "</pre>\n</body>\n</html>\n";
     }
     module2.exports = finalhandler;
@@ -22639,7 +22639,7 @@ var require_send = __commonJS({
     var createError = require_http_errors();
     var debug = require_src()("send");
     var encodeUrl = require_encodeurl();
-    var escapeHtml = require_escape_html();
+    var escapeHtml2 = require_escape_html();
     var etag = require_etag();
     var fresh = require_fresh();
     var fs = require("fs");
@@ -22692,7 +22692,7 @@ var require_send = __commonJS({
       }
       var res = this.res;
       var msg = statuses.message[status] || String(status);
-      var doc = createHtmlDocument("Error", escapeHtml(msg));
+      var doc = createHtmlDocument("Error", escapeHtml2(msg));
       clearHeaders(res);
       if (err && err.headers) {
         setHeaders(res, err.headers);
@@ -22792,7 +22792,7 @@ var require_send = __commonJS({
         return;
       }
       var loc = encodeUrl(collapseLeadingSlashes(this.path + "/"));
-      var doc = createHtmlDocument("Redirecting", "Redirecting to " + escapeHtml(loc));
+      var doc = createHtmlDocument("Redirecting", "Redirecting to " + escapeHtml2(loc));
       res.statusCode = 301;
       res.setHeader("Content-Type", "text/html; charset=UTF-8");
       res.setHeader("Content-Length", Buffer.byteLength(doc));
@@ -23196,7 +23196,7 @@ var require_response = __commonJS({
     var createError = require_http_errors();
     var deprecate = require_depd()("express");
     var encodeUrl = require_encodeurl();
-    var escapeHtml = require_escape_html();
+    var escapeHtml2 = require_escape_html();
     var http = require("node:http");
     var onFinished = require_on_finished();
     var mime = require_mime_types();
@@ -23535,7 +23535,7 @@ var require_response = __commonJS({
           body = statuses.message[status] + ". Redirecting to " + address;
         },
         html: function() {
-          var u = escapeHtml(address);
+          var u = escapeHtml2(address);
           body = "<p>" + statuses.message[status] + ". Redirecting to " + u + "</p>";
         },
         default: function() {
@@ -23663,7 +23663,7 @@ var require_serve_static = __commonJS({
   "../../node_modules/.pnpm/serve-static@2.2.1/node_modules/serve-static/index.js"(exports2, module2) {
     "use strict";
     var encodeUrl = require_encodeurl();
-    var escapeHtml = require_escape_html();
+    var escapeHtml2 = require_escape_html();
     var parseUrl = require_parseurl();
     var resolve = require("path").resolve;
     var send = require_send();
@@ -23749,7 +23749,7 @@ var require_serve_static = __commonJS({
         originalUrl.path = null;
         originalUrl.pathname = collapseLeadingSlashes(originalUrl.pathname + "/");
         var loc = encodeUrl(url2.format(originalUrl));
-        var doc = createHtmlDocument("Redirecting", "Redirecting to " + escapeHtml(loc));
+        var doc = createHtmlDocument("Redirecting", "Redirecting to " + escapeHtml2(loc));
         res.statusCode = 301;
         res.setHeader("Content-Type", "text/html; charset=UTF-8");
         res.setHeader("Content-Length", Buffer.byteLength(doc));
@@ -65780,6 +65780,18 @@ var tg = {
 \u{1F464} ${opts.username} (${opts.userId})${flag ? ` ${flag}` : ""}` + (opts.referredBy ? `
 \u{1F517} Parrain\xE9 par : ${opts.referredBy}` : "")
     );
+  },
+  supportMessage(opts) {
+    const typeLabel = opts.type === "image" ? "\u{1F4F8} Capture d'\xE9cran" : opts.type === "audio" ? "\u{1F399}\uFE0F Message vocal" : "\u{1F4AC} Message texte";
+    const details = opts.content?.trim() ? `
+\u{1F4DD} ${escapeHtml(opts.content.trim())}` : "";
+    const file2 = opts.fileUrl ? `
+\u{1F4CE} Fichier : <code>${escapeHtml(opts.fileUrl)}</code>` : "";
+    return sendAlert(
+      `\u{1F198} <b>Nouveau contact support</b>
+\u{1F464} ${escapeHtml(opts.username)} (${escapeHtml(opts.userId)})
+${typeLabel}${details}${file2}`
+    );
   }
 };
 function fmt(amount) {
@@ -65788,6 +65800,56 @@ function fmt(amount) {
 function countryFlag(country) {
   if (!country || country.length !== 2) return "";
   return country.toUpperCase().replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0)));
+}
+function escapeHtml(value) {
+  return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+// src/lib/pushNotifications.ts
+var import_web_push = __toESM(require_src2(), 1);
+var initialized = false;
+function init() {
+  if (initialized) return;
+  const publicKey = process.env["VAPID_PUBLIC_KEY"];
+  const privateKey = process.env["VAPID_PRIVATE_KEY"];
+  const contact = process.env["VAPID_CONTACT"] ?? "mailto:admin@example.com";
+  if (!publicKey || !privateKey) {
+    logger.warn("VAPID keys not set \u2014 push notifications disabled");
+    return;
+  }
+  import_web_push.default.setVapidDetails(contact, publicKey, privateKey);
+  initialized = true;
+}
+function parseSubscription(token) {
+  if (!token) return null;
+  try {
+    const obj = JSON.parse(token);
+    if (obj && typeof obj.endpoint === "string") return obj;
+  } catch {
+  }
+  return null;
+}
+async function sendPushNotification(tokens, message) {
+  init();
+  if (!initialized) return;
+  const payload = JSON.stringify({
+    title: message.title,
+    body: message.body,
+    data: message.data ?? {}
+  });
+  const subscriptions = tokens.map(parseSubscription).filter(Boolean);
+  await Promise.allSettled(
+    subscriptions.map(
+      (sub) => import_web_push.default.sendNotification(sub, payload).catch((err) => {
+        logger.warn({ endpoint: sub.endpoint, status: err.statusCode }, "Push \xE9chou\xE9");
+      })
+    )
+  );
+}
+async function notifyAdmins(message) {
+}
+async function broadcastPushNotification(allTokens, message) {
+  await sendPushNotification(allTokens, message);
 }
 
 // src/routes/auth.ts
@@ -65857,11 +65919,21 @@ router2.post("/auth/register", async (req, res) => {
   const [user] = await db.update(usersTable).set({ userId: realUserId }).where(eq(usersTable.id, newUser.id)).returning();
   const { token } = await createSession(user.id);
   let referredByUsername = null;
+  let referredByPushToken = null;
   if (referredById) {
-    const [referrer] = await db.select({ username: usersTable.username }).from(usersTable).where(eq(usersTable.id, referredById));
+    const [referrer] = await db.select({ username: usersTable.username, pushToken: usersTable.pushToken }).from(usersTable).where(eq(usersTable.id, referredById));
     referredByUsername = referrer?.username ?? null;
+    referredByPushToken = referrer?.pushToken ?? null;
   }
   tg.newUser({ username: user.username, userId: user.userId, country: user.country, referredBy: referredByUsername });
+  if (referredById) {
+    void sendPushNotification([referredByPushToken], {
+      title: "\u{1F389} Nouveau filleul",
+      body: `${user.username} vient de s'inscrire avec votre lien de parrainage.`,
+      data: { type: "new_referral", userId: String(user.id), url: "/profile" }
+    }).catch(() => {
+    });
+  }
   res.status(201).json({ user: buildUserResponse(user, 0), token });
 });
 router2.post("/auth/login", async (req, res) => {
@@ -65961,11 +66033,21 @@ router2.post("/auth/google", async (req, res) => {
   const realUserId = generateUserId(newUser.id);
   const [user] = await db.update(usersTable).set({ userId: realUserId }).where(eq(usersTable.id, newUser.id)).returning();
   let referredByUsername = null;
+  let referredByPushToken = null;
   if (referredById) {
-    const [referrer] = await db.select({ username: usersTable.username }).from(usersTable).where(eq(usersTable.id, referredById));
+    const [referrer] = await db.select({ username: usersTable.username, pushToken: usersTable.pushToken }).from(usersTable).where(eq(usersTable.id, referredById));
     referredByUsername = referrer?.username ?? null;
+    referredByPushToken = referrer?.pushToken ?? null;
   }
   tg.newUser({ username: user.username, userId: user.userId, country: user.country, referredBy: referredByUsername });
+  if (referredById) {
+    void sendPushNotification([referredByPushToken], {
+      title: "\u{1F389} Nouveau filleul",
+      body: `${user.username} vient de s'inscrire avec votre lien de parrainage.`,
+      data: { type: "new_referral", userId: String(user.id), url: "/profile" }
+    }).catch(() => {
+    });
+  }
   const { token } = await createSession(user.id);
   res.status(201).json({ user: buildUserResponse(user, 0), token });
 });
@@ -66041,55 +66123,6 @@ var profile_default = router3;
 
 // src/routes/deposits.ts
 var import_express4 = __toESM(require_express2(), 1);
-
-// src/lib/pushNotifications.ts
-var import_web_push = __toESM(require_src2(), 1);
-var initialized = false;
-function init() {
-  if (initialized) return;
-  const publicKey = process.env["VAPID_PUBLIC_KEY"];
-  const privateKey = process.env["VAPID_PRIVATE_KEY"];
-  const contact = process.env["VAPID_CONTACT"] ?? "mailto:admin@example.com";
-  if (!publicKey || !privateKey) {
-    logger.warn("VAPID keys not set \u2014 push notifications disabled");
-    return;
-  }
-  import_web_push.default.setVapidDetails(contact, publicKey, privateKey);
-  initialized = true;
-}
-function parseSubscription(token) {
-  if (!token) return null;
-  try {
-    const obj = JSON.parse(token);
-    if (obj && typeof obj.endpoint === "string") return obj;
-  } catch {
-  }
-  return null;
-}
-async function sendPushNotification(tokens, message) {
-  init();
-  if (!initialized) return;
-  const payload = JSON.stringify({
-    title: message.title,
-    body: message.body,
-    data: message.data ?? {}
-  });
-  const subscriptions = tokens.map(parseSubscription).filter(Boolean);
-  await Promise.allSettled(
-    subscriptions.map(
-      (sub) => import_web_push.default.sendNotification(sub, payload).catch((err) => {
-        logger.warn({ endpoint: sub.endpoint, status: err.statusCode }, "Push \xE9chou\xE9");
-      })
-    )
-  );
-}
-async function notifyAdmins(message) {
-}
-async function broadcastPushNotification(allTokens, message) {
-  await sendPushNotification(allTokens, message);
-}
-
-// src/routes/deposits.ts
 var router4 = (0, import_express4.Router)();
 router4.get("/deposits", requireAuth, async (req, res) => {
   const params = GetDepositsQueryParams.safeParse(req.query);
@@ -67706,11 +67739,13 @@ router17.post("/chat", requireAuth, async (req, res) => {
       fileUrl: fileUrl ?? null,
       isRead: false
     }).returning();
-    const [sender] = await db.select({ username: usersTable.username }).from(usersTable).where(eq(usersTable.id, userId));
-    notifyAdmins({
-      title: "\u{1F4AC} Nouveau message support",
-      body: `${sender?.username ?? "Utilisateur"} : ${content?.trim() ?? "(fichier)"}`,
-      data: { type: "new_chat_message", userId: String(userId) }
+    const [sender] = await db.select({ username: usersTable.username, userId: usersTable.userId }).from(usersTable).where(eq(usersTable.id, userId));
+    void tg.supportMessage({
+      username: sender?.username ?? "Utilisateur",
+      userId: sender?.userId ?? String(userId),
+      type,
+      content,
+      fileUrl
     });
     res.status(201).json({ message: msg });
   } catch {
@@ -67832,10 +67867,11 @@ router17.post("/admin/chat/:userId", requireAdmin, async (req, res) => {
       isRead: false
     }).returning();
     const [targetUser] = await db.select({ pushToken: usersTable.pushToken }).from(usersTable).where(eq(usersTable.id, uid));
-    sendPushNotification([targetUser?.pushToken], {
+    void sendPushNotification([targetUser?.pushToken], {
       title: "\u{1F4AC} R\xE9ponse du support",
       body: content?.trim() ?? "(fichier)",
-      data: { type: "admin_chat_reply", userId: String(uid) }
+      data: { type: "admin_chat_reply", userId: String(uid), url: "/chat" }
+    }).catch(() => {
     });
     res.status(201).json({ message: msg });
   } catch {

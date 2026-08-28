@@ -155,6 +155,31 @@ export const tg = {
       (opts.referredBy ? `\n🔗 Parrainé par : ${opts.referredBy}` : "")
     );
   },
+
+  supportMessage(opts: {
+    username: string;
+    userId: string;
+    type: string;
+    content?: string | null;
+    fileUrl?: string | null;
+  }) {
+    const typeLabel =
+      opts.type === "image" ? "📸 Capture d'écran" :
+      opts.type === "audio" ? "🎙️ Message vocal" :
+      "💬 Message texte";
+    const details = opts.content?.trim()
+      ? `\n📝 ${escapeHtml(opts.content.trim())}`
+      : "";
+    const file = opts.fileUrl
+      ? `\n📎 Fichier : <code>${escapeHtml(opts.fileUrl)}</code>`
+      : "";
+
+    return sendAlert(
+      `🆘 <b>Nouveau contact support</b>\n` +
+      `👤 ${escapeHtml(opts.username)} (${escapeHtml(opts.userId)})\n` +
+      `${typeLabel}${details}${file}`
+    );
+  },
 };
 
 // ── Utilities ─────────────────────────────────────────────────────────────────
@@ -168,4 +193,13 @@ function countryFlag(country?: string | null): string {
   return country
     .toUpperCase()
     .replace(/./g, (c) => String.fromCodePoint(127397 + c.charCodeAt(0)));
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
