@@ -28,3 +28,17 @@ mtime_ms = 1787587627577
 storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:e1c3c502-3967-4837-a824-6cb251ef154c/d8e1dd07-ca8a-4371-9cc7-22416d27c834/3a63071d-38ce-4e37-a35e-170a6d069a49"
 storage_version_token = "1787587891188022"
 content_type = "text/plain"
+
+[[outputs]]
+id = "CMQI9u01hY0SPTpzFgnr2"
+uri = "file://screenshots/muzan-landing-page.jpg"
+type = "image"
+title = "Capture de la landing page Muzan Service"
+description = "Aperçu desktop 1280×720 de la nouvelle landing page publique, avec hero, CTA et aperçu de l'espace membre."
+logical_id = "0adf30da-b9c1-4776-b597-807cd5e196f1"
+content_hash = "sha256:e692d31de643b19136cd33a4037e22181d91f5b38f7e64f98e10eb8cc356b4f7"
+size = 84936
+mtime_ms = 1787990830504
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:e1c3c502-3967-4837-a824-6cb251ef154c/0adf30da-b9c1-4776-b597-807cd5e196f1/6aa134d8-da00-449f-9156-9bb546ed740c"
+storage_version_token = "1787990846462850"
+content_type = "image/jpeg"
