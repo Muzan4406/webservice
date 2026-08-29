@@ -3,7 +3,7 @@ import { ToastDisplay } from '@/components/ToastDisplay';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 import { setBaseUrl, setAuthTokenGetter } from '@workspace/api-client-react';
-import { AuthProvider } from '@/contexts/AuthContext';
+import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import { AdminRoute } from '@/components/AdminRoute';
 import { PwaInstallBanner } from '@/components/PwaInstallBanner';
@@ -12,6 +12,7 @@ import { PwaInstallBanner } from '@/components/PwaInstallBanner';
 import LoginPage from '@/pages/login';
 import RegisterPage from '@/pages/register';
 import DashboardPage from '@/pages/dashboard';
+import LandingPage from '@/pages/landing';
 import CouponsPage from '@/pages/coupons';
 import DepositPage from '@/pages/deposit';
 import WithdrawalPage from '@/pages/withdrawal';
@@ -62,7 +63,7 @@ function Router() {
 
       {/* User routes */}
       <Route path="/">
-        <ProtectedRoute><DashboardPage /></ProtectedRoute>
+        <HomeRoute />
       </Route>
       <Route path="/coupons">
         <ProtectedRoute><CouponsPage /></ProtectedRoute>
@@ -135,6 +136,24 @@ function Router() {
 
       <Route component={NotFound} />
     </Switch>
+  );
+}
+
+function HomeRoute() {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#050b14]">
+        <div className="h-10 w-10 animate-spin rounded-full border-2 border-white/20 border-t-lime-300" />
+      </div>
+    );
+  }
+
+  return isAuthenticated ? (
+    <ProtectedRoute><DashboardPage /></ProtectedRoute>
+  ) : (
+    <LandingPage />
   );
 }
 
