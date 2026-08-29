@@ -4,14 +4,19 @@ import { motion } from 'framer-motion';
 import {
   ArrowRight,
   BarChart3,
+  Crown,
   Check,
   ChevronDown,
+  Globe,
   Gift,
   Headphones,
   Menu,
   ShieldCheck,
+  Smartphone,
   Sparkles,
+  Ticket,
   Trophy,
+  Users,
   WalletCards,
   X,
   Zap,
@@ -21,28 +26,52 @@ const BASE_URL = import.meta.env.BASE_URL;
 
 const features = [
   {
-    icon: BarChart3,
-    title: 'Des coupons qui font la différence',
+    icon: Globe,
+    title: 'Dépôts nationaux & internationaux',
     description:
-      'Retrouve chaque jour une sélection claire pour suivre tes opportunités sportives en toute simplicité.',
+      'Alimente ton compte depuis le Togo ou plusieurs pays d’Afrique avec un parcours adapté à ton opération.',
     accent: 'from-lime-300/20 to-lime-400/5',
     iconColor: 'text-lime-300',
   },
   {
-    icon: WalletCards,
-    title: 'Dépôts et retraits simplifiés',
+    icon: Smartphone,
+    title: 'Paiement par Mobile Money',
     description:
-      'Gère ton solde rapidement avec des moyens de paiement adaptés à ton quotidien en Afrique.',
+      'T-Money, Moov Money et les opérateurs disponibles dans ton pays : paie simplement depuis ton mobile.',
     accent: 'from-amber-300/20 to-amber-400/5',
     iconColor: 'text-amber-300',
   },
   {
-    icon: Gift,
-    title: 'Un programme VIP généreux',
+    icon: Ticket,
+    title: 'Coupons gratuits & coupons VIP',
     description:
-      'Débloque des avantages exclusifs, des coupons premium et un accompagnement encore plus proche.',
+      'Découvre les coupons du jour, les coupons validés et débloque les sélections VIP réservées aux membres premium.',
     accent: 'from-sky-300/20 to-sky-400/5',
     iconColor: 'text-sky-300',
+  },
+  {
+    icon: Crown,
+    title: 'Montante pour les membres VIP',
+    description:
+      'Accède à une rubrique dédiée avec des sélections Montante et profite pleinement de ton espace VIP.',
+    accent: 'from-fuchsia-300/20 to-fuchsia-400/5',
+    iconColor: 'text-fuchsia-300',
+  },
+  {
+    icon: BarChart3,
+    title: 'Retrait 1xBet accompagné',
+    description:
+      'Suis les étapes pour générer ta demande de retrait 1xBet et récupère ton code en toute clarté.',
+    accent: 'from-emerald-300/20 to-emerald-400/5',
+    iconColor: 'text-emerald-300',
+  },
+  {
+    icon: Users,
+    title: 'Promotions, concours & parrainage',
+    description:
+      'Profite des offres, participe aux concours et invite tes proches avec ton lien de parrainage.',
+    accent: 'from-orange-300/20 to-orange-400/5',
+    iconColor: 'text-orange-300',
   },
 ];
 
@@ -54,13 +83,13 @@ const steps = [
   },
   {
     number: '02',
-    title: 'Explore les opportunités',
-    description: 'Accède aux coupons, promotions et services réunis dans un seul espace.',
+    title: 'Dépose avec Mobile Money',
+    description: 'Choisis un dépôt national ou international et suis les instructions selon ton opérateur.',
   },
   {
     number: '03',
-    title: 'Joue avec confiance',
-    description: 'Profite d’un support disponible et d’une plateforme pensée pour toi.',
+    title: 'Profite de tous les services',
+    description: 'Coupons gratuits, VIP, Montante, retrait 1xBet, promotions, concours et parrainage.',
   },
 ];
 
@@ -152,24 +181,24 @@ export default function LandingPage() {
           >
             <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-lime-300/20 bg-lime-300/[0.08] px-3.5 py-2 text-xs font-bold text-lime-200">
               <Sparkles className="h-3.5 w-3.5" />
-              La plateforme pensée pour les passionnés
+              Dépôt • Retrait 1xBet • Coupons • Mobile Money
             </div>
             <h1 className="text-5xl font-extrabold leading-[1.04] tracking-[-0.05em] text-white sm:text-6xl lg:text-7xl">
-              Ta passion.
+              Tout pour
               <span className="block bg-gradient-to-r from-lime-200 via-lime-300 to-emerald-400 bg-clip-text text-transparent">
-                Tes opportunités.
+                ton expérience.
               </span>
-              <span className="block">Ton service.</span>
+              <span className="block">Au même endroit.</span>
             </h1>
             <p className="mt-7 max-w-xl text-base leading-7 text-white/60 sm:text-lg">
-              Muzan Service réunit coupons, promotions, paiements et avantages VIP dans une expérience simple, rapide et sécurisée.
+              Dépose au niveau national ou international, retire via 1xBet et accède à tes coupons gratuits, VIP et Montante avec un paiement Mobile Money simple.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
               <Link
                 href="/register"
                 className="group inline-flex items-center justify-center gap-2 rounded-full bg-lime-300 px-6 py-3.5 text-sm font-extrabold text-[#08100b] shadow-[0_14px_40px_rgba(155,255,50,0.2)] transition hover:-translate-y-0.5 hover:bg-lime-200"
               >
-                Créer mon compte gratuitement
+                Rejoindre Muzan Service
                 <ArrowRight className="h-4 w-4 transition group-hover:translate-x-1" />
               </Link>
               <a
@@ -228,19 +257,19 @@ export default function LandingPage() {
                     </div>
                     <div className="mt-6 flex items-center gap-2 text-[10px] font-bold text-lime-200">
                       <span className="h-1.5 w-1.5 rounded-full bg-lime-300" />
-                      Compte vérifié et sécurisé
+                      Paiement Mobile Money confirmé
                     </div>
                   </div>
                   <div className="mt-5 grid grid-cols-2 gap-3">
                     <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-                      <div className="flex items-center gap-2 text-lime-300"><BarChart3 className="h-4 w-4" /><span className="text-[10px] font-bold">COUPONS</span></div>
-                      <p className="mt-3 text-sm font-bold text-white">Du jour</p>
-                      <p className="mt-1 text-[10px] text-white/40">Sélection premium</p>
+                      <div className="flex items-center gap-2 text-lime-300"><Ticket className="h-4 w-4" /><span className="text-[10px] font-bold">COUPONS</span></div>
+                      <p className="mt-3 text-sm font-bold text-white">Gratuit & VIP</p>
+                      <p className="mt-1 text-[10px] text-white/40">Du jour et Montante</p>
                     </div>
                     <div className="rounded-2xl border border-white/10 bg-white/[0.045] p-4">
-                      <div className="flex items-center gap-2 text-amber-300"><Gift className="h-4 w-4" /><span className="text-[10px] font-bold">AVANTAGES</span></div>
-                      <p className="mt-3 text-sm font-bold text-white">Programme VIP</p>
-                      <p className="mt-1 text-[10px] text-white/40">Accès exclusif</p>
+                      <div className="flex items-center gap-2 text-amber-300"><Globe className="h-4 w-4" /><span className="text-[10px] font-bold">SERVICES</span></div>
+                      <p className="mt-3 text-sm font-bold text-white">Dépôt & retrait</p>
+                      <p className="mt-1 text-[10px] text-white/40">National, international, 1xBet</p>
                     </div>
                   </div>
                 </div>
@@ -248,16 +277,16 @@ export default function LandingPage() {
             </div>
             <div className="absolute -bottom-5 -left-5 hidden items-center gap-3 rounded-2xl border border-white/10 bg-[#101d2c]/95 px-4 py-3 shadow-xl backdrop-blur sm:flex">
               <div className="flex h-9 w-9 items-center justify-center rounded-full bg-lime-300/15 text-lime-300"><Trophy className="h-4 w-4" /></div>
-              <div><p className="text-[10px] font-extrabold text-white">Nouveaux avantages</p><p className="mt-1 text-[10px] text-white/45">Chaque semaine</p></div>
+              <div><p className="text-[10px] font-extrabold text-white">Retrait 1xBet guidé</p><p className="mt-1 text-[10px] text-white/45">Avec code de retrait</p></div>
             </div>
           </motion.div>
         </div>
 
         <div className="mx-auto grid max-w-7xl grid-cols-1 gap-px border-y border-white/10 bg-white/10 sm:grid-cols-3">
           {[
-            ['01', 'Coupons & promotions', 'Pour ne rien manquer'],
-            ['02', 'Paiements rapides', 'Simple au quotidien'],
-            ['03', 'Support 24/7', 'Une équipe à ton écoute'],
+            ['01', 'Dépôt national & international', 'Avec Mobile Money'],
+            ['02', 'Retrait 1xBet', 'Parcours accompagné'],
+            ['03', 'Coupons gratuits, VIP & Montante', 'Des sélections chaque jour'],
           ].map(([number, title, subtitle]) => (
             <div key={number} className="bg-[#08111d] px-6 py-5 sm:px-8">
               <div className="flex items-center gap-4">
@@ -275,9 +304,9 @@ export default function LandingPage() {
       <section id="fonctionnalites" className="bg-[#f5f7f2] px-5 py-24 text-[#0c1722] sm:px-8 lg:px-10 lg:py-28">
         <div className="mx-auto max-w-7xl">
           <div className="max-w-2xl">
-            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-[#5d9716]">Tout au même endroit</p>
-            <h2 className="mt-4 text-4xl font-extrabold tracking-[-0.04em] sm:text-5xl">L’essentiel, sans complication.</h2>
-            <p className="mt-5 text-base leading-7 text-[#0c1722]/60">Une expérience fluide et des outils utiles pour avancer à ton rythme.</p>
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-[#5d9716]">Les services Muzan Service</p>
+            <h2 className="mt-4 text-4xl font-extrabold tracking-[-0.04em] sm:text-5xl">Tout ce qu’il te faut, dans une seule plateforme.</h2>
+            <p className="mt-5 text-base leading-7 text-[#0c1722]/60">Du dépôt au retrait, des coupons gratuits au VIP : retrouve chaque fonctionnalité dans ton espace personnel.</p>
           </div>
           <div className="mt-12 grid gap-5 md:grid-cols-3">
             {features.map((feature, index) => {
@@ -309,9 +338,9 @@ export default function LandingPage() {
       <section id="parcours" className="bg-[#0a1420] px-5 py-24 sm:px-8 lg:px-10 lg:py-28">
         <div className="mx-auto grid max-w-7xl gap-14 lg:grid-cols-[0.8fr_1.2fr] lg:items-center">
           <div>
-            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-lime-300">Simple dès le départ</p>
-            <h2 className="mt-4 text-4xl font-extrabold tracking-[-0.04em] text-white sm:text-5xl">Commence en trois étapes.</h2>
-            <p className="mt-5 max-w-md text-base leading-7 text-white/50">Pas de parcours compliqué. Tu crées ton compte et tu retrouves immédiatement les services qui comptent.</p>
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-lime-300">Une expérience simple</p>
+            <h2 className="mt-4 text-4xl font-extrabold tracking-[-0.04em] text-white sm:text-5xl">De l’inscription à tes premiers services.</h2>
+            <p className="mt-5 max-w-md text-base leading-7 text-white/50">Crée ton compte, choisis ton opération et retrouve tout ce dont tu as besoin sans changer de plateforme.</p>
             <Link href="/register" className="mt-8 inline-flex items-center gap-2 text-sm font-extrabold text-lime-300 transition hover:text-lime-200">
               Rejoindre Muzan Service <ArrowRight className="h-4 w-4" />
             </Link>
@@ -337,14 +366,14 @@ export default function LandingPage() {
       <section id="confiance" className="bg-[#f5f7f2] px-5 py-24 text-[#0c1722] sm:px-8 lg:px-10 lg:py-28">
         <div className="mx-auto grid max-w-7xl gap-12 lg:grid-cols-[1fr_0.9fr] lg:items-center">
           <div>
-            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-[#5d9716]">Une plateforme qui te respecte</p>
-            <h2 className="mt-4 max-w-xl text-4xl font-extrabold tracking-[-0.04em] sm:text-5xl">Plus de clarté. Plus de contrôle. Plus de confiance.</h2>
+            <p className="text-xs font-extrabold uppercase tracking-[0.24em] text-[#5d9716]">Un espace complet</p>
+            <h2 className="mt-4 max-w-xl text-4xl font-extrabold tracking-[-0.04em] sm:text-5xl">Tout gérer depuis ton téléphone.</h2>
             <div className="mt-8 grid gap-4 sm:grid-cols-2">
               {[
-                ['Espace sécurisé', 'Tes informations restent protégées.'],
-                ['Support disponible', 'Une équipe pour répondre à tes questions.'],
-                ['Expérience mobile', 'Muzan te suit partout, simplement.'],
-                ['Avantages exclusifs', 'Des récompenses pour les membres actifs.'],
+                ['Mobile Money', 'Dépose avec l’opérateur disponible dans ton pays.'],
+                ['Retrait 1xBet', 'Un parcours clair jusqu’à ton code de retrait.'],
+                ['Coupons & Montante', 'Gratuit, validé, VIP et Montante au même endroit.'],
+                ['Promos & parrainage', 'Partage ton lien et profite des offres actives.'],
               ].map(([title, description]) => (
                 <div key={title} className="flex gap-3">
                   <ShieldCheck className="mt-0.5 h-5 w-5 shrink-0 text-[#6ead16]" />
@@ -356,8 +385,8 @@ export default function LandingPage() {
           <div className="relative overflow-hidden rounded-[2rem] bg-[#10253a] p-8 text-white sm:p-10">
             <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-lime-300/15 blur-3xl" />
             <Headphones className="relative h-8 w-8 text-lime-300" />
-            <p className="relative mt-10 text-2xl font-extrabold leading-tight">Besoin d’aide ?<br />On est là pour toi.</p>
-            <p className="relative mt-4 text-sm leading-6 text-white/50">Une question sur ton compte, un dépôt ou un coupon ? Notre support est à ton écoute.</p>
+            <p className="relative mt-10 text-2xl font-extrabold leading-tight">Une question sur un dépôt ?<br />Notre support est là.</p>
+            <p className="relative mt-4 text-sm leading-6 text-white/50">Besoin d’aide pour un paiement Mobile Money, un coupon ou un retrait 1xBet ? Contacte directement notre équipe.</p>
             <Link href="/register" className="relative mt-8 inline-flex items-center gap-2 rounded-full bg-white px-5 py-3 text-sm font-extrabold text-[#10253a] transition hover:bg-lime-200">
               Créer mon compte <ArrowRight className="h-4 w-4" />
             </Link>
@@ -368,8 +397,8 @@ export default function LandingPage() {
       <section className="bg-[#050b14] px-5 py-20 sm:px-8 lg:px-10">
         <div className="mx-auto max-w-4xl rounded-[2rem] border border-lime-300/20 bg-gradient-to-br from-[#132d31] to-[#0b1722] px-6 py-12 text-center sm:px-12">
           <Sparkles className="mx-auto h-7 w-7 text-lime-300" />
-          <h2 className="mt-5 text-3xl font-extrabold tracking-[-0.04em] text-white sm:text-4xl">Prêt à passer au niveau supérieur ?</h2>
-          <p className="mx-auto mt-4 max-w-lg text-sm leading-6 text-white/50">Rejoins la communauté Muzan Service et découvre une nouvelle façon de gérer ton expérience.</p>
+          <h2 className="mt-5 text-3xl font-extrabold tracking-[-0.04em] text-white sm:text-4xl">Tes dépôts, tes coupons, tes retraits.</h2>
+          <p className="mx-auto mt-4 max-w-lg text-sm leading-6 text-white/50">Rejoins Muzan Service et retrouve tous tes services sportifs dans un espace unique, pratique et accessible.</p>
           <Link href="/register" className="mt-8 inline-flex items-center gap-2 rounded-full bg-lime-300 px-6 py-3.5 text-sm font-extrabold text-[#08100b] transition hover:bg-lime-200">
             Commencer maintenant <ArrowRight className="h-4 w-4" />
           </Link>
