@@ -7,7 +7,7 @@ import {
   findDrimPayOperator,
   getDrimPayApiKey,
   verifyDrimPayWebhookSignature,
-} from "./drimpay";
+} from "./drimpay.js";
 
 test("DrimPay integration is pinned to the live API", () => {
   assert.equal(DRIMPAY_LIVE_API_BASE, "https://drimpay.com/api/v2");

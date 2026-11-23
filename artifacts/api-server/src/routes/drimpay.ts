@@ -8,17 +8,19 @@ import {
   usersTable,
   vipPaymentsTable,
 } from "@workspace/db";
-import { requireAuth, type AuthRequest } from "../middlewares/auth";
+import { requireAuth, type AuthRequest } from "../middlewares/auth.js";
 import {
   DRIMPAY_COUNTRIES,
   DrimPayError,
+  type DrimPayCountry,
+  type DrimPayOperator,
   drimPayRequest,
   findDrimPayOperator,
   getDrimPayApiKey,
   getDrimPayWebhookUrl,
   normalizeDrimPayStatus,
-} from "../lib/drimpay";
-import { settleDrimPayPayment, type DrimPayPaymentEvent } from "../lib/drimpay-settlement";
+} from "../lib/drimpay.js";
+import { settleDrimPayPayment, type DrimPayPaymentEvent } from "../lib/drimpay-settlement.js";
 
 const router: IRouter = Router();
 
@@ -43,7 +45,7 @@ function validatePaymentInput(body: Record<string, unknown>): {
   operatorOtp?: string;
 } | { error: string } {
   const countryCode = typeof body.countryCode === "string" ? body.countryCode.toUpperCase() : "";
-  const country = DRIMPAY_COUNTRIES.find((item) => item.code === countryCode);
+  const country = DRIMPAY_COUNTRIES.find((item: DrimPayCountry) => item.code === countryCode);
   if (!country) return { error: "Pays non disponible avec DrimPay." };
 
   const operatorCode = typeof body.operator === "string" ? body.operator : "";
@@ -73,10 +75,11 @@ function validatePaymentInput(body: Record<string, unknown>): {
 
 function sendPaymentError(res: Response, error: unknown): void {
   if (error instanceof DrimPayError) {
-    const status = error.statusCode === 401 || error.statusCode === 403 ? 503 : error.statusCode;
-    res.status(status).json({ error: status === 503 && error.statusCode !== 503
+    const drimPayError = error as DrimPayError;
+    const status = drimPayError.statusCode === 401 || drimPayError.statusCode === 403 ? 503 : drimPayError.statusCode;
+    res.status(status).json({ error: status === 503 && drimPayError.statusCode !== 503
       ? "La clé DrimPay est refusée ou indisponible."
-      : error.message });
+      : drimPayError.message });
     return;
   }
   res.status(500).json({ error: "Impossible de traiter le paiement pour le moment." });
@@ -100,9 +103,9 @@ async function initiatePayment(payload: Record<string, unknown>): Promise<DrimPa
 }
 
 router.get("/drimpay/countries", (_req, res): void => {
-  res.json(DRIMPAY_COUNTRIES.map((country) => ({
+  res.json(DRIMPAY_COUNTRIES.map((country: DrimPayCountry) => ({
     ...country,
-    operators: country.operators.map((operator) => ({
+    operators: country.operators.map((operator: DrimPayOperator) => ({
       ...operator,
       ...(operator.requiresOtp ? {
         otpInstructions: country.code === "BF"
@@ -201,9 +204,9 @@ router.post("/drimpay/collect", requireAuth, async (req: AuthRequest, res): Prom
       phone: input.phone,
       order_id: orderId,
       webhook_url: getDrimPayWebhookUrl(),
-      description: `Dépôt Muzan - compte ${oneXbetAccountId}`,
+      description: "Dépôt international Muzan",
       expires_in_minutes: 5,
-      metadata: { user_id: req.userId, flow: "international_deposit" },
+      metadata: { flow: "international_deposit" },
       ...(input.operatorOtp ? { operator_otp: input.operatorOtp } : {}),
     });
 
@@ -237,7 +240,8 @@ router.post("/drimpay/collect", requireAuth, async (req: AuthRequest, res): Prom
       ...(response.expires_at ? { expiresAt: response.expires_at } : {}),
     });
   } catch (error) {
-    if (pendingId && error instanceof DrimPayError && error.statusCode < 500) {
+    const drimPayError = error instanceof DrimPayError ? error as DrimPayError : null;
+    if (pendingId && drimPayError && drimPayError.statusCode < 500) {
       await db.delete(pendingSpDepositsTable)
         .where(eq(pendingSpDepositsTable.id, pendingId))
         .catch(() => undefined);
@@ -338,7 +342,7 @@ router.post("/drimpay/collect-vip", requireAuth, async (req: AuthRequest, res): 
       webhook_url: getDrimPayWebhookUrl(),
       description: "Paiement de l'accès VIP Muzan",
       expires_in_minutes: 5,
-      metadata: { user_id: req.userId, flow: "vip" },
+      metadata: { flow: "vip" },
       ...(input.operatorOtp ? { operator_otp: input.operatorOtp } : {}),
     });
 
@@ -372,7 +376,8 @@ router.post("/drimpay/collect-vip", requireAuth, async (req: AuthRequest, res): 
       ...(response.expires_at ? { expiresAt: response.expires_at } : {}),
     });
   } catch (error) {
-    if (vipPaymentId && error instanceof DrimPayError && error.statusCode < 500) {
+    const drimPayError = error instanceof DrimPayError ? error as DrimPayError : null;
+    if (vipPaymentId && drimPayError && drimPayError.statusCode < 500) {
       await db.update(vipPaymentsTable)
         .set({ status: "failed", updatedAt: new Date() })
         .where(and(eq(vipPaymentsTable.id, vipPaymentId), eq(vipPaymentsTable.status, "pending")))
@@ -418,7 +423,14 @@ router.get("/drimpay/status/:reference", requireAuth, async (req: AuthRequest, r
     }
 
     if (deposit && !pendingDeposit) {
-      res.json({ status: "success", transactionId: reference });
+      res.json({
+        status: deposit.status === "rejected" && deposit.rejectionReason?.includes("DrimPay")
+          ? "reversed"
+          : deposit.status === "validated" || deposit.status === "pending"
+            ? "success"
+            : "failed",
+        transactionId: reference,
+      });
       return;
     }
     if (vipPayment && vipPayment.status !== "pending") {

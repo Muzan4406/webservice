@@ -13,12 +13,13 @@ Dans **Sites Web & Domaines → votre domaine → Node.js** :
 
 | Champ Plesk | Valeur |
 |---|---|
-| Version Node.js | 20 ou plus récente (26 fonctionne également) |
+| Version Node.js | `20.19+` ou `22.12+` (26 fonctionne également) |
+| Type d'application | `Server-side (Vanilla Node.js)` |
 | Mode d'application | `production` |
 | Racine de l'application | `/httpdocs` si le projet complet est dans `/httpdocs` |
-| Racine des documents | `artifacts/vitrine/dist` |
+| Racine des documents | `artifacts/vitrine/dist` sous la racine de l'application |
 | Fichier de démarrage de l'application | `app.js` |
-| Gestionnaire de paquets | `npm` ou `pnpm` selon celui installé sur le serveur |
+| Gestionnaire de paquets | `pnpm` |
 
 La **racine de l'application** est le dossier qui contient `app.js`,
 `package.json` et le dossier `artifacts`. Ne mettez pas
@@ -48,12 +49,17 @@ Dans **Node.js → Custom environment variables**, ajoutez :
 | `ALLOWED_ORIGIN` | `https://votre-domaine.tld` (optionnel) |
 | `TELEGRAM_BOT_TOKEN` | optionnel |
 | `TELEGRAM_CHAT_ID` | optionnel |
+| `VAPID_PUBLIC_KEY` / `VAPID_PRIVATE_KEY` | optionnelles, pour activer les notifications push |
+| `VAPID_CONTACT` | optionnel, adresse de contact VAPID (par défaut `mailto:admin@example.com`) |
+| `LOG_LEVEL` | optionnel, niveau de journalisation (par défaut `info`) |
 
 Les clés DrimPay sont réservées au serveur et ne doivent jamais être mises dans
 le navigateur, l'interface admin, GitHub ou un fichier `.env` versionné.
 `DRIMPAY_API_KEY` n'accepte que les clés live. `WEBHOOK_BASE_URL` doit être
 accessible publiquement en HTTPS pour que DrimPay puisse notifier les paiements.
 `PG_URL` doit pointer vers une base PostgreSQL déjà accessible depuis Plesk.
+Avec le domaine `muzanservice.com`, l'adresse complète du callback est
+`https://muzanservice.com/webhooks/drimpay`.
 
 Le dépôt national manuel T-Money/Moov ne dépend pas de ces clés DrimPay.
 
@@ -82,26 +88,15 @@ Le dépôt national manuel T-Money/Moov ne dépend pas de ces clés DrimPay.
 
    Les fichiers `dist` sont déjà présents dans l'import actuel. Cette étape
    est néanmoins nécessaire après une modification du frontend ou du backend.
-6. Si les tables PostgreSQL n'existent pas encore, appliquez le schéma avec
-   une URL configurée dans l'environnement :
-
-   ```bash
-   cd lib/db
-   pnpm run push
-   cd ../..
-   ```
-
-7. Appliquez l'ajout du champ d'idempotence DrimPay au schéma PostgreSQL depuis
-   la racine du projet :
+6. Appliquez le schéma PostgreSQL après avoir configuré `PG_URL` :
 
    ```bash
    pnpm --filter @workspace/db run push
    ```
 
-8. Revenez dans **Node.js**, vérifiez que le gestionnaire est `pnpm`, puis
-   cliquez sur **Save** et **Restart App**. N'utilisez pas `NPM install` pour
-   ce monorepo pnpm.
-9. Activez le certificat SSL Let's Encrypt dans **SSL/TLS Certificates** et
+7. Vérifiez que `artifacts/api-server/uploads` est accessible en écriture par
+   l'utilisateur du site, puis cliquez sur **Save** et **Restart App**.
+8. Activez le certificat SSL Let's Encrypt dans **SSL/TLS Certificates** et
    forcez HTTPS. Utilisez ensuite l'URL HTTPS dans `WEBHOOK_BASE_URL`.
 
 ## Vérifications
@@ -144,7 +139,7 @@ Puis cliquez sur **Restart App** dans Plesk.
 
 ## Prérequis
 - Hostinger Business Cloud Hosting (Node.js activé dans hPanel)
-- Node.js ≥ 20 sélectionné dans hPanel
+- Node.js `20.19+` ou `22.12+` sélectionné dans hPanel
 - Base de données PostgreSQL (Supabase, Neon, ou Hostinger DB)
 
 ---
@@ -177,12 +172,12 @@ npm install -g pnpm
 
 ```bash
 pnpm install
-pnpm run build
+pnpm run build:full
 ```
 
 Cela :
 - Compile le frontend React → `artifacts/vitrine/dist/`
-- Bundle le backend Express → `artifacts/api-server/dist/index.mjs`
+- Bundle le backend Express → `artifacts/api-server/dist/index.cjs`
 
 ---
 
@@ -195,10 +190,9 @@ Dans hPanel → **Node.js** → **Environment Variables**, ajoute :
 | `NODE_ENV` | `production` |
 | `PORT` | `3000` *(Hostinger le gère automatiquement)* |
 | `PG_URL` | URL de ta base PostgreSQL |
-| `SESSION_SECRET` | Chaîne aléatoire longue (32+ caractères) |
-| `SENDAVAPAY_API_KEY` | Clé API SendavaPay |
-| `SENDAVAPAY_WEBHOOK_SECRET` | Secret webhook SendavaPay |
-| `WEBHOOK_BASE_URL` | `https://tondomaine.com` *(sans slash final)* |
+| `DRIMPAY_API_KEY` | Clé live DrimPay commençant par `dp_live_sk_` |
+| `DRIMPAY_WEBHOOK_SECRET` | Secret HMAC du webhook DrimPay live |
+| `WEBHOOK_BASE_URL` | `https://tondomaine.com` |
 | `TELEGRAM_BOT_TOKEN` | *(optionnel)* |
 | `TELEGRAM_CHAT_ID` | *(optionnel)* |
 
@@ -213,7 +207,7 @@ Dans hPanel → **Node.js** :
 | **Node.js version** | 20 (ou plus) |
 | **Application mode** | Production |
 | **Application root** | `/home/user/public_html` *(racine du projet)* |
-| **Application startup file** | `artifacts/api-server/dist/index.mjs` |
+| **Application startup file** | `app.js` |
 
 Clique **Save** puis **Restart**.
 
@@ -231,4 +225,4 @@ Clique **Save** puis **Restart**.
 - **Erreur `Cannot find module`** → relance `pnpm install` depuis le SSH
 - **Page blanche** → vérifie que `NODE_ENV=production` est bien défini
 - **API 500** → vérifie `PG_URL` dans les variables d'environnement
-- **Webhooks SendavaPay ne fonctionnent pas** → vérifie que `WEBHOOK_BASE_URL` est correct
+- **Webhooks DrimPay ne fonctionnent pas** → vérifie le domaine HTTPS, `WEBHOOK_BASE_URL` et `DRIMPAY_WEBHOOK_SECRET`

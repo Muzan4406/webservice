@@ -1,6 +1,6 @@
 import * as esbuild from "esbuild";
 import { createRequire } from "node:module";
-import { rename } from "node:fs/promises";
+import { rename, rm } from "node:fs/promises";
 
 const require = createRequire(import.meta.url);
 // esbuild-plugin-pino uses CommonJS exports
@@ -35,3 +35,10 @@ await esbuild.build({
 // package has "type":"module".
 await rename("dist/index.js", "dist/index.cjs").catch(() => {});
 await rename("dist/index.js.map", "dist/index.cjs.map").catch(() => {});
+
+// Remove the obsolete ESM bundle so deployments cannot accidentally launch
+// an older provider integration instead of the app.js → index.cjs entrypoint.
+await Promise.all([
+  rm("dist/index.mjs", { force: true }),
+  rm("dist/index.mjs.map", { force: true }),
+]);

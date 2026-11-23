@@ -1,11 +1,11 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { logger } from "../lib/logger";
+import { logger } from "../lib/logger.js";
 import {
   DrimPayError,
   getDrimPayWebhookSecret,
   verifyDrimPayWebhookSignature,
-} from "../lib/drimpay";
-import { settleDrimPayPayment } from "../lib/drimpay-settlement";
+} from "../lib/drimpay.js";
+import { settleDrimPayPayment } from "../lib/drimpay-settlement.js";
 
 const router: IRouter = Router();
 

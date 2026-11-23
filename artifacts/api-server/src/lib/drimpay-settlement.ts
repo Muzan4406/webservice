@@ -1,4 +1,4 @@
-import { eq, or } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import {
   db,
   depositsTable,
@@ -6,8 +6,8 @@ import {
   usersTable,
   vipPaymentsTable,
 } from "@workspace/db";
-import { logger } from "./logger";
-import { tg } from "./telegram";
+import { logger } from "./logger.js";
+import { tg } from "./telegram.js";
 
 export type DrimPayPaymentEvent = {
   event?: string;

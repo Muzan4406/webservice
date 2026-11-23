@@ -14,7 +14,7 @@ import adminRouter from "./admin";
 import uploadRouter from "./upload";
 import appSettingsRouter from "./app-settings";
 import transactionsRouter from "./transactions";
-import drimpayRouter from "./drimpay";
+import drimpayRouter from "./drimpay.js";
 import chatRouter from "./chat";
 
 const router: IRouter = Router();

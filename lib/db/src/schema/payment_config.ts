@@ -8,9 +8,10 @@ export const paymentConfigTable = pgTable("payment_config", {
   moovMoneyEnabled: boolean("moov_money_enabled").notNull().default(false),
   moovMoneyNumber: text("moov_money_number"),
   moovMoneyUssdCode: text("moov_money_ussd_code"),
+  // Legacy provider settings retained only to preserve existing databases.
+  // The current payment API no longer reads or returns these credentials.
   internationalPaymentApiUrl: text("international_payment_api_url"),
   internationalPaymentApiKey: text("international_payment_api_key"),
-  // Reuses the sendavapay_api_key column — no migration needed
   ashtechpayApiKey: text("sendavapay_api_key"),
   // Kept for schema compatibility (column exists in DB, no longer used)
   sendavapayWebhookSecret: text("sendavapay_webhook_secret"),

@@ -17397,15 +17397,16 @@ var require_side_channel = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/qs@6.15.3/node_modules/qs/lib/formats.js
+// ../../node_modules/.pnpm/qs@6.17.1/node_modules/qs/lib/formats.js
 var require_formats = __commonJS({
-  "../../node_modules/.pnpm/qs@6.15.3/node_modules/qs/lib/formats.js"(exports2, module2) {
+  "../../node_modules/.pnpm/qs@6.17.1/node_modules/qs/lib/formats.js"(exports2, module2) {
     "use strict";
     var replace = String.prototype.replace;
     var percentTwenties = /%20/g;
     var Format = {
       RFC1738: "RFC1738",
-      RFC3986: "RFC3986"
+      RFC3986: "RFC3986",
+      WHATWG: "WHATWG"
     };
     module2.exports = {
       "default": Format.RFC3986,
@@ -17415,17 +17416,21 @@ var require_formats = __commonJS({
         },
         RFC3986: function(value) {
           return String(value);
+        },
+        WHATWG: function(value) {
+          return replace.call(value, percentTwenties, "+");
         }
       },
       RFC1738: Format.RFC1738,
-      RFC3986: Format.RFC3986
+      RFC3986: Format.RFC3986,
+      WHATWG: Format.WHATWG
     };
   }
 });
 
-// ../../node_modules/.pnpm/qs@6.15.3/node_modules/qs/lib/utils.js
+// ../../node_modules/.pnpm/qs@6.17.1/node_modules/qs/lib/utils.js
 var require_utils2 = __commonJS({
-  "../../node_modules/.pnpm/qs@6.15.3/node_modules/qs/lib/utils.js"(exports2, module2) {
+  "../../node_modules/.pnpm/qs@6.17.1/node_modules/qs/lib/utils.js"(exports2, module2) {
     "use strict";
     var formats = require_formats();
     var getSideChannel = require_side_channel();
@@ -17445,6 +17450,17 @@ var require_utils2 = __commonJS({
     };
     var setMaxIndex = function setMaxIndex2(obj, maxIndex) {
       overflowChannel.set(obj, maxIndex);
+    };
+    var conflictChannel = getSideChannel();
+    var markConflict = function markConflict2(obj, maxIndex) {
+      conflictChannel.set(obj, maxIndex);
+      return obj;
+    };
+    var isConflict = function isConflict2(obj) {
+      return conflictChannel.has(obj);
+    };
+    var getConflictIndex = function getConflictIndex2(obj) {
+      return conflictChannel.get(obj);
     };
     var hexTable = (function() {
       var array2 = [];
@@ -17489,6 +17505,36 @@ var require_utils2 = __commonJS({
         obj[key] = value;
       }
     };
+    var maxNumericIndex = function maxNumericIndex2(obj, min) {
+      var max = min;
+      var keys = Object.keys(obj);
+      for (var i = 0; i < keys.length; ++i) {
+        var num = parseInt(keys[i], 10);
+        if (String(num) === keys[i] && num > max) {
+          max = num;
+        }
+      }
+      return max;
+    };
+    var countElements = function countElements2(arr) {
+      var count = 0;
+      for (var i = 0; i < arr.length; ++i) {
+        if (has.call(arr, i)) {
+          count += 1;
+        }
+      }
+      return count;
+    };
+    var limitedPair = function limitedPair2(first, second, options) {
+      var pair = [first, second];
+      if (options && typeof options.arrayLimit === "number" && pair.length > options.arrayLimit) {
+        if (options.throwOnLimitExceeded) {
+          throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
+        }
+        return markOverflow(arrayToObject(pair, options), 1);
+      }
+      return pair;
+    };
     var merge2 = function merge3(target, source, options) {
       if (!source) {
         return target;
@@ -17496,7 +17542,7 @@ var require_utils2 = __commonJS({
       if (typeof source !== "object" && typeof source !== "function") {
         if (isArray(target)) {
           var nextIndex = target.length;
-          if (options && typeof options.arrayLimit === "number" && nextIndex >= options.arrayLimit) {
+          if (options && typeof options.arrayLimit === "number" && countElements(target) >= options.arrayLimit) {
             if (options.throwOnLimitExceeded) {
               throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
             }
@@ -17508,13 +17554,21 @@ var require_utils2 = __commonJS({
             var newIndex = getMaxIndex(target) + 1;
             target[newIndex] = source;
             setMaxIndex(target, newIndex);
+          } else if (options && options.strictMerge && isConflict(target)) {
+            var nextConflict = getConflictIndex(target) + 1;
+            if (options.throwOnLimitExceeded && typeof options.arrayLimit === "number" && nextConflict >= options.arrayLimit) {
+              throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
+            }
+            target[nextConflict] = source;
+            markConflict(target, nextConflict);
           } else if (options && options.strictMerge) {
-            return [target, source];
+            var conflict = limitedPair(target, source, options);
+            return isArray(conflict) ? markConflict(conflict, 1) : conflict;
           } else if (options && (options.plainObjects || options.allowPrototypes) || !has.call(Object.prototype, source)) {
             target[source] = true;
           }
         } else {
-          return [target, source];
+          return limitedPair(target, source, options);
         }
         return target;
       }
@@ -17540,6 +17594,9 @@ var require_utils2 = __commonJS({
       var mergeTarget = target;
       if (isArray(target) && !isArray(source)) {
         mergeTarget = arrayToObject(target, options);
+        if (isConflict(target)) {
+          markConflict(mergeTarget, target.length - 1);
+        }
       }
       if (isArray(target) && isArray(source)) {
         source.forEach(function(item, i) {
@@ -17554,7 +17611,7 @@ var require_utils2 = __commonJS({
             target[i] = item;
           }
         });
-        if (options && typeof options.arrayLimit === "number" && target.length > options.arrayLimit) {
+        if (options && typeof options.arrayLimit === "number" && countElements(target) > options.arrayLimit) {
           if (options.throwOnLimitExceeded) {
             throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
           }
@@ -17570,12 +17627,18 @@ var require_utils2 = __commonJS({
           setProperty(acc, key, value);
         }
         if (isOverflow(source) && !isOverflow(acc)) {
-          markOverflow(acc, getMaxIndex(source));
+          markOverflow(acc, maxNumericIndex(acc, getMaxIndex(source)));
         }
         if (isOverflow(acc)) {
           var keyNum = parseInt(key, 10);
           if (String(keyNum) === key && keyNum >= 0 && keyNum > getMaxIndex(acc)) {
             setMaxIndex(acc, keyNum);
+          }
+        }
+        if (isConflict(acc)) {
+          var conflictKey = parseInt(key, 10);
+          if (String(conflictKey) === key && conflictKey > getConflictIndex(acc)) {
+            markConflict(acc, conflictKey);
           }
         }
         return acc;
@@ -17588,6 +17651,9 @@ var require_utils2 = __commonJS({
       }, target);
     };
     var decode = function(str, defaultDecoder, charset) {
+      if (typeof str === "string" && str.indexOf("%") === -1) {
+        return str.indexOf("+") === -1 ? str : str.replace(/\+/g, " ");
+      }
       var strWithoutPlus = str.replace(/\+/g, " ");
       if (charset === "iso-8859-1") {
         return strWithoutPlus.replace(/%[0-9a-f]{2}/gi, unescape);
@@ -17598,6 +17664,52 @@ var require_utils2 = __commonJS({
         return strWithoutPlus;
       }
     };
+    var hasToPrimitive = typeof Symbol === "function" && typeof Symbol.toPrimitive === "symbol";
+    var arrayJoin = Array.prototype.join;
+    var arrayToString = Array.prototype.toString;
+    var objectToString = Object.prototype.toString;
+    var toCoercible = function toCoercible2(value, joining) {
+      if (!value || typeof value !== "object" && typeof value !== "function") {
+        return value;
+      }
+      if (hasToPrimitive && value[Symbol.toPrimitive] != null) {
+        return value;
+      }
+      if (isArray(value) && value.toString === arrayToString && value.join === arrayJoin) {
+        var ancestors = joining || getSideChannel();
+        if (ancestors.has(value)) {
+          return "";
+        }
+        ancestors.set(value, true);
+        var copy;
+        for (var i = 0; i < value.length; i += 1) {
+          var item = value[i];
+          var coerced = toCoercible2(item, ancestors);
+          if (!copy && coerced !== item) {
+            copy = [];
+            for (var j = 0; j < i; j += 1) {
+              copy[j] = value[j];
+            }
+          }
+          if (copy) {
+            copy[i] = coerced;
+          }
+        }
+        ancestors["delete"](value);
+        return copy || value;
+      }
+      if (typeof value.toString === "function") {
+        return value;
+      }
+      var valueOf = value.valueOf;
+      if (typeof valueOf === "function") {
+        var primitive = valueOf.call(value);
+        if (!primitive || typeof primitive !== "object" && typeof primitive !== "function") {
+          return String(primitive);
+        }
+      }
+      return objectToString.call(value);
+    };
     var limit = 1024;
     var encode = function encode2(str, defaultEncoder, charset, kind, format) {
       if (str.length === 0) {
@@ -17607,12 +17719,12 @@ var require_utils2 = __commonJS({
       if (typeof str === "symbol") {
         string4 = Symbol.prototype.toString.call(str);
       } else if (typeof str !== "string") {
-        string4 = String(str);
+        string4 = String(toCoercible(str));
       }
       if (charset === "iso-8859-1") {
         return escape(string4).replace(/%u[0-9a-f]{4}/gi, function($0) {
           return "%26%23" + parseInt($0.slice(2), 16) + "%3B";
-        });
+        }).replace(/\+/g, "%2B");
       }
       var out = "";
       for (var j = 0; j < string4.length; j += limit) {
@@ -17627,7 +17739,7 @@ var require_utils2 = __commonJS({
         var arr = [];
         for (var i = 0; i < segment.length; ++i) {
           var c = segment.charCodeAt(i);
-          if (c === 45 || c === 46 || c === 95 || c === 126 || c >= 48 && c <= 57 || c >= 65 && c <= 90 || c >= 97 && c <= 122 || format === formats.RFC1738 && (c === 40 || c === 41)) {
+          if (c === 45 || c === 46 || c === 95 || c === 126 && format !== formats.WHATWG || c >= 48 && c <= 57 || c >= 65 && c <= 90 || c >= 97 && c <= 122 || format === formats.RFC1738 && (c === 40 || c === 41) || format === formats.WHATWG && c === 42) {
             arr[arr.length] = segment.charAt(i);
             continue;
           }
@@ -17643,9 +17755,14 @@ var require_utils2 = __commonJS({
             arr[arr.length] = hexTable[224 | c >> 12] + hexTable[128 | c >> 6 & 63] + hexTable[128 | c & 63];
             continue;
           }
-          i += 1;
-          c = 65536 + ((c & 1023) << 10 | segment.charCodeAt(i) & 1023);
-          arr[arr.length] = hexTable[240 | c >> 18] + hexTable[128 | c >> 12 & 63] + hexTable[128 | c >> 6 & 63] + hexTable[128 | c & 63];
+          var next = segment.charCodeAt(i + 1);
+          if (c <= 56319 && next >= 56320 && next <= 57343) {
+            i += 1;
+            c = 65536 + ((c & 1023) << 10 | next & 1023);
+            arr[arr.length] = hexTable[240 | c >> 18] + hexTable[128 | c >> 12 & 63] + hexTable[128 | c >> 6 & 63] + hexTable[128 | c & 63];
+          } else {
+            arr[arr.length] = "%EF%BF%BD";
+          }
         }
         out += arr.join("");
       }
@@ -17677,15 +17794,19 @@ var require_utils2 = __commonJS({
       if (!obj || typeof obj !== "object") {
         return false;
       }
-      return !!(obj.constructor && obj.constructor.isBuffer && obj.constructor.isBuffer(obj));
+      return !!(obj.constructor && typeof obj.constructor.isBuffer === "function" && obj.constructor.isBuffer(obj));
     };
     var combine = function combine2(a, b, arrayLimit, plainObjects, throwOnLimitExceeded) {
       if (isOverflow(a)) {
         if (throwOnLimitExceeded) {
           throw new RangeError("Array limit exceeded. Only " + arrayLimit + " element" + (arrayLimit === 1 ? "" : "s") + " allowed in an array.");
         }
-        var newIndex = getMaxIndex(a) + 1;
-        a[newIndex] = b;
+        var bValues = isArray(b) ? b : [b];
+        var newIndex = getMaxIndex(a);
+        for (var i = 0; i < bValues.length; ++i) {
+          newIndex += 1;
+          a[newIndex] = bValues[i];
+        }
         setMaxIndex(a, newIndex);
         return a;
       }
@@ -17720,14 +17841,16 @@ var require_utils2 = __commonJS({
       isRegExp,
       markOverflow,
       maybeMap,
-      merge: merge2
+      merge: merge2,
+      setProperty,
+      toCoercible
     };
   }
 });
 
-// ../../node_modules/.pnpm/qs@6.15.3/node_modules/qs/lib/stringify.js
+// ../../node_modules/.pnpm/qs@6.17.1/node_modules/qs/lib/stringify.js
 var require_stringify = __commonJS({
-  "../../node_modules/.pnpm/qs@6.15.3/node_modules/qs/lib/stringify.js"(exports2, module2) {
+  "../../node_modules/.pnpm/qs@6.17.1/node_modules/qs/lib/stringify.js"(exports2, module2) {
     "use strict";
     var getSideChannel = require_side_channel();
     var utils = require_utils2();
@@ -17761,6 +17884,7 @@ var require_stringify = __commonJS({
       charsetSentinel: false,
       commaRoundTrip: false,
       delimiter: "&",
+      depth: Infinity,
       encode: true,
       encodeDotInKeys: false,
       encoder: utils.encode,
@@ -17780,8 +17904,11 @@ var require_stringify = __commonJS({
       return typeof v === "string" || typeof v === "number" || typeof v === "boolean" || typeof v === "symbol" || typeof v === "bigint";
     };
     var sentinel = {};
-    var stringify = function stringify2(object2, prefix, generateArrayPrefix, commaRoundTrip, allowEmptyArrays, strictNullHandling, skipNulls, encodeDotInKeys, encoder, filter, sort, allowDots, serializeDate, format, formatter, encodeValuesOnly, charset, sideChannel) {
+    var stringify = function stringify2(object2, prefix, generateArrayPrefix, commaRoundTrip, allowEmptyArrays, strictNullHandling, skipNulls, encodeDotInKeys, encoder, filter, sort, allowDots, serializeDate, format, formatter, encodeValuesOnly, charset, sideChannel, depth, currentDepth) {
       var obj = object2;
+      if (currentDepth > depth) {
+        throw new RangeError("Input depth exceeded depth option of " + depth);
+      }
       var tmpSc = sideChannel;
       var step = 0;
       var findFlag = false;
@@ -17799,9 +17926,8 @@ var require_stringify = __commonJS({
           step = 0;
         }
       }
-      if (typeof filter === "function") {
-        obj = filter(prefix, obj);
-      } else if (obj instanceof Date) {
+      obj = typeof filter === "function" ? filter(prefix, obj) : obj;
+      if (obj instanceof Date) {
         obj = serializeDate(obj);
       } else if (generateArrayPrefix === "comma" && isArray(obj)) {
         obj = utils.maybeMap(obj, function(value2) {
@@ -17832,20 +17958,20 @@ var require_stringify = __commonJS({
       if (generateArrayPrefix === "comma" && isArray(obj)) {
         if (encodeValuesOnly && encoder) {
           obj = utils.maybeMap(obj, function(v) {
-            return v == null ? v : encoder(v);
+            return v == null ? v : encoder(v, defaults2.encoder, charset, "value", format);
           });
         }
-        objKeys = [{ value: obj.length > 0 ? obj.join(",") || null : void 0 }];
+        objKeys = [{ value: obj.length > 0 ? utils.toCoercible(obj).join(",") || null : void 0 }];
       } else if (isArray(filter)) {
         objKeys = filter;
       } else {
         var keys = Object.keys(obj);
         objKeys = sort ? keys.sort(sort) : keys;
       }
-      var encodedPrefix = encodeDotInKeys ? String(prefix).replace(/\./g, "%2E") : String(prefix);
+      var encodedPrefix = String(prefix);
       var adjustedPrefix = commaRoundTrip && isArray(obj) && obj.length === 1 ? encodedPrefix + "[]" : encodedPrefix;
-      if (allowEmptyArrays && isArray(obj) && obj.length === 0) {
-        return adjustedPrefix + "[]";
+      if (allowEmptyArrays && isArray(obj) && obj.length === 0 && Object.keys(obj).length === 0) {
+        return formatter(encoder && !encodeValuesOnly ? encoder(adjustedPrefix, defaults2.encoder, charset, "key", format) : adjustedPrefix) + "[]";
       }
       for (var j = 0; j < objKeys.length; ++j) {
         var key = objKeys[j];
@@ -17876,7 +18002,9 @@ var require_stringify = __commonJS({
           formatter,
           encodeValuesOnly,
           charset,
-          valueSideChannel
+          valueSideChannel,
+          depth,
+          currentDepth + 1
         ));
       }
       return values;
@@ -17911,7 +18039,7 @@ var require_stringify = __commonJS({
         filter = opts.filter;
       }
       var arrayFormat;
-      if (opts.arrayFormat in arrayPrefixGenerators) {
+      if (has.call(arrayPrefixGenerators, opts.arrayFormat)) {
         arrayFormat = opts.arrayFormat;
       } else if ("indices" in opts) {
         arrayFormat = opts.indices ? "indices" : "repeat";
@@ -17931,6 +18059,7 @@ var require_stringify = __commonJS({
         charsetSentinel: typeof opts.charsetSentinel === "boolean" ? opts.charsetSentinel : defaults2.charsetSentinel,
         commaRoundTrip: !!opts.commaRoundTrip,
         delimiter: typeof opts.delimiter === "undefined" ? defaults2.delimiter : opts.delimiter,
+        depth: typeof opts.depth === "number" ? opts.depth : defaults2.depth,
         encode: typeof opts.encode === "boolean" ? opts.encode : defaults2.encode,
         encodeDotInKeys: typeof opts.encodeDotInKeys === "boolean" ? opts.encodeDotInKeys : defaults2.encodeDotInKeys,
         encoder: typeof opts.encoder === "function" ? opts.encoder : defaults2.encoder,
@@ -17953,7 +18082,7 @@ var require_stringify = __commonJS({
         filter = options.filter;
         obj = filter("", obj);
       } else if (isArray(options.filter)) {
-        filter = options.filter;
+        filter = options.filter.slice();
         objKeys = filter;
       }
       var keys = [];
@@ -17978,9 +18107,10 @@ var require_stringify = __commonJS({
         if (options.skipNulls && value === null) {
           continue;
         }
+        var encodedKey = options.encodeDotInKeys ? String(key).replace(/\./g, "%2E") : String(key);
         pushToArray(keys, stringify(
           value,
-          key,
+          encodedKey,
           generateArrayPrefix,
           commaRoundTrip,
           options.allowEmptyArrays,
@@ -17988,7 +18118,7 @@ var require_stringify = __commonJS({
           options.skipNulls,
           options.encodeDotInKeys,
           options.encode ? options.encoder : null,
-          options.filter,
+          filter,
           options.sort,
           options.allowDots,
           options.serializeDate,
@@ -17996,7 +18126,9 @@ var require_stringify = __commonJS({
           options.formatter,
           options.encodeValuesOnly,
           options.charset,
-          sideChannel
+          sideChannel,
+          options.depth,
+          0
         ));
       }
       var joined = keys.join(options.delimiter);
@@ -18013,13 +18145,58 @@ var require_stringify = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/qs@6.15.3/node_modules/qs/lib/parse.js
+// ../../node_modules/.pnpm/qs@6.17.1/node_modules/qs/lib/parse.js
 var require_parse = __commonJS({
-  "../../node_modules/.pnpm/qs@6.15.3/node_modules/qs/lib/parse.js"(exports2, module2) {
+  "../../node_modules/.pnpm/qs@6.17.1/node_modules/qs/lib/parse.js"(exports2, module2) {
     "use strict";
+    var getSideChannel = require_side_channel();
     var utils = require_utils2();
     var has = Object.prototype.hasOwnProperty;
     var isArray = Array.isArray;
+    var getPrototypeOf = Object.getPrototypeOf;
+    var fromCharCode = String.fromCharCode;
+    var isPlainContainer = function isPlainContainer2(value) {
+      if (!value || typeof value !== "object") {
+        return false;
+      }
+      if (isArray(value)) {
+        return true;
+      }
+      var proto = getPrototypeOf(value);
+      return proto === Object.prototype || proto === null;
+    };
+    var emptyCopyOf = function emptyCopyOf2(value) {
+      if (isArray(value)) {
+        var arr = [];
+        arr.length = value.length;
+        return arr;
+      }
+      return getPrototypeOf(value) === null ? { __proto__: null } : {};
+    };
+    var copyInput = function copyInput2(input) {
+      var copies = getSideChannel();
+      var result = {};
+      var queue = [{ source: input, target: result }];
+      for (var i = 0; i < queue.length; ++i) {
+        var source = queue[i].source;
+        var target = queue[i].target;
+        var keys = Object.keys(source);
+        for (var j = 0; j < keys.length; ++j) {
+          var value = source[keys[j]];
+          if (isPlainContainer(value)) {
+            if (!copies.has(value)) {
+              var copy = emptyCopyOf(value);
+              copies.set(value, copy);
+              queue[queue.length] = { source: value, target: copy };
+            }
+            utils.setProperty(target, keys[j], copies.get(value));
+          } else {
+            utils.setProperty(target, keys[j], value);
+          }
+        }
+      }
+      return result;
+    };
     var defaults2 = {
       allowDots: false,
       allowEmptyArrays: false,
@@ -18046,12 +18223,17 @@ var require_parse = __commonJS({
     };
     var interpretNumericEntities = function(str) {
       return str.replace(/&#(\d+);/g, function($0, numberStr) {
-        return String.fromCharCode(parseInt(numberStr, 10));
+        var c = parseInt(numberStr, 10);
+        if (c > 65535 && c <= 1114111) {
+          c -= 65536;
+          return fromCharCode(55296 | c >> 10, 56320 | c & 1023);
+        }
+        return fromCharCode(c);
       });
     };
-    var parseArrayValue = function(val, options, currentArrayLength, isFlatArrayValue) {
+    var parseArrayValue = function(val, options, currentArrayLength) {
       if (val && typeof val === "string" && options.comma && val.indexOf(",") > -1) {
-        if (isFlatArrayValue && options.throwOnLimitExceeded) {
+        if (options.throwOnLimitExceeded) {
           var commaCount = 0;
           var commaIndex = val.indexOf(",");
           while (commaIndex > -1) {
@@ -18064,7 +18246,7 @@ var require_parse = __commonJS({
         }
         return val.split(",");
       }
-      if (options.throwOnLimitExceeded && currentArrayLength >= options.arrayLimit) {
+      if (options.throwOnLimitExceeded && currentArrayLength >= options.arrayLimit && currentArrayLength > 0) {
         throw new RangeError("Array limit exceeded. Only " + options.arrayLimit + " element" + (options.arrayLimit === 1 ? "" : "s") + " allowed in an array.");
       }
       return val;
@@ -18106,6 +18288,7 @@ var require_parse = __commonJS({
         var part = parts[i];
         var bracketEqualsPos = part.indexOf("]=");
         var pos = bracketEqualsPos === -1 ? part.indexOf("=") : bracketEqualsPos + 1;
+        var isEmptyBracketKey = pos > 1 && part.slice(pos - 2, pos) === "[]";
         var key;
         var val;
         if (pos === -1) {
@@ -18118,8 +18301,7 @@ var require_parse = __commonJS({
               parseArrayValue(
                 part.slice(pos + 1),
                 options,
-                isArray(obj[key]) ? obj[key].length : 0,
-                part.indexOf("[]=") === -1
+                isArray(obj[key]) && (options.duplicates === "combine" || isEmptyBracketKey) ? obj[key].length : 0
               ),
               function(encodedVal) {
                 return options.decoder(encodedVal, defaults2.decoder, charset, "value");
@@ -18128,9 +18310,11 @@ var require_parse = __commonJS({
           }
         }
         if (val && options.interpretNumericEntities && charset === "iso-8859-1") {
-          val = interpretNumericEntities(String(val));
+          val = utils.maybeMap(val, function(value) {
+            return value ? interpretNumericEntities(String(value)) : value;
+          });
         }
-        if (part.indexOf("[]=") > -1) {
+        if (isEmptyBracketKey) {
           val = isArray(val) ? [val] : val;
         }
         if (options.comma && isArray(val) && val.length > options.arrayLimit) {
@@ -18138,7 +18322,7 @@ var require_parse = __commonJS({
         }
         if (key !== null) {
           var existing = has.call(obj, key);
-          if (existing && (options.duplicates === "combine" || part.indexOf("[]=") > -1)) {
+          if (existing && (options.duplicates === "combine" || isEmptyBracketKey)) {
             obj[key] = utils.combine(
               obj[key],
               val,
@@ -18152,6 +18336,9 @@ var require_parse = __commonJS({
         }
       }
       return obj;
+    };
+    var stripWrappingBrackets = function stripWrappingBrackets2(key) {
+      return key.charAt(0) === "[" && key.charAt(key.length - 1) === "]" ? key.slice(1, -1) : key;
     };
     var parseObject = function(chain, val, options, valuesParsed) {
       var currentArrayLength = 0;
@@ -18177,12 +18364,12 @@ var require_parse = __commonJS({
           }
         } else {
           obj = options.plainObjects ? { __proto__: null } : {};
-          var cleanRoot = root.charAt(0) === "[" && root.charAt(root.length - 1) === "]" ? root.slice(1, -1) : root;
-          var decodedRoot = options.decodeDotInKeys ? cleanRoot.replace(/%2E/g, ".") : cleanRoot;
+          var cleanRoot = stripWrappingBrackets(root);
+          var decodedRoot = options.decodeDotInKeys ? cleanRoot.replace(/%2E/gi, ".") : cleanRoot;
           var index = parseInt(decodedRoot, 10);
           var isValidArrayIndex = !isNaN(index) && root !== decodedRoot && String(index) === decodedRoot && index >= 0 && options.parseArrays;
           if (!options.parseArrays && decodedRoot === "") {
-            obj = { 0: leaf };
+            obj[0] = leaf;
           } else if (isValidArrayIndex && index < options.arrayLimit) {
             obj = [];
             obj[index] = leaf;
@@ -18199,10 +18386,37 @@ var require_parse = __commonJS({
       }
       return leaf;
     };
+    var topLevelDotsToBrackets = function topLevelDotsToBrackets2(key) {
+      var result = "";
+      var depth = 0;
+      for (var i = 0; i < key.length; i += 1) {
+        var cu = key.charCodeAt(i);
+        if (cu === 91) {
+          depth += 1;
+          result += "[";
+        } else if (cu === 93) {
+          if (depth > 0) {
+            depth -= 1;
+          }
+          result += "]";
+        } else if (cu === 46 && depth === 0 && i + 1 < key.length && key.charCodeAt(i + 1) !== 46 && key.charCodeAt(i + 1) !== 91) {
+          var start = i + 1;
+          var j = start;
+          while (j < key.length && key.charCodeAt(j) !== 46 && key.charCodeAt(j) !== 91) {
+            j += 1;
+          }
+          result += "[" + key.slice(start, j) + "]";
+          i = j - 1;
+        } else {
+          result += key.charAt(i);
+        }
+      }
+      return result;
+    };
     var splitKeyIntoSegments = function splitKeyIntoSegments2(originalKey, options) {
-      var key = options.allowDots ? originalKey.replace(/\.([^.[]+)/g, "[$1]") : originalKey;
+      var key = options.allowDots ? topLevelDotsToBrackets(originalKey) : originalKey;
       if (options.depth <= 0) {
-        if (!options.plainObjects && has.call(Object.prototype, key)) {
+        if (!options.plainObjects && has.call(Object.prototype, stripWrappingBrackets(key))) {
           if (!options.allowPrototypes) {
             return;
           }
@@ -18326,7 +18540,7 @@ var require_parse = __commonJS({
       if (str === "" || str === null || typeof str === "undefined") {
         return options.plainObjects ? { __proto__: null } : {};
       }
-      var tempObj = typeof str === "string" ? parseValues(str, options) : str;
+      var tempObj = typeof str === "string" ? parseValues(str, options) : copyInput(str);
       var obj = options.plainObjects ? { __proto__: null } : {};
       var keys = Object.keys(tempObj);
       for (var i = 0; i < keys.length; ++i) {
@@ -18342,9 +18556,9 @@ var require_parse = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/qs@6.15.3/node_modules/qs/lib/index.js
+// ../../node_modules/.pnpm/qs@6.17.1/node_modules/qs/lib/index.js
 var require_lib2 = __commonJS({
-  "../../node_modules/.pnpm/qs@6.15.3/node_modules/qs/lib/index.js"(exports2, module2) {
+  "../../node_modules/.pnpm/qs@6.17.1/node_modules/qs/lib/index.js"(exports2, module2) {
     "use strict";
     var stringify = require_stringify();
     var parse3 = require_parse();
@@ -18754,9 +18968,9 @@ var require_finalhandler = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/express@5.2.1/node_modules/express/lib/view.js
+// ../../node_modules/.pnpm/express@5.3.0/node_modules/express/lib/view.js
 var require_view = __commonJS({
-  "../../node_modules/.pnpm/express@5.2.1/node_modules/express/lib/view.js"(exports2, module2) {
+  "../../node_modules/.pnpm/express@5.3.0/node_modules/express/lib/view.js"(exports2, module2) {
     "use strict";
     var debug = require_src()("express:view");
     var path = require("node:path");
@@ -18844,110 +19058,6 @@ var require_view = __commonJS({
       } catch (e) {
         return void 0;
       }
-    }
-  }
-});
-
-// ../../node_modules/.pnpm/content-type@1.0.5/node_modules/content-type/index.js
-var require_content_type = __commonJS({
-  "../../node_modules/.pnpm/content-type@1.0.5/node_modules/content-type/index.js"(exports2) {
-    "use strict";
-    var PARAM_REGEXP = /; *([!#$%&'*+.^_`|~0-9A-Za-z-]+) *= *("(?:[\u000b\u0020\u0021\u0023-\u005b\u005d-\u007e\u0080-\u00ff]|\\[\u000b\u0020-\u00ff])*"|[!#$%&'*+.^_`|~0-9A-Za-z-]+) */g;
-    var TEXT_REGEXP = /^[\u000b\u0020-\u007e\u0080-\u00ff]+$/;
-    var TOKEN_REGEXP = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
-    var QESC_REGEXP = /\\([\u000b\u0020-\u00ff])/g;
-    var QUOTE_REGEXP = /([\\"])/g;
-    var TYPE_REGEXP = /^[!#$%&'*+.^_`|~0-9A-Za-z-]+\/[!#$%&'*+.^_`|~0-9A-Za-z-]+$/;
-    exports2.format = format;
-    exports2.parse = parse3;
-    function format(obj) {
-      if (!obj || typeof obj !== "object") {
-        throw new TypeError("argument obj is required");
-      }
-      var parameters = obj.parameters;
-      var type = obj.type;
-      if (!type || !TYPE_REGEXP.test(type)) {
-        throw new TypeError("invalid type");
-      }
-      var string4 = type;
-      if (parameters && typeof parameters === "object") {
-        var param;
-        var params = Object.keys(parameters).sort();
-        for (var i = 0; i < params.length; i++) {
-          param = params[i];
-          if (!TOKEN_REGEXP.test(param)) {
-            throw new TypeError("invalid parameter name");
-          }
-          string4 += "; " + param + "=" + qstring(parameters[param]);
-        }
-      }
-      return string4;
-    }
-    function parse3(string4) {
-      if (!string4) {
-        throw new TypeError("argument string is required");
-      }
-      var header = typeof string4 === "object" ? getcontenttype(string4) : string4;
-      if (typeof header !== "string") {
-        throw new TypeError("argument string is required to be a string");
-      }
-      var index = header.indexOf(";");
-      var type = index !== -1 ? header.slice(0, index).trim() : header.trim();
-      if (!TYPE_REGEXP.test(type)) {
-        throw new TypeError("invalid media type");
-      }
-      var obj = new ContentType(type.toLowerCase());
-      if (index !== -1) {
-        var key;
-        var match;
-        var value;
-        PARAM_REGEXP.lastIndex = index;
-        while (match = PARAM_REGEXP.exec(header)) {
-          if (match.index !== index) {
-            throw new TypeError("invalid parameter format");
-          }
-          index += match[0].length;
-          key = match[1].toLowerCase();
-          value = match[2];
-          if (value.charCodeAt(0) === 34) {
-            value = value.slice(1, -1);
-            if (value.indexOf("\\") !== -1) {
-              value = value.replace(QESC_REGEXP, "$1");
-            }
-          }
-          obj.parameters[key] = value;
-        }
-        if (index !== header.length) {
-          throw new TypeError("invalid parameter format");
-        }
-      }
-      return obj;
-    }
-    function getcontenttype(obj) {
-      var header;
-      if (typeof obj.getHeader === "function") {
-        header = obj.getHeader("content-type");
-      } else if (typeof obj.headers === "object") {
-        header = obj.headers && obj.headers["content-type"];
-      }
-      if (typeof header !== "string") {
-        throw new TypeError("content-type header is missing from object");
-      }
-      return header;
-    }
-    function qstring(val) {
-      var str = String(val);
-      if (TOKEN_REGEXP.test(str)) {
-        return str;
-      }
-      if (str.length > 0 && !TEXT_REGEXP.test(str)) {
-        throw new TypeError("invalid parameter value");
-      }
-      return '"' + str.replace(QUOTE_REGEXP, "\\$1") + '"';
-    }
-    function ContentType(type) {
-      this.parameters = /* @__PURE__ */ Object.create(null);
-      this.type = type;
     }
   }
 });
@@ -19663,9 +19773,9 @@ var require_ipaddr = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/proxy-addr@2.0.7/node_modules/proxy-addr/index.js
+// ../../node_modules/.pnpm/proxy-addr@2.0.8/node_modules/proxy-addr/index.js
 var require_proxy_addr = __commonJS({
-  "../../node_modules/.pnpm/proxy-addr@2.0.7/node_modules/proxy-addr/index.js"(exports2, module2) {
+  "../../node_modules/.pnpm/proxy-addr@2.0.8/node_modules/proxy-addr/index.js"(exports2, module2) {
     "use strict";
     module2.exports = proxyaddr;
     module2.exports.all = alladdrs;
@@ -19777,6 +19887,9 @@ var require_proxy_addr = __commonJS({
       return function trust(addr) {
         if (!isip(addr)) return false;
         var ip = parseip(addr);
+        if (ip.kind() === "ipv6" && ip.isIPv4MappedAddress()) {
+          ip = ip.toIPv4Address();
+        }
         var ipconv;
         var kind = ip.kind();
         for (var i = 0; i < subnets.length; i++) {
@@ -19789,10 +19902,15 @@ var require_proxy_addr = __commonJS({
             if (subnetkind === "ipv4" && !ip.isIPv4MappedAddress()) {
               continue;
             }
+            if (subnetkind !== "ipv4" && !(subnetrange >= 96 && subnetip.isIPv4MappedAddress())) {
+              continue;
+            }
             if (!ipconv) {
               ipconv = subnetkind === "ipv4" ? ip.toIPv4Address() : ip.toIPv4MappedAddress();
             }
             trusted = ipconv;
+          } else if (kind === "ipv6" && subnetip.isIPv4MappedAddress()) {
+            continue;
           }
           if (trusted.match(subnetip, subnetrange)) {
             return true;
@@ -19809,12 +19927,20 @@ var require_proxy_addr = __commonJS({
       return function trust(addr) {
         if (!isip(addr)) return false;
         var ip = parseip(addr);
+        if (ip.kind() === "ipv6" && ip.isIPv4MappedAddress()) {
+          ip = ip.toIPv4Address();
+        }
         var kind = ip.kind();
         if (kind !== subnetkind) {
           if (subnetisipv4 && !ip.isIPv4MappedAddress()) {
             return false;
           }
+          if (!subnetisipv4 && !(subnetrange >= 96 && subnetip.isIPv4MappedAddress())) {
+            return false;
+          }
           ip = subnetisipv4 ? ip.toIPv4Address() : ip.toIPv4MappedAddress();
+        } else if (kind === "ipv6" && subnetip.isIPv4MappedAddress()) {
+          return false;
         }
         return ip.match(subnetip, subnetrange);
       };
@@ -19822,12 +19948,12 @@ var require_proxy_addr = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/express@5.2.1/node_modules/express/lib/utils.js
+// ../../node_modules/.pnpm/express@5.3.0/node_modules/express/lib/utils.js
 var require_utils3 = __commonJS({
-  "../../node_modules/.pnpm/express@5.2.1/node_modules/express/lib/utils.js"(exports2) {
+  "../../node_modules/.pnpm/express@5.3.0/node_modules/express/lib/utils.js"(exports2) {
     "use strict";
     var { METHODS } = require("node:http");
-    var contentType = require_content_type();
+    var contentType = require_dist();
     var etag = require_etag();
     var mime = require_mime_types();
     var proxyaddr = require_proxy_addr();
@@ -21071,9 +21197,9 @@ var require_router = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/express@5.2.1/node_modules/express/lib/application.js
+// ../../node_modules/.pnpm/express@5.3.0/node_modules/express/lib/application.js
 var require_application = __commonJS({
-  "../../node_modules/.pnpm/express@5.2.1/node_modules/express/lib/application.js"(exports2, module2) {
+  "../../node_modules/.pnpm/express@5.3.0/node_modules/express/lib/application.js"(exports2, module2) {
     "use strict";
     var finalhandler = require_finalhandler();
     var debug = require_src()("express:application");
@@ -21278,7 +21404,7 @@ var require_application = __commonJS({
       var cache = this.cache;
       var done = callback;
       var engines = this.engines;
-      var opts = options;
+      var opts = options || {};
       var view;
       if (typeof options === "function") {
         done = options;
@@ -21320,7 +21446,7 @@ var require_application = __commonJS({
       return server.listen.apply(server, args);
     };
     function logerror(err) {
-      if (this.get("env") !== "test") console.error(err.stack || err.toString());
+      if (this.get("env") !== "test") console.error(err);
     }
     function tryRender(view, options, callback) {
       try {
@@ -22091,9 +22217,9 @@ var require_range_parser = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/express@5.2.1/node_modules/express/lib/request.js
+// ../../node_modules/.pnpm/express@5.3.0/node_modules/express/lib/request.js
 var require_request = __commonJS({
-  "../../node_modules/.pnpm/express@5.2.1/node_modules/express/lib/request.js"(exports2, module2) {
+  "../../node_modules/.pnpm/express@5.3.0/node_modules/express/lib/request.js"(exports2, module2) {
     "use strict";
     var accepts = require_accepts();
     var isIP = require("node:net").isIP;
@@ -22129,9 +22255,9 @@ var require_request = __commonJS({
       var accept = accepts(this);
       return accept.encodings.apply(accept, arguments);
     };
-    req.acceptsCharsets = function() {
-      var accept = accepts(this);
-      return accept.charsets.apply(accept, arguments);
+    req.acceptsCharsets = function(...charsets) {
+      const accept = accepts(this);
+      return accept.charsets(...charsets);
     };
     req.acceptsLanguages = function(...languages) {
       return accepts(this).languages(...languages);
@@ -22198,7 +22324,7 @@ var require_request = __commonJS({
       if (!val || !trust(this.socket.remoteAddress, 0)) {
         val = this.get("Host");
       } else if (val.indexOf(",") !== -1) {
-        val = val.substring(0, val.indexOf(",")).trimRight();
+        val = val.substring(0, val.indexOf(",")).trimEnd();
       }
       return val || void 0;
     });
@@ -22213,7 +22339,7 @@ var require_request = __commonJS({
       var method = this.method;
       var res = this.res;
       var status = res.statusCode;
-      if ("GET" !== method && "HEAD" !== method) return false;
+      if ("GET" !== method && "HEAD" !== method && "QUERY" !== method) return false;
       if (status >= 200 && status < 300 || 304 === status) {
         return fresh(this.headers, {
           "etag": res.get("ETag"),
@@ -22239,181 +22365,270 @@ var require_request = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/content-disposition@1.1.0/node_modules/content-disposition/index.js
-var require_content_disposition = __commonJS({
-  "../../node_modules/.pnpm/content-disposition@1.1.0/node_modules/content-disposition/index.js"(exports2, module2) {
+// ../../node_modules/.pnpm/content-disposition@2.0.1/node_modules/content-disposition/dist/index.js
+var require_dist3 = __commonJS({
+  "../../node_modules/.pnpm/content-disposition@2.0.1/node_modules/content-disposition/dist/index.js"(exports2) {
     "use strict";
-    module2.exports = contentDisposition;
-    module2.exports.parse = parse3;
-    var utf8Decoder = new TextDecoder("utf-8");
-    var ENCODE_URL_ATTR_CHAR_REGEXP = /[\x00-\x20"'()*,/:;<=>?@[\\\]{}\x7f]/g;
-    var NON_LATIN1_REGEXP = /[^\x20-\x7e\xa0-\xff]/g;
-    var QESC_REGEXP = /\\([\u0000-\u007f])/g;
-    var QUOTE_REGEXP = /([\\"])/g;
-    var PARAM_REGEXP = /;[\x09\x20]*([!#$%&'*+.0-9A-Z^_`a-z|~-]+)[\x09\x20]*=[\x09\x20]*("(?:[\x20!\x23-\x5b\x5d-\x7e\x80-\xff]|\\[\x20-\x7e])*"|[!#$%&'*+.0-9A-Z^_`a-z|~-]+)[\x09\x20]*/g;
-    var TEXT_REGEXP = /^[\x20-\x7e\x80-\xff]+$/;
-    var TOKEN_REGEXP = /^[!#$%&'*+.0-9A-Z^_`a-z|~-]+$/;
-    var EXT_VALUE_REGEXP = /^([A-Za-z0-9!#$%&+\-^_`{}~]+)'(?:[A-Za-z]{2,3}(?:-[A-Za-z]{3}){0,3}|[A-Za-z]{4,8}|)'((?:%[0-9A-Fa-f]{2}|[A-Za-z0-9!#$&+.^_`|~-])+)$/;
-    var DISPOSITION_TYPE_REGEXP = /^([!#$%&'*+.0-9A-Z^_`a-z|~-]+)[\x09\x20]*(?:$|;)/;
-    function contentDisposition(filename, options) {
-      var opts = options || {};
-      var type = opts.type || "attachment";
-      var params = createparams(filename, opts.fallback);
-      return format(new ContentDisposition(type, params));
+    Object.defineProperty(exports2, "__esModule", { value: true });
+    exports2.create = create;
+    exports2.parse = parse3;
+    exports2.decodeExtended = decodeExtended;
+    exports2.format = format;
+    exports2.encodeExtended = encodeExtended;
+    var NullObject = /* @__PURE__ */ (() => {
+      const C = function() {
+      };
+      C.prototype = /* @__PURE__ */ Object.create(null);
+      return C;
+    })();
+    function create(filename, options) {
+      const type = options?.type || "attachment";
+      const parameters = createParameters(filename, options?.fallback);
+      return format({ type, parameters }, { extended: false });
     }
-    function createparams(filename, fallback) {
-      if (filename === void 0) {
-        return;
-      }
-      var params = {};
-      if (typeof filename !== "string") {
-        throw new TypeError("filename must be a string");
-      }
-      if (fallback === void 0) {
-        fallback = true;
-      }
-      if (typeof fallback !== "string" && typeof fallback !== "boolean") {
-        throw new TypeError("fallback must be a string or boolean");
-      }
-      if (typeof fallback === "string" && NON_LATIN1_REGEXP.test(fallback)) {
-        throw new TypeError("fallback must be ISO-8859-1 string");
-      }
-      var name = basename(filename);
-      var isQuotedString = TEXT_REGEXP.test(name);
-      var fallbackName = typeof fallback !== "string" ? fallback && getlatin1(name) : basename(fallback);
-      var hasFallback = typeof fallbackName === "string" && fallbackName !== name;
-      if (hasFallback || !isQuotedString || hasHexEscape(name)) {
-        params["filename*"] = name;
-      }
-      if (isQuotedString || hasFallback) {
-        params.filename = hasFallback ? fallbackName : name;
-      }
-      return params;
-    }
-    function format(obj) {
-      var parameters = obj.parameters;
-      var type = obj.type;
-      if (!type || typeof type !== "string" || !TOKEN_REGEXP.test(type)) {
-        throw new TypeError("invalid type");
-      }
-      var string4 = String(type).toLowerCase();
-      if (parameters && typeof parameters === "object") {
-        var param;
-        var params = Object.keys(parameters).sort();
-        for (var i = 0; i < params.length; i++) {
-          param = params[i];
-          var val = param.slice(-1) === "*" ? ustring(parameters[param]) : qstring(parameters[param]);
-          string4 += "; " + param + "=" + val;
+    var SP = 32;
+    var HTAB = 9;
+    var SEMI = 59;
+    var EQ = 61;
+    var DQUOTE = 34;
+    var BSLASH = 92;
+    var ASTERISK = 42;
+    function parse3(header, options) {
+      const len = header.length;
+      const multipart = options?.multipart === true;
+      const extended = options?.extended !== false;
+      let index = skipOWS(header, 0, header.length);
+      const typeStart = index;
+      index = parseToken(header, index, len);
+      const typeEnd = trailingOWS(header, typeStart, index);
+      const type = header.slice(typeStart, typeEnd).toLowerCase();
+      const parameters = new NullObject();
+      parameter: while (index < len) {
+        index = skipOWS(header, index + 1, len);
+        const keyStart = index;
+        while (index < len) {
+          const char2 = header.charCodeAt(index);
+          if (char2 === SEMI)
+            continue parameter;
+          if (char2 === EQ) {
+            const keyEnd = trailingOWS(header, keyStart, index);
+            const key = header.slice(keyStart, keyEnd).toLowerCase();
+            index = skipOWS(header, index + 1, len);
+            if (index < len && header.charCodeAt(index) === DQUOTE) {
+              index++;
+              let value2 = "";
+              if (multipart) {
+                while (index < len) {
+                  const code = header.charCodeAt(index++);
+                  if (code === DQUOTE) {
+                    index = parseToken(header, index, len);
+                    if (parameters[key] === void 0)
+                      parameters[key] = value2;
+                    break;
+                  }
+                  if (code === /* % */
+                  37 && index + 1 < len) {
+                    const code2 = header.charCodeAt(index);
+                    const code3 = header.charCodeAt(index + 1);
+                    if (code2 === 50 && code3 === 50) {
+                      value2 += '"';
+                      index += 2;
+                      continue;
+                    }
+                    if (code2 === 48) {
+                      if (code3 === 100 || code3 === 68) {
+                        value2 += "\r";
+                        index += 2;
+                        continue;
+                      }
+                      if (code3 === 97 || code3 === 65) {
+                        value2 += "\n";
+                        index += 2;
+                        continue;
+                      }
+                    }
+                  }
+                  value2 += String.fromCharCode(code);
+                }
+              } else {
+                while (index < len) {
+                  const code = header.charCodeAt(index++);
+                  if (code === DQUOTE) {
+                    index = parseToken(header, index, len);
+                    if (parameters[key] === void 0)
+                      parameters[key] = value2;
+                    break;
+                  }
+                  if (code === BSLASH && index < len) {
+                    value2 += header[index++];
+                    continue;
+                  }
+                  value2 += String.fromCharCode(code);
+                }
+              }
+              continue parameter;
+            }
+            const valueStart = index;
+            index = parseToken(header, index, len);
+            const valueEnd = trailingOWS(header, valueStart, index);
+            const value = header.slice(valueStart, valueEnd);
+            if (parameters[key] === void 0) {
+              parameters[key] = value;
+              if (extended && key.charCodeAt(key.length - 1) === ASTERISK) {
+                const normalizedKey = key.slice(0, -1);
+                const decoded = decodeExtended(value);
+                if (decoded !== void 0)
+                  parameters[normalizedKey] = decoded;
+              }
+            }
+            continue parameter;
+          }
+          index++;
         }
       }
-      return string4;
+      return { type, parameters };
     }
-    function decodefield(str) {
-      const match = EXT_VALUE_REGEXP.exec(str);
-      if (!match) {
-        throw new TypeError("invalid extended field value");
+    var ENCODE_URL_ATTR_CHAR_REGEXP = /[\x00-\x20"'()*,/:;<=>?@[\\\]{}\x7f]/g;
+    var NON_ASCII_REGEXP = /[^\x20-\x7e]/g;
+    var QUOTE_REGEXP = /[\\"]/g;
+    var INVALID_FILENAME_REGEXP = /%[0-9A-Fa-f]{2}/;
+    var TEXT_REGEXP = /^[\x20-\x7e\x80-\xff]*$/;
+    var ASCII_TEXT_REGEXP = /^[\x20-\x7e]*$/;
+    var TOKEN_REGEXP = /^[!#$%&'*+.0-9A-Z^_`a-z|~-]+$/;
+    function createParameters(filename, fallback = true) {
+      if (filename === void 0)
+        return;
+      if (typeof fallback === "string") {
+        if (!ASCII_TEXT_REGEXP.test(fallback)) {
+          throw new TypeError("Fallback must be valid US-ASCII: " + fallback);
+        }
+        if (fallback === filename)
+          return { filename };
+        return { filename: fallback, "filename*": encodeExtended(filename) };
       }
-      const charset = match[1].toLowerCase();
-      const encoded = match[2];
+      if (ASCII_TEXT_REGEXP.test(filename) && !INVALID_FILENAME_REGEXP.test(filename)) {
+        return { filename };
+      }
+      if (fallback === false) {
+        return { "filename*": encodeExtended(filename) };
+      }
+      return {
+        filename: getAscii(filename),
+        "filename*": encodeExtended(filename)
+      };
+    }
+    function decodeExtended(str) {
+      const charsetEnd = str.indexOf("'");
+      if (charsetEnd <= 0) {
+        return void 0;
+      }
+      const languageEnd = str.indexOf("'", charsetEnd + 1);
+      if (languageEnd === -1) {
+        return void 0;
+      }
+      const charset = str.slice(0, charsetEnd).toLowerCase();
+      const encoded = str.slice(languageEnd + 1);
       switch (charset) {
         case "iso-8859-1": {
-          const binary = decodeHexEscapes(encoded);
-          return getlatin1(binary);
+          return decodeHexEscapes(encoded);
         }
         case "utf-8":
         case "utf8": {
-          try {
-            return decodeURIComponent(encoded);
-          } catch {
-            const binary = decodeHexEscapes(encoded);
-            const bytes = new Uint8Array(binary.length);
-            for (let idx = 0; idx < binary.length; idx++) {
-              bytes[idx] = binary.charCodeAt(idx);
-            }
-            return utf8Decoder.decode(bytes);
-          }
+          return tryDecodeURIComponent(encoded);
         }
       }
-      throw new TypeError("unsupported charset in extended field");
+      return void 0;
     }
-    function getlatin1(val) {
-      return String(val).replace(NON_LATIN1_REGEXP, "?");
-    }
-    function parse3(string4) {
-      if (!string4 || typeof string4 !== "string") {
-        throw new TypeError("argument string is required");
+    function tryDecodeURIComponent(str) {
+      try {
+        return decodeURIComponent(str);
+      } catch {
+        return void 0;
       }
-      var match = DISPOSITION_TYPE_REGEXP.exec(string4);
-      if (!match) {
-        throw new TypeError("invalid type format");
+    }
+    function parseToken(str, index, len) {
+      while (index < len) {
+        const char2 = str.charCodeAt(index);
+        if (char2 === SEMI)
+          break;
+        index++;
       }
-      var index = match[0].length;
-      var type = match[1].toLowerCase();
-      var key;
-      var names = [];
-      var params = {};
-      var value;
-      index = PARAM_REGEXP.lastIndex = match[0].slice(-1) === ";" ? index - 1 : index;
-      while (match = PARAM_REGEXP.exec(string4)) {
-        if (match.index !== index) {
-          throw new TypeError("invalid parameter format");
-        }
-        index += match[0].length;
-        key = match[1].toLowerCase();
-        value = match[2];
-        if (names.indexOf(key) !== -1) {
-          throw new TypeError("invalid duplicate parameter");
-        }
-        names.push(key);
-        if (key.indexOf("*") + 1 === key.length) {
-          key = key.slice(0, -1);
-          value = decodefield(value);
-          params[key] = value;
-          continue;
-        }
-        if (typeof params[key] === "string") {
-          continue;
-        }
-        if (value[0] === '"') {
-          value = value.slice(1, -1).replace(QESC_REGEXP, "$1");
-        }
-        params[key] = value;
+      return index;
+    }
+    function skipOWS(str, index, len) {
+      while (index < len) {
+        const char2 = str.charCodeAt(index);
+        if (char2 !== SP && char2 !== HTAB)
+          break;
+        index++;
       }
-      if (index !== -1 && index !== string4.length) {
-        throw new TypeError("invalid parameter format");
-      }
-      return new ContentDisposition(type, params);
+      return index;
     }
-    function pencode(char2) {
-      return "%" + String(char2).charCodeAt(0).toString(16).toUpperCase();
-    }
-    function qstring(val) {
-      var str = String(val);
-      return '"' + str.replace(QUOTE_REGEXP, "\\$1") + '"';
-    }
-    function ustring(val) {
-      var str = String(val);
-      var encoded = encodeURIComponent(str).replace(ENCODE_URL_ATTR_CHAR_REGEXP, pencode);
-      return "UTF-8''" + encoded;
-    }
-    function ContentDisposition(type, parameters) {
-      this.type = type;
-      this.parameters = parameters;
-    }
-    function basename(path) {
-      const normalized = path.replaceAll("\\", "/");
-      let end = normalized.length;
-      while (end > 0 && normalized[end - 1] === "/") {
+    function trailingOWS(str, start, end) {
+      while (end > start) {
+        const char2 = str.charCodeAt(end - 1);
+        if (char2 !== SP && char2 !== HTAB)
+          break;
         end--;
       }
-      if (end === 0) {
-        return "";
+      return end;
+    }
+    function format(obj, options) {
+      const { type, parameters } = obj;
+      const multipart = options?.multipart === true;
+      const extended = options?.extended !== false;
+      if (!type || !TOKEN_REGEXP.test(type)) {
+        throw new TypeError("Invalid type: " + type);
       }
-      let start = end - 1;
-      while (start >= 0 && normalized[start] !== "/") {
-        start--;
+      let result = type;
+      if (parameters) {
+        for (const param of Object.keys(parameters)) {
+          const value = parameters[param];
+          if (!TOKEN_REGEXP.test(param)) {
+            throw new TypeError("Invalid parameter name: " + param);
+          }
+          if (multipart) {
+            result += "; " + param + "=" + qmultipart(value);
+            continue;
+          }
+          if (TOKEN_REGEXP.test(value)) {
+            result += "; " + param + "=" + value;
+            continue;
+          }
+          if (TEXT_REGEXP.test(value)) {
+            result += "; " + param + "=" + qstring(value);
+            continue;
+          }
+          if (!extended) {
+            throw new TypeError("Invalid parameter value: " + value);
+          }
+          result += "; " + param + "*=" + encodeExtended(value);
+        }
       }
-      return normalized.slice(start + 1, end);
+      return result;
+    }
+    function getAscii(val) {
+      return val.replace(NON_ASCII_REGEXP, "?");
+    }
+    function pencode(char2) {
+      return "%" + char2.charCodeAt(0).toString(16).toUpperCase();
+    }
+    function qstring(str) {
+      return '"' + str.replace(QUOTE_REGEXP, "\\$&") + '"';
+    }
+    function qmultipart(str) {
+      return '"' + str.replace(/[\n\r"]/g, multipartEscape) + '"';
+    }
+    function multipartEscape(char2) {
+      if (char2 === "\n")
+        return "%0A";
+      if (char2 === "\r")
+        return "%0D";
+      return "%22";
+    }
+    function encodeExtended(str) {
+      const encoded = encodeURIComponent(str).replace(ENCODE_URL_ATTR_CHAR_REGEXP, pencode);
+      return "UTF-8''" + encoded;
     }
     function isHexDigit(char2) {
       const code = char2.charCodeAt(0);
@@ -22421,19 +22636,10 @@ var require_content_disposition = __commonJS({
       code >= 65 && code <= 70 || // A-F
       code >= 97 && code <= 102;
     }
-    function hasHexEscape(str) {
-      const maxIndex = str.length - 3;
-      let lastIndex = -1;
-      while ((lastIndex = str.indexOf("%", lastIndex + 1)) !== -1 && lastIndex <= maxIndex) {
-        if (isHexDigit(str[lastIndex + 1]) && isHexDigit(str[lastIndex + 2])) {
-          return true;
-        }
-      }
-      return false;
-    }
     function decodeHexEscapes(str) {
       const firstEscape = str.indexOf("%");
-      if (firstEscape === -1) return str;
+      if (firstEscape === -1)
+        return str;
       let result = str.slice(0, firstEscape);
       for (let idx = firstEscape; idx < str.length; idx++) {
         if (str[idx] === "%" && idx + 2 < str.length && isHexDigit(str[idx + 1]) && isHexDigit(str[idx + 2])) {
@@ -23188,11 +23394,11 @@ var require_vary = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/express@5.2.1/node_modules/express/lib/response.js
+// ../../node_modules/.pnpm/express@5.3.0/node_modules/express/lib/response.js
 var require_response = __commonJS({
-  "../../node_modules/.pnpm/express@5.2.1/node_modules/express/lib/response.js"(exports2, module2) {
+  "../../node_modules/.pnpm/express@5.3.0/node_modules/express/lib/response.js"(exports2, module2) {
     "use strict";
-    var contentDisposition = require_content_disposition();
+    var contentDisposition = require_dist3();
     var createError = require_http_errors();
     var deprecate = require_depd()("express");
     var encodeUrl = require_encodeurl();
@@ -23211,6 +23417,7 @@ var require_response = __commonJS({
     var send = require_send();
     var extname = path.extname;
     var resolve = path.resolve;
+    var basename = path.basename;
     var vary = require_vary();
     var { Buffer: Buffer2 } = require("node:buffer");
     var res = Object.create(http.ServerResponse.prototype);
@@ -23242,12 +23449,15 @@ var require_response = __commonJS({
       var chunk = body;
       var encoding;
       var req = this.req;
-      var type;
       var app2 = this.app;
       switch (typeof chunk) {
         // string defaulting to html
         case "string":
-          if (!this.get("Content-Type")) {
+          encoding = "utf8";
+          const type = this.get("Content-Type");
+          if (typeof type === "string") {
+            this.set("Content-Type", setCharset(type, "utf-8"));
+          } else {
             this.type("html");
           }
           break;
@@ -23265,13 +23475,6 @@ var require_response = __commonJS({
           }
           break;
       }
-      if (typeof chunk === "string") {
-        encoding = "utf8";
-        type = this.get("Content-Type");
-        if (typeof type === "string") {
-          this.set("Content-Type", setCharset(type, "utf-8"));
-        }
-      }
       var etagFn = app2.get("etag fn");
       var generateETag = !this.get("ETag") && typeof etagFn === "function";
       var len;
@@ -23285,7 +23488,9 @@ var require_response = __commonJS({
           encoding = void 0;
           len = chunk.length;
         }
-        this.set("Content-Length", len);
+        if (!this.get("Transfer-Encoding")) {
+          this.set("Content-Length", len);
+        }
       }
       var etag;
       if (generateETag && len !== void 0) {
@@ -23403,7 +23608,7 @@ var require_response = __commonJS({
         opts = filename;
       }
       var headers = {
-        "Content-Disposition": contentDisposition(name || path2)
+        "Content-Disposition": contentDisposition.create(basename(name || path2))
       };
       if (opts && opts.headers) {
         var keys = Object.keys(opts.headers);
@@ -23446,10 +23651,11 @@ var require_response = __commonJS({
       return this;
     };
     res.attachment = function attachment(filename) {
-      if (filename) {
-        this.type(extname(filename));
+      const name = filename !== void 0 ? basename(filename) : void 0;
+      if (name) {
+        this.type(extname(name));
       }
-      this.set("Content-Disposition", contentDisposition(filename));
+      this.set("Content-Disposition", contentDisposition.create(name));
       return this;
     };
     res.append = function append(field, val) {
@@ -23536,7 +23742,7 @@ var require_response = __commonJS({
         },
         html: function() {
           var u = escapeHtml2(address);
-          body = "<p>" + statuses.message[status] + ". Redirecting to " + u + "</p>";
+          body = "<!DOCTYPE html><head><title>" + statuses.message[status] + "</title></head><body><p>" + statuses.message[status] + ". Redirecting to " + u + "</p></body>";
         },
         default: function() {
           body = "";
@@ -23762,9 +23968,9 @@ var require_serve_static = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/express@5.2.1/node_modules/express/lib/express.js
+// ../../node_modules/.pnpm/express@5.3.0/node_modules/express/lib/express.js
 var require_express = __commonJS({
-  "../../node_modules/.pnpm/express@5.2.1/node_modules/express/lib/express.js"(exports2, module2) {
+  "../../node_modules/.pnpm/express@5.3.0/node_modules/express/lib/express.js"(exports2, module2) {
     "use strict";
     var bodyParser = require_body_parser();
     var EventEmitter = require("node:events").EventEmitter;
@@ -23802,9 +24008,9 @@ var require_express = __commonJS({
   }
 });
 
-// ../../node_modules/.pnpm/express@5.2.1/node_modules/express/index.js
+// ../../node_modules/.pnpm/express@5.3.0/node_modules/express/index.js
 var require_express2 = __commonJS({
-  "../../node_modules/.pnpm/express@5.2.1/node_modules/express/index.js"(exports2, module2) {
+  "../../node_modules/.pnpm/express@5.3.0/node_modules/express/index.js"(exports2, module2) {
     "use strict";
     module2.exports = require_express();
   }
@@ -31672,7 +31878,7 @@ var require_parser = __commonJS({
 });
 
 // ../../node_modules/.pnpm/pg-protocol@1.15.0/node_modules/pg-protocol/dist/index.js
-var require_dist3 = __commonJS({
+var require_dist4 = __commonJS({
   "../../node_modules/.pnpm/pg-protocol@1.15.0/node_modules/pg-protocol/dist/index.js"(exports2) {
     "use strict";
     Object.defineProperty(exports2, "__esModule", { value: true });
@@ -31775,7 +31981,7 @@ var require_connection = __commonJS({
   "../../node_modules/.pnpm/pg@8.22.0/node_modules/pg/lib/connection.js"(exports2, module2) {
     "use strict";
     var EventEmitter = require("events").EventEmitter;
-    var { parse: parse3, serialize } = require_dist3();
+    var { parse: parse3, serialize } = require_dist4();
     var stream = require_stream();
     var { getStream } = stream;
     var flushBuffer = serialize.flush();
@@ -33747,7 +33953,7 @@ var require_lib5 = __commonJS({
     var utils = require_utils4();
     var Pool4 = require_pg_pool();
     var TypeOverrides2 = require_type_overrides();
-    var { DatabaseError: DatabaseError2 } = require_dist3();
+    var { DatabaseError: DatabaseError2 } = require_dist4();
     var { escapeIdentifier: escapeIdentifier2, escapeLiteral: escapeLiteral2 } = require_utils4();
     var poolFactory = (Client3) => {
       return class BoundPool extends Pool4 {
@@ -34434,7 +34640,7 @@ var require_bn = __commonJS({
         assert2((this.negative | num.negative) === 0);
         return this.iuor(num);
       };
-      BN.prototype.or = function or2(num) {
+      BN.prototype.or = function or3(num) {
         if (this.length > num.length) return this.clone().ior(num);
         return num.clone().ior(this);
       };
@@ -38544,12 +38750,12 @@ var require_jwa = __commonJS({
       };
     }
     var bufferEqual;
-    var timingSafeEqual = "timingSafeEqual" in crypto3 ? function timingSafeEqual2(a, b) {
+    var timingSafeEqual2 = "timingSafeEqual" in crypto3 ? function timingSafeEqual3(a, b) {
       if (a.byteLength !== b.byteLength) {
         return false;
       }
       return crypto3.timingSafeEqual(a, b);
-    } : function timingSafeEqual2(a, b) {
+    } : function timingSafeEqual3(a, b) {
       if (!bufferEqual) {
         bufferEqual = require_buffer_equal_constant_time();
       }
@@ -38558,7 +38764,7 @@ var require_jwa = __commonJS({
     function createHmacVerifier(bits) {
       return function verify(thing, signature, secret) {
         var computedSig = createHmacSigner(bits)(thing, secret);
-        return timingSafeEqual(Buffer2.from(signature), Buffer2.from(computedSig));
+        return timingSafeEqual2(Buffer2.from(signature), Buffer2.from(computedSig));
       };
     }
     function createKeySigner(bits) {
@@ -39700,7 +39906,7 @@ var require_helpers = __commonJS({
 });
 
 // ../../node_modules/.pnpm/agent-base@7.1.4/node_modules/agent-base/dist/index.js
-var require_dist4 = __commonJS({
+var require_dist5 = __commonJS({
   "../../node_modules/.pnpm/agent-base@7.1.4/node_modules/agent-base/dist/index.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
@@ -39952,7 +40158,7 @@ var require_parse_proxy_response = __commonJS({
 });
 
 // ../../node_modules/.pnpm/https-proxy-agent@7.0.6/node_modules/https-proxy-agent/dist/index.js
-var require_dist5 = __commonJS({
+var require_dist6 = __commonJS({
   "../../node_modules/.pnpm/https-proxy-agent@7.0.6/node_modules/https-proxy-agent/dist/index.js"(exports2) {
     "use strict";
     var __createBinding = exports2 && exports2.__createBinding || (Object.create ? (function(o, m, k, k2) {
@@ -39991,7 +40197,7 @@ var require_dist5 = __commonJS({
     var tls = __importStar(require("tls"));
     var assert_1 = __importDefault(require("assert"));
     var debug_1 = __importDefault(require_src());
-    var agent_base_1 = require_dist4();
+    var agent_base_1 = require_dist5();
     var url_1 = require("url");
     var parse_proxy_response_1 = require_parse_proxy_response();
     var debug = (0, debug_1.default)("https-proxy-agent");
@@ -40344,7 +40550,7 @@ var require_web_push_lib = __commonJS({
           httpsOptions.agent = requestDetails.agent;
         }
         if (requestDetails.proxy) {
-          const { HttpsProxyAgent } = require_dist5();
+          const { HttpsProxyAgent } = require_dist6();
           httpsOptions.agent = new HttpsProxyAgent(requestDetails.proxy);
         }
         const pushRequest = https.request(httpsOptions, function(pushResponse) {
@@ -65389,7 +65595,9 @@ var depositsTable = pgTable(
     // unique enforced via DB index below
     screenshotUrl: text("screenshot_url"),
     country: text("country"),
-    ashtechpayReference: text("sendavapay_reference"),
+    // Keep the legacy SQL column name so this provider switch does not rename
+    // or discard historical payment references.
+    drimpayReference: text("sendavapay_reference"),
     status: text("status").notNull().default("pending"),
     // 'pending' | 'validated' | 'rejected'
     rejectionReason: text("rejection_reason"),
@@ -65511,9 +65719,10 @@ var paymentConfigTable = pgTable("payment_config", {
   moovMoneyEnabled: boolean("moov_money_enabled").notNull().default(false),
   moovMoneyNumber: text("moov_money_number"),
   moovMoneyUssdCode: text("moov_money_ussd_code"),
+  // Legacy provider settings retained only to preserve existing databases.
+  // The current payment API no longer reads or returns these credentials.
   internationalPaymentApiUrl: text("international_payment_api_url"),
   internationalPaymentApiKey: text("international_payment_api_key"),
-  // Reuses the sendavapay_api_key column — no migration needed
   ashtechpayApiKey: text("sendavapay_api_key"),
   // Kept for schema compatibility (column exists in DB, no longer used)
   sendavapayWebhookSecret: text("sendavapay_webhook_secret"),
@@ -65562,19 +65771,22 @@ var insertSessionSchema = createInsertSchema(sessionsTable).omit({
 var vipPaymentsTable = pgTable("vip_payments", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
-  ashtechpayReference: text("sendavapay_reference"),
+  // Keep the legacy SQL column name for existing payment references.
+  drimpayReference: text("sendavapay_reference"),
+  drimpayOrderId: text("drimpay_order_id"),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   currency: text("currency").notNull().default("XAF"),
   status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow()
-});
+}, (table) => [uniqueIndex("vip_payments_drimpay_order_id_unique").on(table.drimpayOrderId)]);
 
 // ../../lib/db/src/schema/pending_sp_deposits.ts
 var pendingSpDepositsTable = pgTable("pending_sp_deposits", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
-  ashtechpayReference: text("sendavapay_reference").notNull().unique(),
+  // Keep the legacy SQL column name for existing Plesk databases.
+  drimpayReference: text("sendavapay_reference").notNull().unique(),
   externalReference: text("external_reference").notNull(),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   currency: text("currency").notNull(),
@@ -65723,10 +65935,10 @@ var tg = {
 \u{1F3E6} Compte 1xBet : <code>${opts.oneXbetAccountId}</code>`
     );
   },
-  depositAshtechpay(opts) {
+  depositDrimPay(opts) {
     const flag = countryFlag(opts.country);
     return sendAlert(
-      `\u{1F4B0} <b>D\xE9p\xF4t AshtechPay confirm\xE9</b>
+      `\u{1F4B0} <b>D\xE9p\xF4t DrimPay confirm\xE9</b>
 \u{1F464} ${opts.username} (${opts.userId})
 \u{1F4B5} ${fmt(opts.amount)} FCFA${flag ? ` \u2022 ${flag}` : ""}
 \u{1F516} TX : <code>${opts.transactionId}</code>`
@@ -67136,9 +67348,11 @@ router12.get("/admin/payment-config", requireAuth, async (req, res) => {
     moovMoneyEnabled: config2.moovMoneyEnabled,
     moovMoneyNumber: config2.moovMoneyNumber ?? null,
     moovMoneyUssdCode: config2.moovMoneyUssdCode ?? null,
-    internationalPaymentApiUrl: config2.internationalPaymentApiUrl ?? null,
-    internationalPaymentApiKey: config2.internationalPaymentApiKey ?? null,
-    ashtechpayApiKey: config2.ashtechpayApiKey ?? null,
+    // Payment credentials are configured only as server environment variables.
+    internationalPaymentApiUrl: null,
+    internationalPaymentApiKey: null,
+    sendavapayApiKey: null,
+    sendavapayWebhookSecret: null,
     withdrawCity: config2.withdrawCity ?? "Tsevie",
     withdrawStreet: config2.withdrawStreet ?? "Kpali24"
   });
@@ -67148,9 +67362,9 @@ router12.put("/admin/payment-config", requireAuth, async (req, res) => {
     res.status(403).json({ error: "Admin access required" });
     return;
   }
-  const { tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey, withdrawCity, withdrawStreet } = req.body;
+  const { tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, withdrawCity, withdrawStreet } = req.body;
   let [existing] = await db.select().from(paymentConfigTable).limit(1);
-  const baseFields = { tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey };
+  const baseFields = { tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode };
   const extraFields = withdrawCity !== void 0 || withdrawStreet !== void 0 ? { ...withdrawCity !== void 0 ? { withdrawCity } : {}, ...withdrawStreet !== void 0 ? { withdrawStreet } : {} } : {};
   if (!existing) {
     try {
@@ -67170,9 +67384,10 @@ router12.put("/admin/payment-config", requireAuth, async (req, res) => {
     moovMoneyEnabled: existing.moovMoneyEnabled,
     moovMoneyNumber: existing.moovMoneyNumber ?? null,
     moovMoneyUssdCode: existing.moovMoneyUssdCode ?? null,
-    internationalPaymentApiUrl: existing.internationalPaymentApiUrl ?? null,
-    internationalPaymentApiKey: existing.internationalPaymentApiKey ?? null,
-    ashtechpayApiKey: existing.ashtechpayApiKey ?? null,
+    internationalPaymentApiUrl: null,
+    internationalPaymentApiKey: null,
+    sendavapayApiKey: null,
+    sendavapayWebhookSecret: null,
     withdrawCity: existing.withdrawCity ?? "Tsevie",
     withdrawStreet: existing.withdrawStreet ?? "Kpali24"
   });
@@ -67373,322 +67588,583 @@ router15.get("/transactions", requireAuth, async (req, res) => {
 });
 var transactions_default = router15;
 
-// src/routes/ashtechpay.ts
+// src/routes/drimpay.ts
 var import_express16 = __toESM(require_express2(), 1);
-var ASHTECHPAY_BASE = "https://ashtechpay.top";
-var router16 = (0, import_express16.Router)();
-async function getApiKey() {
-  if (process.env["ASHTECHPAY_API_KEY"]) return process.env["ASHTECHPAY_API_KEY"];
-  const [config2] = await db.select().from(paymentConfigTable).limit(1);
-  if (!config2?.ashtechpayApiKey) {
-    const err = new Error("AshtechPay non configur\xE9. Veuillez contacter l'administrateur.");
-    err.status = 503;
-    throw err;
+
+// src/lib/drimpay.ts
+var import_node_crypto2 = require("node:crypto");
+var DRIMPAY_LIVE_API_BASE = "https://drimpay.com/api/v2";
+var DRIMPAY_COUNTRIES = [
+  { code: "TG", name: "Togo", currency: "XOF", callingCode: "228", operators: [
+    { code: "tmoney", label: "T-Money" },
+    { code: "moov", label: "Moov Money" }
+  ] },
+  { code: "BJ", name: "B\xE9nin", currency: "XOF", callingCode: "229", operators: [
+    { code: "moov", label: "Moov Money" },
+    { code: "mtn", label: "MTN Mobile Money" }
+  ] },
+  { code: "CM", name: "Cameroun", currency: "XAF", callingCode: "237", operators: [
+    { code: "mtn", label: "MTN MoMo" },
+    { code: "orange", label: "Orange Money" }
+  ] },
+  { code: "BF", name: "Burkina Faso", currency: "XOF", callingCode: "226", operators: [
+    { code: "wave", label: "Wave" },
+    { code: "moov", label: "Moov Money" },
+    { code: "orange", label: "Orange Money", requiresOtp: true }
+  ] },
+  { code: "ML", name: "Mali", currency: "XOF", callingCode: "223", operators: [
+    { code: "moov", label: "Moov Money" },
+    { code: "orange", label: "Orange Money", requiresOtp: true }
+  ] },
+  { code: "SN", name: "S\xE9n\xE9gal", currency: "XOF", callingCode: "221", operators: [
+    { code: "orange", label: "Orange Money", requiresOtp: true },
+    { code: "wave", label: "Wave" }
+  ] },
+  { code: "CI", name: "C\xF4te d'Ivoire", currency: "XOF", callingCode: "225", operators: [
+    { code: "moov", label: "Moov Money" },
+    { code: "mtn", label: "MTN Mobile Money" },
+    { code: "wave", label: "Wave" },
+    { code: "orange", label: "Orange Money", requiresOtp: true }
+  ] },
+  { code: "CG", name: "Congo-Brazzaville", currency: "XAF", callingCode: "242", operators: [
+    { code: "mtn", label: "MTN Mobile Money" }
+  ] }
+];
+var DrimPayError = class extends Error {
+  constructor(message, statusCode) {
+    super(message);
+    this.statusCode = statusCode;
+    this.name = "DrimPayError";
   }
-  return config2.ashtechpayApiKey;
+};
+function getDrimPayApiKey() {
+  const apiKey = process.env.DRIMPAY_API_KEY?.trim();
+  if (!apiKey) {
+    throw new DrimPayError("Le service de paiement n'est pas configur\xE9.", 503);
+  }
+  if (!apiKey.startsWith("dp_live_sk_")) {
+    throw new DrimPayError("La cl\xE9 DrimPay configur\xE9e n'est pas une cl\xE9 live valide.", 503);
+  }
+  return apiKey;
 }
-function authHeaders(apiKey) {
-  return { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" };
+function getDrimPayWebhookSecret() {
+  const secret = process.env.DRIMPAY_WEBHOOK_SECRET?.trim();
+  if (!secret) {
+    throw new DrimPayError("Le webhook de paiement n'est pas configur\xE9.", 503);
+  }
+  return secret;
 }
-function webhookBase() {
-  if (process.env["WEBHOOK_BASE_URL"]) return process.env["WEBHOOK_BASE_URL"];
-  if (process.env["REPLIT_DEV_DOMAIN"]) return `https://${process.env["REPLIT_DEV_DOMAIN"]}`;
-  return "";
+function getDrimPayWebhookUrl() {
+  const configuredBase = process.env.WEBHOOK_BASE_URL?.trim();
+  if (!configuredBase) {
+    throw new DrimPayError("L'adresse publique du webhook n'est pas configur\xE9e.", 503);
+  }
+  try {
+    const base = new URL(configuredBase);
+    if (base.protocol !== "https:") throw new Error("HTTPS required");
+    return new URL("/webhooks/drimpay", base.origin).toString();
+  } catch {
+    throw new DrimPayError("WEBHOOK_BASE_URL doit \xEAtre une adresse HTTPS valide.", 503);
+  }
 }
-router16.get("/ashtechpay/countries", async (_req, res) => {
+async function drimPayRequest(path, apiKey, init2 = {}) {
+  let response;
   try {
-    const apiKey = await getApiKey();
-    const r = await fetch(`${ASHTECHPAY_BASE}/v1/countries`, {
-      headers: { "Authorization": `Bearer ${apiKey}` }
+    response = await fetch(`${DRIMPAY_LIVE_API_BASE}${path}`, {
+      method: init2.method ?? "GET",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json"
+      },
+      ...init2.body ? { body: JSON.stringify(init2.body) } : {},
+      signal: AbortSignal.timeout(15e3)
     });
-    const data = await r.json();
-    res.json(data);
-  } catch (err) {
-    res.status(err.status ?? 500).json({ error: err.message });
+  } catch {
+    throw new DrimPayError("DrimPay est temporairement injoignable. R\xE9essayez sans changer la demande.", 502);
   }
-});
-router16.post("/ashtechpay/collect", requireAuth, async (req, res) => {
-  try {
-    const apiKey = await getApiKey();
-    const { amount, currency, phone, operator, countryCode, oneXbetAccountId } = req.body;
-    if (!amount || !currency || !phone || !operator || !countryCode || !oneXbetAccountId) {
-      res.status(400).json({ error: "amount, currency, phone, operator, countryCode et oneXbetAccountId sont requis" });
-      return;
-    }
-    const externalRef = `dep_${req.userId}_${Date.now()}`;
-    const base = webhookBase();
-    const payload = {
-      amount: Number(amount),
-      currency,
-      phone,
-      operator,
-      country_code: countryCode,
-      reference: externalRef,
-      ...base ? { notify_url: `${base}/webhooks/ashtechpay` } : {}
-    };
-    const r = await fetch(`${ASHTECHPAY_BASE}/v1/collect`, {
-      method: "POST",
-      headers: authHeaders(apiKey),
-      body: JSON.stringify(payload)
-    });
-    const data = await r.json();
-    if (r.status === 400 && data.error === "otp_required") {
-      res.json({
-        type: "otp",
-        reference: data.reference,
-        ussdCode: data.ussd_code ?? null,
-        externalRef,
-        // renvoyer les paramètres originaux pour le retry OTP
-        collectParams: { amount: Number(amount), currency, phone, operator, countryCode, oneXbetAccountId }
-      });
-      return;
-    }
-    if (!r.ok) {
-      res.status(400).json({ error: data.message ?? data.error ?? "Erreur AshtechPay" });
-      return;
-    }
-    const transactionId = data.transaction_id;
-    await db.insert(pendingSpDepositsTable).values({
-      userId: req.userId,
-      ashtechpayReference: transactionId,
-      externalReference: externalRef,
-      amount: String(amount),
-      currency,
-      payerCountry: countryCode,
-      oneXbetAccountId
-    });
-    if (data.flow === "wave") {
-      res.json({ type: "wave", transactionId, waveUrl: data.wave_url });
-    } else {
-      res.json({ type: "ussd_push", transactionId });
-    }
-  } catch (err) {
-    res.status(err.status ?? 500).json({ error: err.message });
+  const payload = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    const message = response.status >= 500 ? "DrimPay rencontre un probl\xE8me temporaire." : payload.message ?? payload.error ?? "La demande de paiement a \xE9t\xE9 refus\xE9e.";
+    throw new DrimPayError(message, response.status >= 500 ? 502 : response.status);
   }
-});
-router16.post("/ashtechpay/submit-otp", requireAuth, async (req, res) => {
-  try {
-    const apiKey = await getApiKey();
-    const { reference, otp, collectParams, externalRef } = req.body;
-    if (!reference || !otp || !collectParams) {
-      res.status(400).json({ error: "reference, otp et collectParams sont requis" });
-      return;
-    }
-    const { amount, currency, phone, operator, countryCode, oneXbetAccountId } = collectParams;
-    const base = webhookBase();
-    const actualExternalRef = externalRef ?? `dep_${req.userId}_${Date.now()}`;
-    const payload = {
-      amount: Number(amount),
-      currency,
-      phone,
-      operator,
-      country_code: countryCode,
-      otp,
-      reference,
-      ...base ? { notify_url: `${base}/webhooks/ashtechpay` } : {}
-    };
-    const r = await fetch(`${ASHTECHPAY_BASE}/v1/collect`, {
-      method: "POST",
-      headers: authHeaders(apiKey),
-      body: JSON.stringify(payload)
-    });
-    const data = await r.json();
-    if (!r.ok) {
-      res.status(400).json({ error: data.message ?? data.error ?? "OTP invalide ou expir\xE9" });
-      return;
-    }
-    const transactionId = data.transaction_id;
-    await db.insert(pendingSpDepositsTable).values({
-      userId: req.userId,
-      ashtechpayReference: transactionId,
-      externalReference: actualExternalRef,
-      amount: String(amount),
-      currency,
-      payerCountry: countryCode,
-      oneXbetAccountId: oneXbetAccountId ?? ""
-    }).onConflictDoNothing();
-    res.json({ transactionId });
-  } catch (err) {
-    res.status(err.status ?? 500).json({ error: err.message });
+  return payload;
+}
+function verifyDrimPayWebhookSignature(rawBody, signatureHeader, timestampHeader, secret, nowMs = Date.now()) {
+  if (!signatureHeader || !timestampHeader) return false;
+  const match = /^t=(\d+),v1=([a-f0-9]{64})$/i.exec(signatureHeader.trim());
+  if (!match || match[1] !== timestampHeader.trim()) return false;
+  const timestamp2 = Number(match[1]);
+  if (!Number.isSafeInteger(timestamp2) || Math.abs(Math.floor(nowMs / 1e3) - timestamp2) > 300) {
+    return false;
   }
-});
-router16.post("/ashtechpay/collect-vip", requireAuth, async (req, res) => {
-  try {
-    const apiKey = await getApiKey();
-    const { phone, operator, countryCode, currency } = req.body;
-    if (!phone || !operator || !countryCode || !currency) {
-      res.status(400).json({ error: "phone, operator, countryCode et currency sont requis" });
-      return;
-    }
-    const user = req.user;
-    if (user.isVip) {
-      res.status(400).json({ error: "Vous \xEAtes d\xE9j\xE0 VIP" });
-      return;
-    }
-    const [settings] = await db.select().from(appSettingsTable).limit(1);
-    const vipPrice = settings ? parseFloat(settings.vipPriceFcfa) : 5e3;
-    const externalRef = `vip_${req.userId}_${Date.now()}`;
-    const base = webhookBase();
-    const payload = {
-      amount: vipPrice,
-      currency,
-      phone,
-      operator,
-      country_code: countryCode,
-      reference: externalRef,
-      ...base ? { notify_url: `${base}/webhooks/ashtechpay` } : {}
-    };
-    const r = await fetch(`${ASHTECHPAY_BASE}/v1/collect`, {
-      method: "POST",
-      headers: authHeaders(apiKey),
-      body: JSON.stringify(payload)
-    });
-    const data = await r.json();
-    if (r.status === 400 && data.error === "otp_required") {
-      res.json({
-        type: "otp",
-        reference: data.reference,
-        ussdCode: data.ussd_code ?? null,
-        externalRef,
-        collectParams: { amount: vipPrice, currency, phone, operator, countryCode }
-      });
-      return;
-    }
-    if (!r.ok) {
-      res.status(400).json({ error: data.message ?? data.error ?? "Erreur AshtechPay" });
-      return;
-    }
-    const transactionId = data.transaction_id;
-    await db.insert(vipPaymentsTable).values({
-      userId: req.userId,
-      ashtechpayReference: transactionId,
-      amount: String(vipPrice),
-      currency,
-      status: "pending"
-    });
-    if (data.flow === "wave") {
-      res.json({ type: "wave", transactionId, waveUrl: data.wave_url });
-    } else {
-      res.json({ type: "ussd_push", transactionId });
-    }
-  } catch (err) {
-    res.status(err.status ?? 500).json({ error: err.message });
+  const expected = (0, import_node_crypto2.createHmac)("sha256", secret).update(`${match[1]}.`).update(rawBody).digest();
+  const received = Buffer.from(match[2], "hex");
+  return received.length === expected.length && (0, import_node_crypto2.timingSafeEqual)(received, expected);
+}
+function findDrimPayOperator(countryCode, operatorCode) {
+  return DRIMPAY_COUNTRIES.find((country) => country.code === countryCode.toUpperCase())?.operators.find((operator) => operator.code === operatorCode);
+}
+function normalizeDrimPayStatus(status) {
+  if (status === "success") return "success";
+  if (status === "reversed") return "reversed";
+  if (["failed", "expired", "cancelled"].includes(status)) return "failed";
+  return "pending";
+}
+
+// src/lib/drimpay-settlement.ts
+function amountMatches(expected, received) {
+  const amount = Number(received);
+  return Number.isFinite(amount) && amount === Number(expected);
+}
+async function settleDrimPayPayment(payment) {
+  const reference = payment.reference;
+  const orderId = payment.order_id;
+  if (!reference || !orderId) {
+    throw new Error("DrimPay event is missing reference or order_id");
   }
-});
-router16.post("/ashtechpay/submit-otp-vip", requireAuth, async (req, res) => {
-  try {
-    const apiKey = await getApiKey();
-    const { reference, otp, collectParams, externalRef } = req.body;
-    if (!reference || !otp || !collectParams) {
-      res.status(400).json({ error: "reference, otp et collectParams sont requis" });
-      return;
-    }
-    const { amount, currency, phone, operator, countryCode } = collectParams;
-    const base = webhookBase();
-    const payload = {
-      amount: Number(amount),
-      currency,
-      phone,
-      operator,
-      country_code: countryCode,
-      otp,
-      reference,
-      ...base ? { notify_url: `${base}/webhooks/ashtechpay` } : {}
-    };
-    const r = await fetch(`${ASHTECHPAY_BASE}/v1/collect`, {
-      method: "POST",
-      headers: authHeaders(apiKey),
-      body: JSON.stringify(payload)
-    });
-    const data = await r.json();
-    if (!r.ok) {
-      res.status(400).json({ error: data.message ?? data.error ?? "OTP invalide ou expir\xE9" });
-      return;
-    }
-    const transactionId = data.transaction_id;
-    const actualExternalRef = externalRef ?? `vip_${req.userId}_${Date.now()}`;
-    await db.insert(vipPaymentsTable).values({
-      userId: req.userId,
-      ashtechpayReference: transactionId,
-      amount: String(amount),
-      currency,
-      status: "pending"
-    }).onConflictDoNothing();
-    res.json({ transactionId });
-  } catch (err) {
-    res.status(err.status ?? 500).json({ error: err.message });
+  const [pendingDeposit] = await db.select().from(pendingSpDepositsTable).where(or(
+    eq(pendingSpDepositsTable.drimpayReference, reference),
+    eq(pendingSpDepositsTable.externalReference, orderId)
+  )).limit(1);
+  const [vipPayment] = await db.select().from(vipPaymentsTable).where(or(
+    eq(vipPaymentsTable.drimpayReference, reference),
+    eq(vipPaymentsTable.drimpayOrderId, orderId)
+  )).limit(1);
+  if (!pendingDeposit && !vipPayment) {
+    logger.warn({ reference, orderId }, "DrimPay payment has no matching local order");
+    return;
   }
-});
-router16.get("/ashtechpay/status/:transactionId", requireAuth, async (req, res) => {
-  try {
-    const apiKey = await getApiKey();
-    const txId = Array.isArray(req.params.transactionId) ? req.params.transactionId[0] : req.params.transactionId;
-    const r = await fetch(`${ASHTECHPAY_BASE}/v1/transaction/${txId}`, {
-      headers: { "Authorization": `Bearer ${apiKey}` }
-    });
-    const data = await r.json();
-    if (!r.ok) {
-      const [pendingDep] = await db.select().from(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.ashtechpayReference, txId));
-      if (pendingDep) {
-        await db.delete(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.id, pendingDep.id));
-      }
-      res.json({ status: "failed" });
-      return;
+  if (pendingDeposit) {
+    if (pendingDeposit.externalReference !== orderId || !amountMatches(pendingDeposit.amount, payment.amount) || pendingDeposit.currency !== payment.currency || pendingDeposit.payerCountry !== payment.country_code) {
+      throw new Error("DrimPay deposit payload does not match the pending order");
     }
-    const status = data.status;
-    if (status === "failed") {
-      const [pendingDep] = await db.select().from(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.ashtechpayReference, txId));
-      if (pendingDep) {
-        await db.delete(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.id, pendingDep.id));
-      }
+  }
+  if (vipPayment) {
+    if (vipPayment.drimpayOrderId !== orderId || !amountMatches(vipPayment.amount, payment.amount) || vipPayment.currency !== payment.currency) {
+      throw new Error("DrimPay VIP payload does not match the pending order");
     }
-    if (status === "success") {
-      const [pendingDep] = await db.select().from(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.ashtechpayReference, txId));
-      if (pendingDep) {
-        const existing = await db.select().from(depositsTable).where(eq(depositsTable.ashtechpayReference, txId));
-        if (existing.length === 0) {
-          await db.insert(depositsTable).values({
-            userId: pendingDep.userId,
-            type: "international",
-            operator: "other",
-            oneXbetAccountId: pendingDep.oneXbetAccountId,
-            amount: pendingDep.amount,
-            referenceId: pendingDep.externalReference,
-            ashtechpayReference: txId,
-            country: pendingDep.payerCountry,
-            status: "pending"
-          });
-          await db.delete(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.id, pendingDep.id));
-          logger.info({ userId: pendingDep.userId, txId }, "D\xE9p\xF4t AshtechPay cr\xE9\xE9 via polling (webhook manqu\xE9)");
-          const [depUser] = await db.select({ username: usersTable.username, userId: usersTable.userId }).from(usersTable).where(eq(usersTable.id, pendingDep.userId));
-          tg.depositAshtechpay({
-            username: depUser?.username ?? String(pendingDep.userId),
-            userId: depUser?.userId ?? String(pendingDep.userId),
-            amount: parseFloat(pendingDep.amount),
-            transactionId: txId,
-            country: pendingDep.payerCountry
-          });
-        }
-      }
-      const [vipPayment] = await db.select().from(vipPaymentsTable).where(eq(vipPaymentsTable.ashtechpayReference, txId));
-      if (vipPayment && vipPayment.status === "pending") {
-        await db.update(vipPaymentsTable).set({ status: "completed", updatedAt: /* @__PURE__ */ new Date() }).where(eq(vipPaymentsTable.id, vipPayment.id));
-        await db.update(usersTable).set({ isVip: true, updatedAt: /* @__PURE__ */ new Date() }).where(eq(usersTable.id, vipPayment.userId));
-        logger.info({ userId: vipPayment.userId }, "VIP activ\xE9 via polling AshtechPay (webhook manqu\xE9)");
-        const [vipUser] = await db.select({ username: usersTable.username, userId: usersTable.userId }).from(usersTable).where(eq(usersTable.id, vipPayment.userId));
-        tg.vipActivated({
-          username: vipUser?.username ?? String(vipPayment.userId),
-          userId: vipUser?.userId ?? String(vipPayment.userId),
-          amount: parseFloat(vipPayment.amount)
+  }
+  const status = payment.status ?? payment.event?.replace(/^payin\./, "");
+  if (status === "success") {
+    if (pendingDeposit) {
+      const [existingDeposit] = await db.select().from(depositsTable).where(or(
+        eq(depositsTable.drimpayReference, reference),
+        eq(depositsTable.referenceId, orderId)
+      )).limit(1);
+      if (!existingDeposit) {
+        await db.insert(depositsTable).values({
+          userId: pendingDeposit.userId,
+          type: "international",
+          operator: "other",
+          internationalOperator: payment.operator ?? null,
+          oneXbetAccountId: pendingDeposit.oneXbetAccountId,
+          amount: pendingDeposit.amount,
+          referenceId: orderId,
+          drimpayReference: reference,
+          country: pendingDeposit.payerCountry,
+          status: "pending"
+        });
+        const [depositUser] = await db.select({ username: usersTable.username, userId: usersTable.userId }).from(usersTable).where(eq(usersTable.id, pendingDeposit.userId));
+        await tg.depositDrimPay({
+          username: depositUser?.username ?? String(pendingDeposit.userId),
+          userId: depositUser?.userId ?? String(pendingDeposit.userId),
+          amount: Number(pendingDeposit.amount),
+          transactionId: reference,
+          country: pendingDeposit.payerCountry
         });
       }
+      await db.delete(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.id, pendingDeposit.id));
     }
-    res.json({ status, transactionId: data.transaction_id ?? txId });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
+    if (vipPayment?.status === "pending") {
+      await db.update(vipPaymentsTable).set({
+        drimpayReference: reference,
+        status: "completed",
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(eq(vipPaymentsTable.id, vipPayment.id));
+      await db.update(usersTable).set({ isVip: true, updatedAt: /* @__PURE__ */ new Date() }).where(eq(usersTable.id, vipPayment.userId));
+      const [vipUser] = await db.select({ username: usersTable.username, userId: usersTable.userId }).from(usersTable).where(eq(usersTable.id, vipPayment.userId));
+      await tg.vipActivated({
+        username: vipUser?.username ?? String(vipPayment.userId),
+        userId: vipUser?.userId ?? String(vipPayment.userId),
+        amount: Number(vipPayment.amount)
+      });
+    }
+    return;
+  }
+  if (status === "failed" || status === "expired" || status === "cancelled") {
+    if (pendingDeposit && pendingDeposit.drimpayReference !== reference) {
+      await db.update(pendingSpDepositsTable).set({ drimpayReference: reference }).where(eq(pendingSpDepositsTable.id, pendingDeposit.id));
+    }
+    if (vipPayment?.status === "pending") {
+      await db.update(vipPaymentsTable).set({ drimpayReference: reference, status: "failed", updatedAt: /* @__PURE__ */ new Date() }).where(eq(vipPaymentsTable.id, vipPayment.id));
+    }
+    return;
+  }
+  if (status === "reversed") {
+    const [deposit] = await db.select().from(depositsTable).where(or(
+      eq(depositsTable.drimpayReference, reference),
+      eq(depositsTable.referenceId, orderId)
+    )).limit(1);
+    if (deposit?.status === "pending") {
+      await db.update(depositsTable).set({
+        status: "rejected",
+        rejectionReason: "Paiement DrimPay annul\xE9 apr\xE8s confirmation.",
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(eq(depositsTable.id, deposit.id));
+    } else if (deposit?.status === "validated") {
+      logger.error({ reference, depositId: deposit.id }, "Validated deposit was reversed by DrimPay");
+    }
+    if (vipPayment?.status === "completed") {
+      await db.update(vipPaymentsTable).set({ status: "reversed", updatedAt: /* @__PURE__ */ new Date() }).where(eq(vipPaymentsTable.id, vipPayment.id));
+      logger.error({ reference, userId: vipPayment.userId }, "Completed DrimPay VIP payment was reversed");
+    }
+    return;
+  }
+  if (pendingDeposit && pendingDeposit.drimpayReference !== reference) {
+    await db.update(pendingSpDepositsTable).set({ drimpayReference: reference }).where(eq(pendingSpDepositsTable.id, pendingDeposit.id));
+  }
+  if (vipPayment && vipPayment.drimpayReference !== reference) {
+    await db.update(vipPaymentsTable).set({ drimpayReference: reference, updatedAt: /* @__PURE__ */ new Date() }).where(and(
+      eq(vipPaymentsTable.id, vipPayment.id),
+      eq(vipPaymentsTable.status, "pending")
+    ));
+  }
+}
+
+// src/routes/drimpay.ts
+var router16 = (0, import_express16.Router)();
+var REQUEST_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+var MIN_AMOUNT = 50;
+var MAX_AMOUNT = 1e6;
+function getRequestId(value) {
+  return typeof value === "string" && REQUEST_ID_PATTERN.test(value) ? value : null;
+}
+function validatePaymentInput(body) {
+  const countryCode = typeof body.countryCode === "string" ? body.countryCode.toUpperCase() : "";
+  const country = DRIMPAY_COUNTRIES.find((item) => item.code === countryCode);
+  if (!country) return { error: "Pays non disponible avec DrimPay." };
+  const operatorCode = typeof body.operator === "string" ? body.operator : "";
+  const operator = findDrimPayOperator(country.code, operatorCode);
+  if (!operator) return { error: "Op\xE9rateur non disponible pour ce pays." };
+  const phone = typeof body.phone === "string" ? body.phone.replace(/[ .()-]/g, "") : "";
+  if (!/^\+[1-9]\d{7,14}$/.test(phone) || !phone.startsWith(`+${country.callingCode}`)) {
+    return { error: `Entrez un num\xE9ro au format international +${country.callingCode}\u2026` };
+  }
+  const amount = Number(body.amount);
+  if (!Number.isSafeInteger(amount) || amount < MIN_AMOUNT || amount > MAX_AMOUNT) {
+    return { error: `Le montant doit \xEAtre compris entre ${MIN_AMOUNT} et ${MAX_AMOUNT} FCFA.` };
+  }
+  const operatorOtp = typeof body.operatorOtp === "string" ? body.operatorOtp.trim() : "";
+  if (operator.requiresOtp && !operatorOtp) {
+    return { error: "Le code OTP Orange Money est requis pour cet op\xE9rateur." };
+  }
+  if (operatorOtp && !/^\d{4,8}$/.test(operatorOtp)) {
+    return { error: "Le code OTP doit contenir entre 4 et 8 chiffres." };
+  }
+  return { country, operator, phone, amount, ...operatorOtp ? { operatorOtp } : {} };
+}
+function sendPaymentError(res, error40) {
+  if (error40 instanceof DrimPayError) {
+    const drimPayError = error40;
+    const status = drimPayError.statusCode === 401 || drimPayError.statusCode === 403 ? 503 : drimPayError.statusCode;
+    res.status(status).json({ error: status === 503 && drimPayError.statusCode !== 503 ? "La cl\xE9 DrimPay est refus\xE9e ou indisponible." : drimPayError.message });
+    return;
+  }
+  res.status(500).json({ error: "Impossible de traiter le paiement pour le moment." });
+}
+function safeWavePaymentUrl(value) {
+  if (typeof value !== "string") return null;
+  try {
+    const url2 = new URL(value);
+    return url2.protocol === "https:" && url2.hostname === "pay.wave.com" ? url2.toString() : null;
+  } catch {
+    return null;
+  }
+}
+async function initiatePayment(payload) {
+  return drimPayRequest("/payin/initiate", getDrimPayApiKey(), {
+    method: "POST",
+    body: payload
+  });
+}
+router16.get("/drimpay/countries", (_req, res) => {
+  res.json(DRIMPAY_COUNTRIES.map((country) => ({
+    ...country,
+    operators: country.operators.map((operator) => ({
+      ...operator,
+      ...operator.requiresOtp ? {
+        otpInstructions: country.code === "BF" ? "Composez *144*4*6*montant# pour recevoir votre code OTP." : country.code === "ML" ? "Composez #144#, choisissez Paiement marchand (option 2), puis validez." : "Composez #144*82# pour g\xE9n\xE9rer votre code OTP."
+      } : {}
+    }))
+  })));
+});
+router16.post("/drimpay/collect", requireAuth, async (req, res) => {
+  const body = req.body;
+  const requestId = getRequestId(body.requestId);
+  if (!requestId) {
+    res.status(400).json({ error: "Identifiant de demande invalide." });
+    return;
+  }
+  const input = validatePaymentInput(body);
+  if ("error" in input) {
+    res.status(400).json({ error: input.error });
+    return;
+  }
+  const oneXbetAccountId = typeof body.oneXbetAccountId === "string" ? body.oneXbetAccountId.trim() : "";
+  if (!oneXbetAccountId || oneXbetAccountId.length > 100) {
+    res.status(400).json({ error: "Entrez un identifiant de compte 1xBet valide." });
+    return;
+  }
+  const orderId = `dep_${req.userId}_${requestId}`;
+  let pendingId;
+  try {
+    const [completedDeposit] = await db.select().from(depositsTable).where(and(eq(depositsTable.userId, req.userId), eq(depositsTable.referenceId, orderId))).limit(1);
+    if (completedDeposit) {
+      res.json({ type: "ussd_push", transactionId: completedDeposit.drimpayReference, status: "success" });
+      return;
+    }
+    let [pending] = await db.select().from(pendingSpDepositsTable).where(and(
+      eq(pendingSpDepositsTable.userId, req.userId),
+      eq(pendingSpDepositsTable.externalReference, orderId)
+    )).limit(1);
+    if (pending && (Number(pending.amount) !== input.amount || pending.currency !== input.country.currency || pending.payerCountry !== input.country.code || pending.oneXbetAccountId !== oneXbetAccountId)) {
+      res.status(409).json({ error: "Cette demande de paiement existe d\xE9j\xE0 avec d'autres informations." });
+      return;
+    }
+    if (!pending) {
+      [pending] = await db.insert(pendingSpDepositsTable).values({
+        userId: req.userId,
+        drimpayReference: orderId,
+        externalReference: orderId,
+        amount: String(input.amount),
+        currency: input.country.currency,
+        payerCountry: input.country.code,
+        oneXbetAccountId
+      }).onConflictDoNothing().returning();
+      if (!pending) {
+        [pending] = await db.select().from(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.drimpayReference, orderId)).limit(1);
+      }
+    }
+    if (!pending) {
+      res.status(409).json({ error: "Cette demande de paiement est d\xE9j\xE0 en cours." });
+      return;
+    }
+    pendingId = pending.id;
+    const response = await initiatePayment({
+      amount: input.amount,
+      currency: input.country.currency,
+      country_code: input.country.code,
+      operator: input.operator.code,
+      phone: input.phone,
+      order_id: orderId,
+      webhook_url: getDrimPayWebhookUrl(),
+      description: "D\xE9p\xF4t international Muzan",
+      expires_in_minutes: 5,
+      metadata: { flow: "international_deposit" },
+      ...input.operatorOtp ? { operator_otp: input.operatorOtp } : {}
+    });
+    if (!response.reference || response.order_id !== orderId) {
+      res.status(502).json({ error: "La r\xE9ponse DrimPay ne correspond pas \xE0 cette demande." });
+      return;
+    }
+    const paymentEvent = {
+      ...response,
+      status: response.status,
+      country_code: response.country_code ?? input.country.code,
+      currency: response.currency ?? input.country.currency,
+      amount: response.amount ?? input.amount,
+      operator: response.operator ?? input.operator.code
+    };
+    await db.update(pendingSpDepositsTable).set({ drimpayReference: response.reference }).where(eq(pendingSpDepositsTable.id, pending.id));
+    if (normalizeDrimPayStatus(response.status ?? "pending") === "success") {
+      await settleDrimPayPayment(paymentEvent);
+    }
+    const paymentUrl = safeWavePaymentUrl(response.payment_url);
+    res.json({
+      type: paymentUrl ? "wave" : "ussd_push",
+      transactionId: response.reference,
+      status: normalizeDrimPayStatus(response.status ?? "pending"),
+      ...paymentUrl ? { paymentUrl } : {},
+      ...response.expires_at ? { expiresAt: response.expires_at } : {}
+    });
+  } catch (error40) {
+    const drimPayError = error40 instanceof DrimPayError ? error40 : null;
+    if (pendingId && drimPayError && drimPayError.statusCode < 500) {
+      await db.delete(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.id, pendingId)).catch(() => void 0);
+    }
+    sendPaymentError(res, error40);
   }
 });
-var ashtechpay_default = router16;
+router16.post("/drimpay/collect-vip", requireAuth, async (req, res) => {
+  const body = req.body;
+  const requestId = getRequestId(body.requestId);
+  if (!requestId) {
+    res.status(400).json({ error: "Identifiant de demande invalide." });
+    return;
+  }
+  const input = validatePaymentInput(body);
+  if ("error" in input) {
+    res.status(400).json({ error: input.error });
+    return;
+  }
+  const user = req.user;
+  if (user.isVip) {
+    res.status(400).json({ error: "Vous \xEAtes d\xE9j\xE0 VIP." });
+    return;
+  }
+  const [settings] = await db.select().from(appSettingsTable).limit(1);
+  const vipPrice = settings ? Number(settings.vipPriceFcfa) : 5e3;
+  if (!Number.isSafeInteger(vipPrice) || vipPrice < MIN_AMOUNT || vipPrice > MAX_AMOUNT) {
+    res.status(503).json({ error: "Le prix VIP n'est pas configur\xE9 correctement pour DrimPay." });
+    return;
+  }
+  if (input.amount !== vipPrice) {
+    res.status(409).json({ error: "Le prix VIP a chang\xE9. Actualisez la page avant de r\xE9essayer." });
+    return;
+  }
+  const orderId = `vip_${req.userId}_${requestId}`;
+  let vipPaymentId;
+  try {
+    let [vipPayment] = await db.select().from(vipPaymentsTable).where(eq(vipPaymentsTable.drimpayOrderId, orderId)).limit(1);
+    if (vipPayment && (Number(vipPayment.amount) !== vipPrice || vipPayment.currency !== input.country.currency || vipPayment.userId !== req.userId)) {
+      res.status(409).json({ error: "Cette demande de paiement VIP existe d\xE9j\xE0 avec d'autres informations." });
+      return;
+    }
+    if (!vipPayment) {
+      [vipPayment] = await db.insert(vipPaymentsTable).values({
+        userId: req.userId,
+        drimpayReference: orderId,
+        drimpayOrderId: orderId,
+        amount: String(vipPrice),
+        currency: input.country.currency,
+        status: "pending"
+      }).onConflictDoNothing().returning();
+      if (!vipPayment) {
+        [vipPayment] = await db.select().from(vipPaymentsTable).where(eq(vipPaymentsTable.drimpayOrderId, orderId)).limit(1);
+      }
+    }
+    if (!vipPayment) {
+      res.status(409).json({ error: "Cette demande de paiement VIP est d\xE9j\xE0 en cours." });
+      return;
+    }
+    vipPaymentId = vipPayment.id;
+    if (vipPayment.status === "completed") {
+      res.json({ type: "ussd_push", transactionId: vipPayment.drimpayReference, status: "success" });
+      return;
+    }
+    if (vipPayment.status !== "pending") {
+      res.status(409).json({ error: "Cette demande VIP n'est plus en attente. Recommencez le paiement." });
+      return;
+    }
+    const response = await initiatePayment({
+      amount: vipPrice,
+      currency: input.country.currency,
+      country_code: input.country.code,
+      operator: input.operator.code,
+      phone: input.phone,
+      order_id: orderId,
+      webhook_url: getDrimPayWebhookUrl(),
+      description: "Paiement de l'acc\xE8s VIP Muzan",
+      expires_in_minutes: 5,
+      metadata: { flow: "vip" },
+      ...input.operatorOtp ? { operator_otp: input.operatorOtp } : {}
+    });
+    if (!response.reference || response.order_id !== orderId) {
+      res.status(502).json({ error: "La r\xE9ponse DrimPay ne correspond pas \xE0 cette demande." });
+      return;
+    }
+    await db.update(vipPaymentsTable).set({ drimpayReference: response.reference, updatedAt: /* @__PURE__ */ new Date() }).where(eq(vipPaymentsTable.id, vipPayment.id));
+    const paymentEvent = {
+      ...response,
+      status: response.status,
+      country_code: response.country_code ?? input.country.code,
+      currency: response.currency ?? input.country.currency,
+      amount: response.amount ?? vipPrice,
+      operator: response.operator ?? input.operator.code
+    };
+    if (normalizeDrimPayStatus(response.status ?? "pending") === "success") {
+      await settleDrimPayPayment(paymentEvent);
+    }
+    const paymentUrl = safeWavePaymentUrl(response.payment_url);
+    res.json({
+      type: paymentUrl ? "wave" : "ussd_push",
+      transactionId: response.reference,
+      status: normalizeDrimPayStatus(response.status ?? "pending"),
+      ...paymentUrl ? { paymentUrl } : {},
+      ...response.expires_at ? { expiresAt: response.expires_at } : {}
+    });
+  } catch (error40) {
+    const drimPayError = error40 instanceof DrimPayError ? error40 : null;
+    if (vipPaymentId && drimPayError && drimPayError.statusCode < 500) {
+      await db.update(vipPaymentsTable).set({ status: "failed", updatedAt: /* @__PURE__ */ new Date() }).where(and(eq(vipPaymentsTable.id, vipPaymentId), eq(vipPaymentsTable.status, "pending"))).catch(() => void 0);
+    }
+    sendPaymentError(res, error40);
+  }
+});
+router16.get("/drimpay/status/:reference", requireAuth, async (req, res) => {
+  const reference = Array.isArray(req.params.reference) ? req.params.reference[0] : req.params.reference;
+  if (!reference || reference.length > 128) {
+    res.status(400).json({ error: "R\xE9f\xE9rence DrimPay invalide." });
+    return;
+  }
+  try {
+    const [pendingDeposit] = await db.select().from(pendingSpDepositsTable).where(and(
+      eq(pendingSpDepositsTable.userId, req.userId),
+      eq(pendingSpDepositsTable.drimpayReference, reference)
+    )).limit(1);
+    const [deposit] = await db.select().from(depositsTable).where(and(
+      eq(depositsTable.userId, req.userId),
+      eq(depositsTable.drimpayReference, reference)
+    )).limit(1);
+    const [vipPayment] = await db.select().from(vipPaymentsTable).where(and(
+      eq(vipPaymentsTable.userId, req.userId),
+      eq(vipPaymentsTable.drimpayReference, reference)
+    )).limit(1);
+    if (!pendingDeposit && !deposit && !vipPayment) {
+      res.status(404).json({ error: "Paiement introuvable." });
+      return;
+    }
+    if (deposit && !pendingDeposit) {
+      res.json({
+        status: deposit.status === "rejected" && deposit.rejectionReason?.includes("DrimPay") ? "reversed" : deposit.status === "validated" || deposit.status === "pending" ? "success" : "failed",
+        transactionId: reference
+      });
+      return;
+    }
+    if (vipPayment && vipPayment.status !== "pending") {
+      res.json({
+        status: vipPayment.status === "completed" ? "success" : vipPayment.status === "reversed" ? "reversed" : "failed",
+        transactionId: reference
+      });
+      return;
+    }
+    const response = await drimPayRequest(
+      `/payin/${encodeURIComponent(reference)}`,
+      getDrimPayApiKey()
+    );
+    if (response.reference !== reference) {
+      res.status(502).json({ error: "La r\xE9ponse DrimPay ne correspond pas \xE0 cette demande." });
+      return;
+    }
+    const storedOrderId = pendingDeposit?.externalReference ?? vipPayment?.drimpayOrderId;
+    if (storedOrderId && response.order_id !== storedOrderId) {
+      res.status(502).json({ error: "La r\xE9ponse DrimPay ne correspond pas \xE0 cette demande." });
+      return;
+    }
+    const paymentEvent = {
+      ...response,
+      event: response.status ? `payin.${response.status}` : void 0
+    };
+    await settleDrimPayPayment(paymentEvent);
+    res.json({
+      status: normalizeDrimPayStatus(response.status ?? "pending"),
+      transactionId: reference
+    });
+  } catch (error40) {
+    sendPaymentError(res, error40);
+  }
+});
+var drimpay_default = router16;
 
 // src/routes/chat.ts
 var import_express17 = __toESM(require_express2(), 1);
@@ -67921,7 +68397,7 @@ router18.use(admin_default);
 router18.use(upload_default);
 router18.use(app_settings_default);
 router18.use(transactions_default);
-router18.use(ashtechpay_default);
+router18.use(drimpay_default);
 router18.use(chat_default);
 var routes_default = router18;
 
@@ -67929,67 +68405,45 @@ var routes_default = router18;
 var import_express19 = __toESM(require_express2(), 1);
 var router19 = (0, import_express19.Router)();
 router19.post("/", async (req, res) => {
-  const rawBody = req.body;
   try {
-    const payload = JSON.parse(rawBody.toString());
-    const { event, transaction_id } = payload;
-    logger.info({ event, transaction_id }, "AshtechPay webhook re\xE7u");
-    res.json({ received: true });
-    if (event === "payment.completed") {
-      const [pendingDep] = await db.select().from(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.ashtechpayReference, transaction_id));
-      if (pendingDep) {
-        const existing = await db.select().from(depositsTable).where(eq(depositsTable.ashtechpayReference, transaction_id));
-        if (existing.length === 0) {
-          await db.insert(depositsTable).values({
-            userId: pendingDep.userId,
-            type: "international",
-            operator: "other",
-            oneXbetAccountId: pendingDep.oneXbetAccountId,
-            amount: pendingDep.amount,
-            referenceId: pendingDep.externalReference,
-            ashtechpayReference: transaction_id,
-            country: pendingDep.payerCountry,
-            status: "pending"
-            // l'admin doit encore créditer le compte 1xBet
-          });
-        }
-        await db.delete(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.id, pendingDep.id));
-        logger.info({ userId: pendingDep.userId, transaction_id }, "D\xE9p\xF4t AshtechPay cr\xE9\xE9 pour l'admin");
-        const [depUser] = await db.select({ username: usersTable.username, userId: usersTable.userId }).from(usersTable).where(eq(usersTable.id, pendingDep.userId));
-        tg.depositAshtechpay({
-          username: depUser?.username ?? String(pendingDep.userId),
-          userId: depUser?.userId ?? String(pendingDep.userId),
-          amount: parseFloat(pendingDep.amount),
-          transactionId: transaction_id,
-          country: pendingDep.payerCountry
-        });
-      }
-      const [vipPayment] = await db.select().from(vipPaymentsTable).where(eq(vipPaymentsTable.ashtechpayReference, transaction_id));
-      if (vipPayment && vipPayment.status === "pending") {
-        await db.update(vipPaymentsTable).set({ status: "completed", updatedAt: /* @__PURE__ */ new Date() }).where(eq(vipPaymentsTable.id, vipPayment.id));
-        await db.update(usersTable).set({ isVip: true, updatedAt: /* @__PURE__ */ new Date() }).where(eq(usersTable.id, vipPayment.userId));
-        logger.info({ userId: vipPayment.userId }, "VIP activ\xE9 via AshtechPay");
-        const [vipUser] = await db.select({ username: usersTable.username, userId: usersTable.userId }).from(usersTable).where(eq(usersTable.id, vipPayment.userId));
-        tg.vipActivated({
-          username: vipUser?.username ?? String(vipPayment.userId),
-          userId: vipUser?.userId ?? String(vipPayment.userId),
-          amount: parseFloat(vipPayment.amount)
-        });
-      }
+    const rawBody = Buffer.isBuffer(req.body) ? req.body : null;
+    if (!rawBody) {
+      res.status(400).json({ error: "Corps de webhook invalide." });
+      return;
     }
-    if (event === "payment.failed") {
-      const [pendingDep] = await db.select().from(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.ashtechpayReference, transaction_id));
-      if (pendingDep) {
-        await db.delete(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.id, pendingDep.id));
-        logger.info({ transaction_id }, "Paiement AshtechPay \xE9chou\xE9 \u2014 aucun d\xE9p\xF4t cr\xE9\xE9");
-      }
-      const [vipPayment] = await db.select().from(vipPaymentsTable).where(eq(vipPaymentsTable.ashtechpayReference, transaction_id));
-      if (vipPayment && vipPayment.status === "pending") {
-        await db.update(vipPaymentsTable).set({ status: "failed", updatedAt: /* @__PURE__ */ new Date() }).where(eq(vipPaymentsTable.id, vipPayment.id));
-      }
+    const signature = req.header("X-DrimPay-Signature");
+    const timestamp2 = req.header("X-DrimPay-Timestamp");
+    const secret = getDrimPayWebhookSecret();
+    if (!verifyDrimPayWebhookSignature(rawBody, signature, timestamp2, secret)) {
+      res.status(401).json({ error: "Signature de webhook invalide." });
+      return;
     }
-  } catch (err) {
-    logger.error({ err }, "Erreur webhook AshtechPay");
+    const payload = JSON.parse(rawBody.toString("utf8"));
+    if (payload.mode !== "live") {
+      res.status(400).json({ error: "Seuls les \xE9v\xE9nements de paiement live sont accept\xE9s." });
+      return;
+    }
+    const supportedEvents = /* @__PURE__ */ new Set([
+      "payin.success",
+      "payin.failed",
+      "payin.expired",
+      "payin.processing",
+      "payin.reversed"
+    ]);
+    if (!payload.event || !supportedEvents.has(payload.event)) {
+      res.status(200).json({ received: true, ignored: true });
+      return;
+    }
+    await settleDrimPayPayment({ ...payload, status: payload.event.replace(/^payin\./, "") });
+    logger.info({ event: payload.event, reference: payload.reference }, "DrimPay webhook v\xE9rifi\xE9 et trait\xE9");
+    res.status(200).json({ received: true });
+  } catch (error40) {
+    if (error40 instanceof DrimPayError) {
+      res.status(error40.statusCode).json({ error: error40.message });
+      return;
+    }
+    logger.error({ err: error40 }, "\xC9chec de traitement du webhook DrimPay");
+    res.status(500).json({ error: "Webhook DrimPay non trait\xE9." });
   }
 });
 var webhooks_default = router19;
@@ -68057,7 +68511,7 @@ app.use(
     // allow all in dev / when not configured
   )
 );
-app.use("/webhooks/ashtechpay", import_express20.default.raw({ type: "application/json" }), webhooks_default);
+app.use("/webhooks/drimpay", import_express20.default.raw({ type: "application/json" }), webhooks_default);
 app.use(import_express20.default.json({ limit: "25mb" }));
 app.use(import_express20.default.urlencoded({ extended: true }));
 var uploadsDir = (0, import_node_path3.join)(_dirname, "../uploads");
@@ -68169,7 +68623,6 @@ on-finished/index.js:
    *)
 
 content-type/dist/index.js:
-content-type/index.js:
   (*!
    * content-type
    * Copyright(c) 2015 Douglas Christopher Wilson
@@ -68343,7 +68796,7 @@ range-parser/index.js:
    * MIT Licensed
    *)
 
-content-disposition/index.js:
+content-disposition/dist/index.js:
   (*!
    * content-disposition
    * Copyright(c) 2014-2017 Douglas Christopher Wilson
