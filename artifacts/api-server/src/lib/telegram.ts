@@ -57,7 +57,7 @@ export const tg = {
     );
   },
 
-  depositAshtechpay(opts: {
+  depositDrimPay(opts: {
     username: string;
     userId: string;
     amount: number;
@@ -66,7 +66,7 @@ export const tg = {
   }) {
     const flag = countryFlag(opts.country);
     return sendAlert(
-      `💰 <b>Dépôt AshtechPay confirmé</b>\n` +
+      `💰 <b>Dépôt DrimPay confirmé</b>\n` +
       `👤 ${opts.username} (${opts.userId})\n` +
       `💵 ${fmt(opts.amount)} FCFA${flag ? ` • ${flag}` : ""}\n` +
       `🔖 TX : <code>${opts.transactionId}</code>`

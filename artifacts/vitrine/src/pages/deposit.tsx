@@ -48,36 +48,17 @@ async function apiFetch(url: string, options?: { method?: string; body?: any }):
     ...(options?.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? 'Erreur réseau');
+  if (!res.ok) {
+    const error = new Error(data.error ?? 'Erreur réseau') as Error & { status?: number };
+    error.status = res.status;
+    throw error;
+  }
   return data;
 }
 
-const COUNTRIES = [
-  'Togo',
-  'Bénin',
-  "Côte d'Ivoire",
-  'Burkina Faso',
-  'Cameroun',
-  'Congo démocratique',
-  'Congo Brazzaville',
-  'Sénégal',
-  'Mali',
-  'Niger',
-];
-
-const COUNTRY_CODES: Record<string, string> = {
-  'Togo': 'TG', 'Bénin': 'BJ', "Côte d'Ivoire": 'CI',
-  'Burkina Faso': 'BF', 'Cameroun': 'CM', 'Congo démocratique': 'CD',
-  'Congo Brazzaville': 'CG', 'Sénégal': 'SN', 'Mali': 'ML', 'Niger': 'NE',
-};
-
-const COUNTRY_CURRENCIES: Record<string, string> = {
-  'Togo': 'XOF', 'Bénin': 'XOF', "Côte d'Ivoire": 'XOF',
-  'Burkina Faso': 'XOF', 'Cameroun': 'XAF', 'Congo démocratique': 'CDF',
-  'Congo Brazzaville': 'XAF', 'Sénégal': 'XOF', 'Mali': 'XOF', 'Niger': 'XOF',
-};
-
-type IntlStep = 'form' | 'otp' | 'wave' | 'waiting' | 'done' | 'failed';
+type DrimPayOperator = { code: string; label: string; requiresOtp?: boolean; otpInstructions?: string };
+type DrimPayCountry = { code: string; name: string; currency: string; callingCode: string; operators: DrimPayOperator[] };
+type IntlStep = 'form' | 'wave' | 'waiting' | 'done' | 'failed';
 
 const TMONEY_USSD = '*145*5*MONTANT*1181879*CODE SECRET#';
 
@@ -123,51 +104,42 @@ export default function DepositPage() {
     }
   }, [paymentConfig?.tmoneyEnabled, paymentConfig?.moovMoneyEnabled]);
 
-  // International — AshtechPay
+  // International — DrimPay
   const [intlStep, setIntlStep] = useState<IntlStep>('form');
   const [intlCountry, setIntlCountry] = useState('');
+  const [intlCountries, setIntlCountries] = useState<DrimPayCountry[]>([]);
+  const [intlCountriesLoading, setIntlCountriesLoading] = useState(true);
   const [intlAmount, setIntlAmount] = useState('');
   const [intlAccountId, setIntlAccountId] = useState('');
   const [intlPhone, setIntlPhone] = useState('');
   const [intlOperator, setIntlOperator] = useState('');
-  const [intlCountryOperators, setIntlCountryOperators] = useState<string[]>([]);
-  const [intlLoadingOperators, setIntlLoadingOperators] = useState(false);
   const [intlTransactionId, setIntlTransactionId] = useState('');
   const [intlWaveUrl, setIntlWaveUrl] = useState('');
-  const [intlOtpRef, setIntlOtpRef] = useState('');
-  const [intlOtpUssdCode, setIntlOtpUssdCode] = useState<string | null>(null);
   const [intlOtpCode, setIntlOtpCode] = useState('');
   const [intlSubmitting, setIntlSubmitting] = useState(false);
-  const [intlSubmittingOtp, setIntlSubmittingOtp] = useState(false);
-  const [intlCollectParams, setIntlCollectParams] = useState<any>(null);
-  const [intlExternalRef, setIntlExternalRef] = useState('');
+  const intlRequestId = useRef('');
+  const selectedIntlCountry = intlCountries.find(country => country.code === intlCountry);
+  const selectedIntlOperator = selectedIntlCountry?.operators.find(operator => operator.code === intlOperator);
 
   const createDeposit = useCreateDeposit();
 
-  // Charger les opérateurs quand le pays change
+  // Charge uniquement les pays et opérateurs dont les identifiants de production
+  // sont documentés par DrimPay.
   useEffect(() => {
-    if (!intlCountry) { setIntlCountryOperators([]); setIntlOperator(''); return; }
-    const code = COUNTRY_CODES[intlCountry];
-    if (!code) return;
-    setIntlLoadingOperators(true);
-    setIntlOperator('');
-    apiFetch('/api/ashtechpay/countries')
-      .then((countries: any[]) => {
-        const found = countries.find((c: any) => c.code === code);
-        setIntlCountryOperators(found?.operators ?? []);
-      })
-      .catch(() => setIntlCountryOperators([]))
-      .finally(() => setIntlLoadingOperators(false));
-  }, [intlCountry]);
+    apiFetch('/api/drimpay/countries')
+      .then((countries: DrimPayCountry[]) => setIntlCountries(countries))
+      .catch(() => toast.error('Impossible de charger les opérateurs DrimPay.'))
+      .finally(() => setIntlCountriesLoading(false));
+  }, []);
 
   // Polling statut
   useEffect(() => {
     if (!intlTransactionId || intlStep !== 'waiting') return;
     const interval = setInterval(async () => {
       try {
-        const data = await apiFetch(`/api/ashtechpay/status/${intlTransactionId}`);
+        const data = await apiFetch(`/api/drimpay/status/${encodeURIComponent(intlTransactionId)}`);
         if (data.status === 'success') setIntlStep('done');
-        else if (data.status === 'failed') setIntlStep('failed');
+        else if (['failed', 'expired', 'cancelled', 'reversed'].includes(data.status)) setIntlStep('failed');
       } catch { /* ignorer */ }
     }, 5000);
     return () => clearInterval(interval);
@@ -231,59 +203,41 @@ export default function DepositPage() {
     e.preventDefault();
     if (!intlOperator) { toast.error('Sélectionnez un opérateur.'); return; }
     if (!intlPhone.trim()) { toast.error('Entrez votre numéro de téléphone.'); return; }
+    if (!selectedIntlCountry) { toast.error('Sélectionnez un pays disponible.'); return; }
+    if (selectedIntlOperator?.requiresOtp && !intlOtpCode.trim()) {
+      toast.error('Entrez le code OTP demandé par Orange Money.');
+      return;
+    }
 
     setIntlSubmitting(true);
     try {
-      const collectParams = {
+      if (!intlRequestId.current) intlRequestId.current = crypto.randomUUID();
+      const res = await apiFetch('/api/drimpay/collect', { method: 'POST', body: {
+        requestId: intlRequestId.current,
         amount: Number(intlAmount),
-        currency: COUNTRY_CURRENCIES[intlCountry] ?? 'XOF',
         phone: intlPhone.trim(),
         operator: intlOperator,
-        countryCode: COUNTRY_CODES[intlCountry] ?? '',
+        countryCode: selectedIntlCountry.code,
         oneXbetAccountId: intlAccountId,
-      };
-      const res = await apiFetch('/api/ashtechpay/collect', { method: 'POST', body: collectParams });
+        operatorOtp: intlOtpCode.trim() || undefined,
+      } });
+      intlRequestId.current = '';
 
-      if (res.type === 'otp') {
-        setIntlCollectParams(res.collectParams);
-        setIntlExternalRef(res.externalRef);
-        setIntlOtpRef(res.reference);
-        setIntlOtpUssdCode(res.ussdCode);
-        setIntlStep('otp');
+      if (res.status === 'success') {
+        setIntlStep('done');
       } else if (res.type === 'wave') {
         setIntlTransactionId(res.transactionId);
-        setIntlWaveUrl(res.waveUrl);
+        setIntlWaveUrl(res.paymentUrl);
         setIntlStep('wave');
       } else {
         setIntlTransactionId(res.transactionId);
         setIntlStep('waiting');
       }
     } catch (e: any) {
+      if (e?.status && e.status < 500) intlRequestId.current = '';
       toast.error(e?.message ?? 'Erreur lors du paiement.');
     } finally {
       setIntlSubmitting(false);
-    }
-  };
-
-  const handleIntlOtp = async () => {
-    if (!intlOtpCode.trim()) { toast.error('Entrez le code OTP.'); return; }
-    setIntlSubmittingOtp(true);
-    try {
-      const res = await apiFetch('/api/ashtechpay/submit-otp', {
-        method: 'POST',
-        body: {
-          reference: intlOtpRef,
-          otp: intlOtpCode.trim(),
-          collectParams: intlCollectParams,
-          externalRef: intlExternalRef,
-        },
-      });
-      setIntlTransactionId(res.transactionId);
-      setIntlStep('waiting');
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Code OTP incorrect.');
-    } finally {
-      setIntlSubmittingOtp(false);
     }
   };
 
@@ -294,10 +248,7 @@ export default function DepositPage() {
     setIntlOtpCode('');
     setIntlTransactionId('');
     setIntlWaveUrl('');
-    setIntlOtpRef('');
-    setIntlOtpUssdCode(null);
-    setIntlCollectParams(null);
-    setIntlExternalRef('');
+    intlRequestId.current = '';
   };
 
   const tmoneyVisible = !paymentConfig || paymentConfig.tmoneyEnabled;
@@ -536,7 +487,7 @@ export default function DepositPage() {
           </div>
         )}
 
-        {/* International Form — AshtechPay */}
+        {/* International Form — DrimPay */}
         {activeTab === 'international' && (
           <div className="space-y-4">
 
@@ -546,7 +497,7 @@ export default function DepositPage() {
                 <div className="bg-purple-50 border border-purple-200 rounded-xl p-4 mb-5">
                   <div className="flex items-center gap-2 text-purple-600 font-semibold text-sm mb-1">
                     <Globe className="w-4 h-4" />
-                    Dépôt international — AshtechPay
+                    Dépôt international — DrimPay
                   </div>
                   <p className="text-sm text-gray-600">Payez depuis votre pays avec votre opérateur mobile local.</p>
                 </div>
@@ -554,41 +505,43 @@ export default function DepositPage() {
                   {/* Pays */}
                   <div className="space-y-2">
                     <Label className="text-gray-700 font-medium">Votre pays</Label>
-                    <Select value={intlCountry} onValueChange={setIntlCountry} required>
+                    <Select value={intlCountry} onValueChange={(value) => {
+                      setIntlCountry(value);
+                      setIntlOperator('');
+                      setIntlOtpCode('');
+                    }} required>
                       <SelectTrigger className="h-14 text-base bg-gray-50 border-gray-200 rounded-xl">
-                        <SelectValue placeholder="Sélectionner votre pays" />
+                        <SelectValue placeholder={intlCountriesLoading ? 'Chargement…' : 'Sélectionner votre pays'} />
                       </SelectTrigger>
                       <SelectContent>
-                        {COUNTRIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                        {intlCountries.map(country => (
+                          <SelectItem key={country.code} value={country.code}>{country.name}</SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
 
                   {/* Opérateurs */}
-                  {intlCountry && (
+                  {selectedIntlCountry && (
                     <div className="space-y-2">
                       <Label className="text-gray-700 font-medium">Opérateur Mobile Money</Label>
-                      {intlLoadingOperators ? (
-                        <div className="flex justify-center py-4">
-                          <Loader2 className="w-6 h-6 animate-spin text-purple-600" />
-                        </div>
-                      ) : intlCountryOperators.length === 0 ? (
+                      {selectedIntlCountry.operators.length === 0 ? (
                         <p className="text-sm text-gray-400 italic">Aucun opérateur disponible pour ce pays.</p>
                       ) : (
                         <div className="space-y-2">
-                          {intlCountryOperators.map(op => (
+                          {selectedIntlCountry.operators.map(op => (
                             <button
-                              key={op}
+                              key={op.code}
                               type="button"
-                              onClick={() => setIntlOperator(op)}
+                              onClick={() => { setIntlOperator(op.code); setIntlOtpCode(''); }}
                               className={`w-full flex items-center justify-between p-4 rounded-xl border-2 transition-colors text-left ${
-                                intlOperator === op
+                                intlOperator === op.code
                                   ? 'border-purple-600 bg-purple-50'
                                   : 'border-gray-200 hover:border-purple-300'
                               }`}
                             >
-                              <span className="font-semibold text-sm">{op}</span>
-                              {intlOperator === op && <Check className="w-5 h-5 text-purple-600 flex-shrink-0" />}
+                              <span className="font-semibold text-sm">{op.label}</span>
+                              {intlOperator === op.code && <Check className="w-5 h-5 text-purple-600 flex-shrink-0" />}
                             </button>
                           ))}
                         </div>
@@ -599,12 +552,12 @@ export default function DepositPage() {
                   {/* Numéro de téléphone */}
                   {intlOperator && (
                     <div className="space-y-2">
-                      <Label className="text-gray-700 font-medium">Numéro de téléphone</Label>
+                      <Label className="text-gray-700 font-medium">Numéro de téléphone au format international</Label>
                       <Input
                         type="tel"
                         value={intlPhone}
                         onChange={e => setIntlPhone(e.target.value)}
-                        placeholder="Ex: 90000000"
+                        placeholder={`Ex: +${selectedIntlCountry?.callingCode}90000000`}
                         required
                         className="h-14 text-base bg-gray-50 border-gray-200 rounded-xl"
                       />
@@ -614,7 +567,7 @@ export default function DepositPage() {
                   {/* Montant */}
                   <div className="space-y-2">
                     <Label className="text-gray-700 font-medium">
-                      Montant ({intlCountry ? (COUNTRY_CURRENCIES[intlCountry] ?? 'XOF') : 'XOF'})
+                      Montant ({selectedIntlCountry?.currency ?? 'XOF'})
                     </Label>
                     <div className="relative">
                       <Input
@@ -626,10 +579,29 @@ export default function DepositPage() {
                         className="pr-16 h-14 text-base bg-gray-50 border-gray-200 rounded-xl"
                       />
                       <span className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">
-                        {intlCountry ? (COUNTRY_CURRENCIES[intlCountry] ?? 'XOF') : 'XOF'}
+                        {selectedIntlCountry?.currency ?? 'XOF'}
                       </span>
                     </div>
                   </div>
+
+                  {selectedIntlOperator?.requiresOtp && (
+                    <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                      <p className="text-sm font-medium text-amber-900">
+                        {selectedIntlOperator.otpInstructions}
+                      </p>
+                      <div className="space-y-2">
+                        <Label className="text-gray-700 font-medium">Code OTP Orange Money</Label>
+                        <Input
+                          value={intlOtpCode}
+                          onChange={e => setIntlOtpCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                          inputMode="numeric"
+                          placeholder="Code reçu après le code USSD"
+                          required
+                          className="h-12 bg-white"
+                        />
+                      </div>
+                    </div>
+                  )}
 
                   {/* ID 1xBet */}
                   <div className="space-y-2">
@@ -645,49 +617,14 @@ export default function DepositPage() {
 
                   <Button
                     type="submit"
-                    disabled={intlSubmitting || !intlCountry || !intlOperator || !intlAmount || !intlAccountId || !intlPhone}
+                    disabled={intlSubmitting || !intlCountry || !intlOperator || !intlAmount || !intlAccountId || !intlPhone || (Boolean(selectedIntlOperator?.requiresOtp) && !intlOtpCode)}
                     className="w-full h-14 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-2xl text-base"
                   >
                     {intlSubmitting
                       ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Paiement en cours…</>
-                      : `→  Payer ${intlAmount ? Number(intlAmount).toLocaleString() : ''} ${intlCountry ? (COUNTRY_CURRENCIES[intlCountry] ?? 'XOF') : 'XOF'}`}
+                      : `→  Payer ${intlAmount ? Number(intlAmount).toLocaleString() : ''} ${selectedIntlCountry?.currency ?? 'XOF'}`}
                   </Button>
                 </form>
-              </div>
-            )}
-
-            {/* Step: OTP */}
-            {intlStep === 'otp' && (
-              <div className="bg-white rounded-2xl p-5 shadow-sm space-y-4">
-                <div className="text-center">
-                  <p className="text-lg font-bold">Code de confirmation</p>
-                  {intlOtpUssdCode ? (
-                    <div className="mt-2 space-y-2">
-                      <p className="text-sm text-gray-500">Composez ce code USSD sur votre téléphone pour recevoir l'OTP :</p>
-                      <div className="bg-blue-50 rounded-lg p-3 border border-blue-200 inline-block">
-                        <code className="text-[#1a3aff] font-bold text-base">{intlOtpUssdCode}</code>
-                      </div>
-                      <p className="text-sm text-gray-500">Puis entrez le code reçu ci-dessous.</p>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-500 mt-1">Entrez le code OTP reçu par SMS</p>
-                  )}
-                </div>
-                <Input
-                  placeholder="Code OTP"
-                  value={intlOtpCode}
-                  onChange={e => setIntlOtpCode(e.target.value)}
-                  className="text-center text-lg tracking-widest h-14 bg-gray-50 border-gray-200 rounded-xl"
-                />
-                <Button
-                  onClick={handleIntlOtp}
-                  disabled={intlSubmittingOtp || !intlOtpCode.trim()}
-                  className="w-full h-12 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl"
-                >
-                  {intlSubmittingOtp ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Valider le code
-                </Button>
-                <button onClick={resetIntl} className="w-full text-center text-sm text-gray-400 hover:text-gray-700 py-2">← Recommencer</button>
               </div>
             )}
 
@@ -697,7 +634,7 @@ export default function DepositPage() {
                 <p className="text-lg font-bold">Finaliser via Wave</p>
                 <p className="text-sm text-gray-500">Cliquez pour ouvrir la page de paiement Wave.</p>
                 <Button
-                  onClick={() => { window.open(intlWaveUrl, '_blank'); setIntlStep('waiting'); }}
+                  onClick={() => { window.open(intlWaveUrl, '_blank', 'noopener,noreferrer'); setIntlStep('waiting'); }}
                   className="w-full h-12 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-xl"
                 >
                   Ouvrir Wave

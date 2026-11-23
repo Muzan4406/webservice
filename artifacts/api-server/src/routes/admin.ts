@@ -346,9 +346,11 @@ router.get("/admin/payment-config", requireAuth, async (req: AuthRequest, res): 
     moovMoneyEnabled: config.moovMoneyEnabled,
     moovMoneyNumber: config.moovMoneyNumber ?? null,
     moovMoneyUssdCode: config.moovMoneyUssdCode ?? null,
-    internationalPaymentApiUrl: config.internationalPaymentApiUrl ?? null,
-    internationalPaymentApiKey: config.internationalPaymentApiKey ?? null,
-    ashtechpayApiKey: config.ashtechpayApiKey ?? null,
+    // Payment credentials are configured only as server environment variables.
+    internationalPaymentApiUrl: null,
+    internationalPaymentApiKey: null,
+    sendavapayApiKey: null,
+    sendavapayWebhookSecret: null,
     withdrawCity: config.withdrawCity ?? "Tsevie",
     withdrawStreet: config.withdrawStreet ?? "Kpali24",
   });
@@ -360,12 +362,12 @@ router.put("/admin/payment-config", requireAuth, async (req: AuthRequest, res): 
     return;
   }
 
-  const { tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey, withdrawCity, withdrawStreet } = req.body;
+  const { tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, withdrawCity, withdrawStreet } = req.body;
 
   let [existing] = await db.select().from(paymentConfigTable).limit(1);
 
   // Champs de base toujours présents en DB
-  const baseFields = { tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode, internationalPaymentApiUrl, internationalPaymentApiKey, ashtechpayApiKey };
+  const baseFields = { tmoneyEnabled, moovMoneyEnabled, moovMoneyNumber, moovMoneyUssdCode };
   // Champs ajoutés par migration — inclus uniquement s'ils sont définis
   const extraFields = (withdrawCity !== undefined || withdrawStreet !== undefined)
     ? { ...(withdrawCity !== undefined ? { withdrawCity } : {}), ...(withdrawStreet !== undefined ? { withdrawStreet } : {}) }
@@ -395,9 +397,10 @@ router.put("/admin/payment-config", requireAuth, async (req: AuthRequest, res): 
     moovMoneyEnabled: existing.moovMoneyEnabled,
     moovMoneyNumber: existing.moovMoneyNumber ?? null,
     moovMoneyUssdCode: existing.moovMoneyUssdCode ?? null,
-    internationalPaymentApiUrl: existing.internationalPaymentApiUrl ?? null,
-    internationalPaymentApiKey: existing.internationalPaymentApiKey ?? null,
-    ashtechpayApiKey: existing.ashtechpayApiKey ?? null,
+    internationalPaymentApiUrl: null,
+    internationalPaymentApiKey: null,
+    sendavapayApiKey: null,
+    sendavapayWebhookSecret: null,
     withdrawCity: existing.withdrawCity ?? "Tsevie",
     withdrawStreet: existing.withdrawStreet ?? "Kpali24",
   });

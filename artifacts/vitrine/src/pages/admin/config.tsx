@@ -27,8 +27,6 @@ export default function AdminConfigPage() {
   const [form, setForm] = useState({
     tmoneyEnabled: true, moovMoneyEnabled: true,
     moovMoneyNumber: '', moovMoneyUssdCode: '',
-    internationalPaymentApiUrl: '', internationalPaymentApiKey: '',
-    ashtechpayApiKey: '',
     withdrawCity: 'Tsevie', withdrawStreet: 'Kpali24',
   });
   const [appForm, setAppForm] = useState({
@@ -46,9 +44,6 @@ export default function AdminConfigPage() {
         moovMoneyEnabled: config.moovMoneyEnabled,
         moovMoneyNumber: config.moovMoneyNumber || '',
         moovMoneyUssdCode: config.moovMoneyUssdCode || '',
-        internationalPaymentApiUrl: config.internationalPaymentApiUrl || '',
-        internationalPaymentApiKey: config.internationalPaymentApiKey || '',
-        ashtechpayApiKey: (config as any).ashtechpayApiKey || '',
         withdrawCity: (config as any).withdrawCity || 'Tsevie',
         withdrawStreet: (config as any).withdrawStreet || 'Kpali24',
       });
@@ -174,12 +169,12 @@ export default function AdminConfigPage() {
               <input type="checkbox" checked={form.moovMoneyEnabled} onChange={e => sf('moovMoneyEnabled', e.target.checked)} className="w-5 h-5 rounded" />
             </div>
             <Separator />
+            <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
+              DrimPay Pay-in fonctionne uniquement avec les clés serveur configurées dans Plesk. Ne saisissez pas de clé API sur cette page.
+            </div>
             {[
               { key: 'moovMoneyNumber', label: 'Numéro Moov Money', ph: '9X XX XX XX' },
               { key: 'moovMoneyUssdCode', label: 'Code USSD Moov Money', ph: '*144#' },
-              { key: 'internationalPaymentApiUrl', label: 'API URL (international)', ph: 'https://…' },
-              { key: 'internationalPaymentApiKey', label: 'Clé API (international)', ph: 'sk_…' },
-              { key: 'ashtechpayApiKey', label: 'Clé API AshtechPay', ph: 'ak_…' },
               { key: 'withdrawCity', label: '🏙️ Ville du point de retrait', ph: 'Tsevie' },
               { key: 'withdrawStreet', label: '📍 Rue / Adresse du point de retrait', ph: 'Kpali24' },
             ].map(({ key, label, ph }) => (

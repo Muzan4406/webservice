@@ -24,21 +24,16 @@ async function apiFetch(url: string, options?: { method?: string; body?: any }):
     ...(options?.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error(data.error ?? 'Erreur réseau');
+  if (!res.ok) {
+    const error = new Error(data.error ?? 'Erreur réseau') as Error & { status?: number };
+    error.status = res.status;
+    throw error;
+  }
   return data;
 }
 
-const COUNTRIES = ['Togo','Bénin',"Côte d'Ivoire",'Burkina Faso','Cameroun','Congo démocratique','Congo Brazzaville','Sénégal','Mali','Niger'];
-const COUNTRY_CODES: Record<string, string> = {
-  'Togo': 'TG', 'Bénin': 'BJ', "Côte d'Ivoire": 'CI',
-  'Burkina Faso': 'BF', 'Cameroun': 'CM', 'Congo démocratique': 'CD',
-  'Congo Brazzaville': 'CG', 'Sénégal': 'SN', 'Mali': 'ML', 'Niger': 'NE',
-};
-const COUNTRY_CURRENCIES: Record<string, string> = {
-  'Togo': 'XOF', 'Bénin': 'XOF', "Côte d'Ivoire": 'XOF',
-  'Burkina Faso': 'XOF', 'Cameroun': 'XAF', 'Congo démocratique': 'CDF',
-  'Congo Brazzaville': 'XAF', 'Sénégal': 'XOF', 'Mali': 'XOF', 'Niger': 'XOF',
-};
+type DrimPayOperator = { code: string; label: string; requiresOtp?: boolean; otpInstructions?: string };
+type DrimPayCountry = { code: string; name: string; currency: string; callingCode: string; operators: DrimPayOperator[] };
 
 const VIP_BENEFITS = [
   { icon: '⚽', text: 'Jeux virtuels FIFA (accès exclusif VIP)' },
@@ -49,7 +44,7 @@ const VIP_BENEFITS = [
   { icon: '🎧', text: 'Priorité sur le service client' },
 ];
 
-type Step = 'form' | 'otp' | 'wave' | 'waiting' | 'done' | 'failed';
+type Step = 'form' | 'wave' | 'waiting' | 'done' | 'failed';
 
 export default function VipPurchasePage() {
   const [, setLocation] = useLocation();
@@ -59,46 +54,36 @@ export default function VipPurchasePage() {
 
   const [step, setStep] = useState<Step>('form');
   const [selectedCountry, setSelectedCountry] = useState('');
+  const [countries, setCountries] = useState<DrimPayCountry[]>([]);
+  const [countriesLoading, setCountriesLoading] = useState(true);
   const [selectedOperator, setSelectedOperator] = useState('');
+  const [otpCode, setOtpCode] = useState('');
   const [payerPhone, setPayerPhone] = useState('');
-  const [countryOperators, setCountryOperators] = useState<string[]>([]);
-  const [loadingOperators, setLoadingOperators] = useState(false);
   const [transactionId, setTransactionId] = useState('');
   const [waveUrl, setWaveUrl] = useState('');
-  const [otpRef, setOtpRef] = useState('');
-  const [otpUssdCode, setOtpUssdCode] = useState<string | null>(null);
-  const [otpCode, setOtpCode] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [submittingOtp, setSubmittingOtp] = useState(false);
-  const [collectParams, setCollectParams] = useState<any>(null);
-  const [externalRef, setExternalRef] = useState('');
+  const requestId = useRef('');
+  const activeCountry = countries.find(country => country.code === selectedCountry);
+  const activeOperator = activeCountry?.operators.find(operator => operator.code === selectedOperator);
 
-  // Charger les opérateurs quand le pays change
+  // La liste est limitée aux opérateurs de production publiés par DrimPay.
   useEffect(() => {
-    if (!selectedCountry) { setCountryOperators([]); setSelectedOperator(''); return; }
-    const code = COUNTRY_CODES[selectedCountry];
-    if (!code) return;
-    setLoadingOperators(true);
-    setSelectedOperator('');
-    apiFetch('/api/ashtechpay/countries')
-      .then((countries: any[]) => {
-        const found = countries.find((c: any) => c.code === code);
-        setCountryOperators(found?.operators ?? []);
-      })
-      .catch(() => setCountryOperators([]))
-      .finally(() => setLoadingOperators(false));
-  }, [selectedCountry]);
+    apiFetch('/api/drimpay/countries')
+      .then((data: DrimPayCountry[]) => setCountries(data))
+      .catch(() => toast.error('Impossible de charger les opérateurs DrimPay.'))
+      .finally(() => setCountriesLoading(false));
+  }, []);
 
   // Polling statut
   useEffect(() => {
     if (!transactionId || step !== 'waiting') return;
     const interval = setInterval(async () => {
       try {
-        const data = await apiFetch(`/api/ashtechpay/status/${transactionId}`);
+        const data = await apiFetch(`/api/drimpay/status/${encodeURIComponent(transactionId)}`);
         if (data.status === 'success') {
           if (user && !user.isVip && updateUser) updateUser({ ...user, isVip: true });
           setStep('done');
-        } else if (data.status === 'failed') {
+        } else if (['failed', 'expired', 'cancelled', 'reversed'].includes(data.status)) {
           setStep('failed');
         }
       } catch { /* ignorer */ }
@@ -110,61 +95,44 @@ export default function VipPurchasePage() {
     if (!selectedCountry) { toast.error('Sélectionnez votre pays.'); return; }
     if (!selectedOperator) { toast.error('Sélectionnez un opérateur.'); return; }
     if (!payerPhone.trim()) { toast.error('Entrez votre numéro de téléphone.'); return; }
+    if (!activeCountry) { toast.error('Sélectionnez un pays disponible.'); return; }
+    if (activeOperator?.requiresOtp && !otpCode.trim()) {
+      toast.error('Entrez le code OTP demandé par Orange Money.');
+      return;
+    }
 
     setSubmitting(true);
     try {
-      const currency = COUNTRY_CURRENCIES[selectedCountry] ?? 'XOF';
-      const countryCode = COUNTRY_CODES[selectedCountry] ?? '';
-      const res = await apiFetch('/api/ashtechpay/collect-vip', {
+      if (!requestId.current) requestId.current = crypto.randomUUID();
+      const res = await apiFetch('/api/drimpay/collect-vip', {
         method: 'POST',
         body: {
+          requestId: requestId.current,
+          amount: vipPrice,
           phone: payerPhone.trim(),
           operator: selectedOperator,
-          countryCode,
-          currency,
+          countryCode: activeCountry.code,
+          operatorOtp: otpCode.trim() || undefined,
         },
       });
+      requestId.current = '';
 
-      if (res.type === 'otp') {
-        setCollectParams(res.collectParams);
-        setExternalRef(res.externalRef);
-        setOtpRef(res.reference);
-        setOtpUssdCode(res.ussdCode);
-        setStep('otp');
+      if (res.status === 'success') {
+        if (user && !user.isVip && updateUser) updateUser({ ...user, isVip: true });
+        setStep('done');
       } else if (res.type === 'wave') {
         setTransactionId(res.transactionId);
-        setWaveUrl(res.waveUrl);
+        setWaveUrl(res.paymentUrl);
         setStep('wave');
       } else {
         setTransactionId(res.transactionId);
         setStep('waiting');
       }
     } catch (e: any) {
+      if (e?.status && e.status < 500) requestId.current = '';
       toast.error(e?.message ?? 'Erreur lors du paiement.');
     } finally {
       setSubmitting(false);
-    }
-  }
-
-  async function handleOtp() {
-    if (!otpCode.trim()) { toast.error('Entrez le code OTP.'); return; }
-    setSubmittingOtp(true);
-    try {
-      const res = await apiFetch('/api/ashtechpay/submit-otp-vip', {
-        method: 'POST',
-        body: {
-          reference: otpRef,
-          otp: otpCode.trim(),
-          collectParams,
-          externalRef,
-        },
-      });
-      setTransactionId(res.transactionId);
-      setStep('waiting');
-    } catch (e: any) {
-      toast.error(e?.message ?? 'Code OTP incorrect.');
-    } finally {
-      setSubmittingOtp(false);
     }
   }
 
@@ -175,10 +143,7 @@ export default function VipPurchasePage() {
     setOtpCode('');
     setTransactionId('');
     setWaveUrl('');
-    setOtpRef('');
-    setOtpUssdCode(null);
-    setCollectParams(null);
-    setExternalRef('');
+    requestId.current = '';
   }
 
   return (
@@ -233,11 +198,11 @@ export default function VipPurchasePage() {
                   <Label>Votre pays</Label>
                   <select
                     className="w-full h-10 px-3 rounded-md border border-input bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-                    value={selectedCountry}
-                    onChange={e => setSelectedCountry(e.target.value)}
+                  value={selectedCountry}
+                  onChange={e => { setSelectedCountry(e.target.value); setSelectedOperator(''); setOtpCode(''); }}
                   >
-                    <option value="">Sélectionner un pays</option>
-                    {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
+                    <option value="">{countriesLoading ? 'Chargement…' : 'Sélectionner un pays'}</option>
+                    {countries.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
                   </select>
                 </div>
 
@@ -245,25 +210,21 @@ export default function VipPurchasePage() {
                 {selectedCountry && (
                   <div className="space-y-2">
                     <Label>Opérateur Mobile Money</Label>
-                    {loadingOperators ? (
-                      <div className="flex justify-center py-3">
-                        <Loader2 className="w-5 h-5 animate-spin text-primary" />
-                      </div>
-                    ) : countryOperators.length === 0 ? (
+                    {!activeCountry?.operators.length ? (
                       <p className="text-sm text-muted-foreground italic">Aucun opérateur disponible.</p>
                     ) : (
                       <div className="space-y-2">
-                        {countryOperators.map(op => (
+                        {activeCountry.operators.map(op => (
                           <button
-                            key={op}
+                            key={op.code}
                             type="button"
-                            onClick={() => setSelectedOperator(op)}
+                            onClick={() => { setSelectedOperator(op.code); setOtpCode(''); }}
                             className={`w-full flex items-center justify-between p-3 rounded-xl border-2 transition-colors text-left ${
-                              selectedOperator === op ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'
+                              selectedOperator === op.code ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'
                             }`}
                           >
-                            <span className="font-semibold text-sm">{op}</span>
-                            {selectedOperator === op && <Check className="w-4 h-4 text-primary flex-shrink-0" />}
+                            <span className="font-semibold text-sm">{op.label}</span>
+                            {selectedOperator === op.code && <Check className="w-4 h-4 text-primary flex-shrink-0" />}
                           </button>
                         ))}
                       </div>
@@ -274,61 +235,40 @@ export default function VipPurchasePage() {
                 {/* Phone */}
                 {selectedOperator && (
                   <div className="space-y-2">
-                    <Label>Numéro de téléphone</Label>
+                      <Label>Numéro de téléphone au format international</Label>
                     <Input
-                      placeholder="Ex: 90000000"
+                      placeholder={`Ex: +${activeCountry?.callingCode}90000000`}
                       value={payerPhone}
                       onChange={e => setPayerPhone(e.target.value)}
                       type="tel"
+                      required
                     />
+                  </div>
+                )}
+
+                {activeOperator?.requiresOtp && (
+                  <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+                    <p className="text-sm text-amber-900">{activeOperator.otpInstructions}</p>
+                    <div className="space-y-2">
+                      <Label>Code OTP Orange Money</Label>
+                      <Input
+                        value={otpCode}
+                        onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                        inputMode="numeric"
+                        placeholder="Code reçu après le code USSD"
+                      />
+                    </div>
                   </div>
                 )}
 
                 <Button
                   className="w-full h-12"
                   onClick={handleContinue}
-                  disabled={submitting || !selectedCountry || !selectedOperator || !payerPhone.trim()}
+                  disabled={submitting || !selectedCountry || !selectedOperator || !payerPhone.trim() || (Boolean(activeOperator?.requiresOtp) && !otpCode)}
                 >
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Payer {vipPrice.toLocaleString()} {selectedCountry ? (COUNTRY_CURRENCIES[selectedCountry] ?? 'XOF') : 'XOF'}
+                  Payer {vipPrice.toLocaleString()} {activeCountry?.currency ?? 'XOF'}
                 </Button>
-              </CardContent>
-            </Card>
-          </motion.div>
-        )}
-
-        {/* Step: OTP */}
-        {step === 'otp' && (
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
-            <Card>
-              <CardContent className="p-5 space-y-4">
-                <div className="text-center mb-2">
-                  <p className="text-lg font-bold">Code de confirmation</p>
-                  {otpUssdCode ? (
-                    <div className="mt-2 space-y-2">
-                      <p className="text-sm text-muted-foreground">Composez ce code USSD sur votre téléphone :</p>
-                      <div className="bg-primary/10 rounded-lg p-3 inline-block">
-                        <code className="text-primary font-bold text-base">{otpUssdCode}</code>
-                      </div>
-                      <p className="text-sm text-muted-foreground">Puis entrez le code reçu ci-dessous.</p>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-muted-foreground">Entrez le code OTP reçu par SMS</p>
-                  )}
-                </div>
-                <Input
-                  placeholder="Code OTP"
-                  value={otpCode}
-                  onChange={e => setOtpCode(e.target.value)}
-                  className="text-center text-lg tracking-widest"
-                />
-                <Button className="w-full h-12" onClick={handleOtp} disabled={submittingOtp || !otpCode.trim()}>
-                  {submittingOtp ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Valider le code
-                </Button>
-                <button onClick={reset} className="w-full text-center text-sm text-muted-foreground hover:text-foreground py-1">
-                  ← Recommencer
-                </button>
               </CardContent>
             </Card>
           </motion.div>
@@ -341,7 +281,7 @@ export default function VipPurchasePage() {
               <CardContent className="p-5 text-center space-y-4">
                 <p className="text-lg font-bold">Finaliser via Wave</p>
                 <p className="text-sm text-muted-foreground">Cliquez ci-dessous pour ouvrir la page Wave.</p>
-                <Button className="w-full h-12" onClick={() => { window.open(waveUrl, '_blank'); setStep('waiting'); }}>
+                <Button className="w-full h-12" onClick={() => { window.open(waveUrl, '_blank', 'noopener,noreferrer'); setStep('waiting'); }}>
                   Ouvrir Wave
                 </Button>
                 <button onClick={() => setStep('waiting')} className="text-sm text-muted-foreground hover:text-foreground">

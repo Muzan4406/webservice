@@ -22,7 +22,7 @@ catalog:
   tailwind-merge: 3.6.0
   tailwindcss: 4.3.3
   typescript: 5.9.2
-  vite: 8.1.5
+  vite: 8.3.8
   zod: 3.25.76
 
 ignoredBuiltDependencies:

@@ -42,17 +42,20 @@ Dans **Node.js → Custom environment variables**, ajoutez :
 |---|---|
 | `NODE_ENV` | `production` |
 | `PG_URL` | URL complète de PostgreSQL |
-| `SESSION_SECRET` | chaîne aléatoire longue (au moins 32 caractères) |
-| `WEBHOOK_BASE_URL` | `https://votre-domaine.tld` |
-| `SENDAVAPAY_API_KEY` | clé API SendavaPay, si les dépôts sont activés |
-| `SENDAVAPAY_WEBHOOK_SECRET` | secret webhook SendavaPay, si utilisé |
+| `DRIMPAY_API_KEY` | clé live DrimPay commençant par `dp_live_sk_` |
+| `DRIMPAY_WEBHOOK_SECRET` | secret HMAC du webhook associé à cette clé live |
+| `WEBHOOK_BASE_URL` | origine publique HTTPS, par exemple `https://muzanservice.com` |
 | `ALLOWED_ORIGIN` | `https://votre-domaine.tld` (optionnel) |
 | `TELEGRAM_BOT_TOKEN` | optionnel |
 | `TELEGRAM_CHAT_ID` | optionnel |
 
-Ne mettez jamais ces valeurs dans `app.js`, GitHub ou un fichier `.env`
-versionné. `PG_URL` doit pointer vers une base PostgreSQL déjà accessible
-depuis le serveur Plesk.
+Les clés DrimPay sont réservées au serveur et ne doivent jamais être mises dans
+le navigateur, l'interface admin, GitHub ou un fichier `.env` versionné.
+`DRIMPAY_API_KEY` n'accepte que les clés live. `WEBHOOK_BASE_URL` doit être
+accessible publiquement en HTTPS pour que DrimPay puisse notifier les paiements.
+`PG_URL` doit pointer vers une base PostgreSQL déjà accessible depuis Plesk.
+
+Le dépôt national manuel T-Money/Moov ne dépend pas de ces clés DrimPay.
 
 ## Installation et premier déploiement
 
@@ -88,9 +91,17 @@ depuis le serveur Plesk.
    cd ../..
    ```
 
-7. Revenez dans **Node.js**, cliquez sur **NPM install** si Plesk le propose,
-   puis **Save** et **Restart App**.
-8. Activez le certificat SSL Let's Encrypt dans **SSL/TLS Certificates** et
+7. Appliquez l'ajout du champ d'idempotence DrimPay au schéma PostgreSQL depuis
+   la racine du projet :
+
+   ```bash
+   pnpm --filter @workspace/db run push
+   ```
+
+8. Revenez dans **Node.js**, vérifiez que le gestionnaire est `pnpm`, puis
+   cliquez sur **Save** et **Restart App**. N'utilisez pas `NPM install` pour
+   ce monorepo pnpm.
+9. Activez le certificat SSL Let's Encrypt dans **SSL/TLS Certificates** et
    forcez HTTPS. Utilisez ensuite l'URL HTTPS dans `WEBHOOK_BASE_URL`.
 
 ## Vérifications
@@ -125,7 +136,7 @@ Puis cliquez sur **Restart App** dans Plesk.
 | Page blanche | Vérifier `NODE_ENV=production`, `Document Root` et la présence de `vitrine/dist/index.html` |
 | `PG_URL is not set` | Ajouter `PG_URL` dans les variables Plesk puis redémarrer |
 | API 500 / tables absentes | Exécuter `cd lib/db && pnpm run push` avec la bonne base |
-| Webhook non reçu | Utiliser HTTPS et définir `WEBHOOK_BASE_URL` sans slash final |
+| Webhook non reçu | Utiliser HTTPS et définir `WEBHOOK_BASE_URL` sur l'origine publique |
 
 ---
 

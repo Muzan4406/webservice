@@ -15,7 +15,9 @@ export const depositsTable = pgTable(
     referenceId: text("reference_id"), // unique enforced via DB index below
     screenshotUrl: text("screenshot_url"),
     country: text("country"),
-    ashtechpayReference: text("sendavapay_reference"),
+    // Keep the legacy SQL column name so this provider switch does not rename
+    // or discard historical payment references.
+    drimpayReference: text("sendavapay_reference"),
     status: text("status").notNull().default("pending"), // 'pending' | 'validated' | 'rejected'
     rejectionReason: text("rejection_reason"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
