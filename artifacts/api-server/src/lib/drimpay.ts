@@ -59,6 +59,7 @@ export class DrimPayError extends Error {
   constructor(
     message: string,
     public readonly statusCode: number,
+    public readonly outcomeUnknown = false,
   ) {
     super(message);
     this.name = "DrimPayError";
@@ -116,7 +117,11 @@ export async function drimPayRequest<T>(
       signal: AbortSignal.timeout(15_000),
     });
   } catch {
-    throw new DrimPayError("DrimPay est temporairement injoignable. Réessayez sans changer la demande.", 502);
+    throw new DrimPayError(
+      "La confirmation DrimPay tarde. Vérifiez le statut avant de réessayer.",
+      502,
+      true,
+    );
   }
 
   const payload = await response.json().catch(() => ({})) as {
@@ -127,7 +132,7 @@ export async function drimPayRequest<T>(
     const message = response.status >= 500
       ? "DrimPay rencontre un problème temporaire."
       : payload.message ?? payload.error ?? "La demande de paiement a été refusée.";
-    throw new DrimPayError(message, response.status >= 500 ? 502 : response.status);
+    throw new DrimPayError(message, response.status >= 500 ? 502 : response.status, response.status >= 500);
   }
   return payload as T;
 }

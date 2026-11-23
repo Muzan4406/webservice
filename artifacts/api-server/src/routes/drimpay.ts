@@ -9,6 +9,7 @@ import {
   vipPaymentsTable,
 } from "@workspace/db";
 import { requireAuth, type AuthRequest } from "../middlewares/auth.js";
+import { logger } from "../lib/logger.js";
 import {
   DRIMPAY_COUNTRIES,
   DrimPayError,
@@ -73,7 +74,50 @@ function validatePaymentInput(body: Record<string, unknown>): {
   return { country, operator, phone, amount, ...(operatorOtp ? { operatorOtp } : {}) };
 }
 
-function sendPaymentError(res: Response, error: unknown): void {
+function safePaymentErrorMetadata(error: unknown): Record<string, unknown> {
+  const candidate = error && typeof error === "object"
+    ? error as { name?: unknown; code?: unknown }
+    : undefined;
+  const code = typeof candidate?.code === "string" && /^[A-Z0-9_-]{1,32}$/.test(candidate.code)
+    ? candidate.code
+    : undefined;
+  return {
+    errorType: error instanceof Error ? error.name : typeof error,
+    ...(code ? { errorCode: code } : {}),
+    ...(error instanceof DrimPayError
+      ? { upstreamStatus: error.statusCode, outcomeUnknown: error.outcomeUnknown }
+      : {}),
+  };
+}
+
+function logPaymentFailure(flow: string, error: unknown): void {
+  const metadata = { flow, ...safePaymentErrorMetadata(error) };
+  if (error instanceof DrimPayError && error.statusCode < 500) {
+    logger.warn(metadata, "DrimPay payment request was rejected");
+  } else {
+    logger.error(metadata, "DrimPay payment request failed");
+  }
+}
+
+function isPaymentOutcomeUnknown(error: unknown, providerRequestStarted: boolean): boolean {
+  return error instanceof DrimPayError ? error.outcomeUnknown : providerRequestStarted;
+}
+
+function respondWithPendingPayment(res: Response, flow: string, orderId: string, error: unknown): void {
+  logger.warn(
+    { flow, ...safePaymentErrorMetadata(error) },
+    "DrimPay outcome is uncertain; payment remains pending",
+  );
+  res.json({
+    type: "ussd_push",
+    transactionId: orderId,
+    status: "pending",
+    confirmationPending: true,
+  });
+}
+
+function sendPaymentError(res: Response, error: unknown, flow: string): void {
+  logPaymentFailure(flow, error);
   if (error instanceof DrimPayError) {
     const drimPayError = error as DrimPayError;
     const status = drimPayError.statusCode === 401 || drimPayError.statusCode === 403 ? 503 : drimPayError.statusCode;
@@ -82,7 +126,7 @@ function sendPaymentError(res: Response, error: unknown): void {
       : drimPayError.message });
     return;
   }
-  res.status(500).json({ error: "Impossible de traiter le paiement pour le moment." });
+  res.status(500).json({ error: "Impossible de démarrer le paiement pour le moment. Réessayez plus tard." });
 }
 
 function safeWavePaymentUrl(value: unknown): string | null {
@@ -95,8 +139,11 @@ function safeWavePaymentUrl(value: unknown): string | null {
   }
 }
 
-async function initiatePayment(payload: Record<string, unknown>): Promise<DrimPayTransactionResponse> {
-  return drimPayRequest<DrimPayTransactionResponse>("/payin/initiate", getDrimPayApiKey(), {
+async function initiatePayment(
+  payload: Record<string, unknown>,
+  apiKey: string,
+): Promise<DrimPayTransactionResponse> {
+  return drimPayRequest<DrimPayTransactionResponse>("/payin/initiate", apiKey, {
     method: "POST",
     body: payload,
   });
@@ -140,6 +187,8 @@ router.post("/drimpay/collect", requireAuth, async (req: AuthRequest, res): Prom
 
   const orderId = `dep_${req.userId}_${requestId}`;
   let pendingId: number | undefined;
+  let shouldInitiate = false;
+  let providerRequestStarted = false;
   try {
     const [completedDeposit] = await db
       .select()
@@ -180,6 +229,7 @@ router.post("/drimpay/collect", requireAuth, async (req: AuthRequest, res): Prom
         payerCountry: input.country.code,
         oneXbetAccountId,
       }).onConflictDoNothing().returning();
+      if (pending) shouldInitiate = true;
 
       if (!pending) {
         [pending] = await db
@@ -196,6 +246,19 @@ router.post("/drimpay/collect", requireAuth, async (req: AuthRequest, res): Prom
     }
     pendingId = pending.id;
 
+    if (!shouldInitiate) {
+      res.json({
+        type: "ussd_push",
+        transactionId: pending.drimpayReference,
+        status: "pending",
+        confirmationPending: pending.drimpayReference === orderId,
+      });
+      return;
+    }
+
+    const apiKey = getDrimPayApiKey();
+    const webhookUrl = getDrimPayWebhookUrl();
+    providerRequestStarted = true;
     const response = await initiatePayment({
       amount: input.amount,
       currency: input.country.currency,
@@ -203,15 +266,16 @@ router.post("/drimpay/collect", requireAuth, async (req: AuthRequest, res): Prom
       operator: input.operator.code,
       phone: input.phone,
       order_id: orderId,
-      webhook_url: getDrimPayWebhookUrl(),
+      webhook_url: webhookUrl,
       description: "Dépôt international Muzan",
       expires_in_minutes: 5,
       metadata: { flow: "international_deposit" },
       ...(input.operatorOtp ? { operator_otp: input.operatorOtp } : {}),
-    });
+    }, apiKey);
 
     if (!response.reference || response.order_id !== orderId) {
-      res.status(502).json({ error: "La réponse DrimPay ne correspond pas à cette demande." });
+      logger.error({ flow: "international_deposit", issue: "response_mismatch" }, "DrimPay returned an unmatchable payment response");
+      respondWithPendingPayment(res, "international_deposit", orderId, new Error("DrimPay response mismatch"));
       return;
     }
 
@@ -240,13 +304,22 @@ router.post("/drimpay/collect", requireAuth, async (req: AuthRequest, res): Prom
       ...(response.expires_at ? { expiresAt: response.expires_at } : {}),
     });
   } catch (error) {
-    const drimPayError = error instanceof DrimPayError ? error as DrimPayError : null;
+    const outcomeUnknown = isPaymentOutcomeUnknown(error, providerRequestStarted);
+    if (pendingId && !providerRequestStarted) {
+      await db.delete(pendingSpDepositsTable)
+        .where(eq(pendingSpDepositsTable.id, pendingId))
+        .catch(() => undefined);
+    }
     if (pendingId && drimPayError && drimPayError.statusCode < 500) {
       await db.delete(pendingSpDepositsTable)
         .where(eq(pendingSpDepositsTable.id, pendingId))
         .catch(() => undefined);
     }
-    sendPaymentError(res, error);
+    if (outcomeUnknown) {
+      respondWithPendingPayment(res, "international_deposit", orderId, error);
+      return;
+    }
+    sendPaymentError(res, error, "international_deposit");
   }
 });
 
@@ -283,6 +356,9 @@ router.post("/drimpay/collect-vip", requireAuth, async (req: AuthRequest, res): 
 
   const orderId = `vip_${req.userId}_${requestId}`;
   let vipPaymentId: number | undefined;
+  let shouldInitiate = false;
+  let providerRequestStarted = false;
+  let pendingReference = orderId;
   try {
     let [vipPayment] = await db
       .select()
@@ -308,6 +384,7 @@ router.post("/drimpay/collect-vip", requireAuth, async (req: AuthRequest, res): 
         currency: input.country.currency,
         status: "pending",
       }).onConflictDoNothing().returning();
+      if (vipPayment) shouldInitiate = true;
 
       if (!vipPayment) {
         [vipPayment] = await db.select()
@@ -331,7 +408,19 @@ router.post("/drimpay/collect-vip", requireAuth, async (req: AuthRequest, res): 
       res.status(409).json({ error: "Cette demande VIP n'est plus en attente. Recommencez le paiement." });
       return;
     }
+    if (!shouldInitiate) {
+      res.json({
+        type: "ussd_push",
+        transactionId: vipPayment.drimpayReference ?? orderId,
+        status: "pending",
+        confirmationPending: vipPayment.drimpayReference === orderId,
+      });
+      return;
+    }
 
+    const apiKey = getDrimPayApiKey();
+    const webhookUrl = getDrimPayWebhookUrl();
+    providerRequestStarted = true;
     const response = await initiatePayment({
       amount: vipPrice,
       currency: input.country.currency,
@@ -339,18 +428,20 @@ router.post("/drimpay/collect-vip", requireAuth, async (req: AuthRequest, res): 
       operator: input.operator.code,
       phone: input.phone,
       order_id: orderId,
-      webhook_url: getDrimPayWebhookUrl(),
+      webhook_url: webhookUrl,
       description: "Paiement de l'accès VIP Muzan",
       expires_in_minutes: 5,
       metadata: { flow: "vip" },
       ...(input.operatorOtp ? { operator_otp: input.operatorOtp } : {}),
-    });
+    }, apiKey);
 
     if (!response.reference || response.order_id !== orderId) {
-      res.status(502).json({ error: "La réponse DrimPay ne correspond pas à cette demande." });
+      logger.error({ flow: "vip", issue: "response_mismatch" }, "DrimPay returned an unmatchable payment response");
+      respondWithPendingPayment(res, "vip", orderId, new Error("DrimPay response mismatch"));
       return;
     }
 
+    pendingReference = response.reference;
     await db.update(vipPaymentsTable)
       .set({ drimpayReference: response.reference, updatedAt: new Date() })
       .where(eq(vipPaymentsTable.id, vipPayment.id));
@@ -377,13 +468,24 @@ router.post("/drimpay/collect-vip", requireAuth, async (req: AuthRequest, res): 
     });
   } catch (error) {
     const drimPayError = error instanceof DrimPayError ? error as DrimPayError : null;
-    if (vipPaymentId && drimPayError && drimPayError.statusCode < 500) {
+    const outcomeUnknown = isPaymentOutcomeUnknown(error, providerRequestStarted);
+    if (vipPaymentId && !outcomeUnknown) {
       await db.update(vipPaymentsTable)
         .set({ status: "failed", updatedAt: new Date() })
         .where(and(eq(vipPaymentsTable.id, vipPaymentId), eq(vipPaymentsTable.status, "pending")))
         .catch(() => undefined);
     }
-    sendPaymentError(res, error);
+    if (outcomeUnknown) {
+      if (vipPaymentId && pendingReference !== orderId) {
+        await db.update(vipPaymentsTable)
+          .set({ drimpayReference: pendingReference, updatedAt: new Date() })
+          .where(eq(vipPaymentsTable.id, vipPaymentId))
+          .catch(() => undefined);
+      }
+      respondWithPendingPayment(res, "vip", orderId, error);
+      return;
+    }
+    sendPaymentError(res, error, "vip");
   }
 });
 
@@ -399,21 +501,30 @@ router.get("/drimpay/status/:reference", requireAuth, async (req: AuthRequest, r
       .from(pendingSpDepositsTable)
       .where(and(
         eq(pendingSpDepositsTable.userId, req.userId!),
-        eq(pendingSpDepositsTable.drimpayReference, reference),
+        or(
+          eq(pendingSpDepositsTable.drimpayReference, reference),
+          eq(pendingSpDepositsTable.externalReference, reference),
+        ),
       ))
       .limit(1);
     const [deposit] = await db.select()
       .from(depositsTable)
       .where(and(
         eq(depositsTable.userId, req.userId!),
-        eq(depositsTable.drimpayReference, reference),
+        or(
+          eq(depositsTable.drimpayReference, reference),
+          eq(depositsTable.referenceId, reference),
+        ),
       ))
       .limit(1);
     const [vipPayment] = await db.select()
       .from(vipPaymentsTable)
       .where(and(
         eq(vipPaymentsTable.userId, req.userId!),
-        eq(vipPaymentsTable.drimpayReference, reference),
+        or(
+          eq(vipPaymentsTable.drimpayReference, reference),
+          eq(vipPaymentsTable.drimpayOrderId, reference),
+        ),
       ))
       .limit(1);
 
@@ -441,16 +552,23 @@ router.get("/drimpay/status/:reference", requireAuth, async (req: AuthRequest, r
       return;
     }
 
+    const storedOrderId = pendingDeposit?.externalReference ?? vipPayment?.drimpayOrderId;
+    const isOrderId = storedOrderId === reference;
+    const providerReference = pendingDeposit?.drimpayReference ?? vipPayment?.drimpayReference ?? reference;
+    if (isOrderId && providerReference === reference) {
+      res.json({ status: "pending", transactionId: reference });
+      return;
+    }
+
     const response = await drimPayRequest<DrimPayTransactionResponse>(
-      `/payin/${encodeURIComponent(reference)}`,
+      `/payin/${encodeURIComponent(providerReference)}`,
       getDrimPayApiKey(),
     );
-    if (response.reference !== reference) {
+    if (response.reference !== providerReference) {
       res.status(502).json({ error: "La réponse DrimPay ne correspond pas à cette demande." });
       return;
     }
 
-    const storedOrderId = pendingDeposit?.externalReference ?? vipPayment?.drimpayOrderId;
     if (storedOrderId && response.order_id !== storedOrderId) {
       res.status(502).json({ error: "La réponse DrimPay ne correspond pas à cette demande." });
       return;
@@ -463,10 +581,18 @@ router.get("/drimpay/status/:reference", requireAuth, async (req: AuthRequest, r
     await settleDrimPayPayment(paymentEvent);
     res.json({
       status: normalizeDrimPayStatus(response.status ?? "pending"),
-      transactionId: reference,
+      transactionId: providerReference,
     });
   } catch (error) {
-    sendPaymentError(res, error);
+    if (isPaymentOutcomeUnknown(error, true)) {
+      logger.debug(
+        { flow: "status_check", ...safePaymentErrorMetadata(error) },
+        "DrimPay status is temporarily unavailable; keeping payment pending",
+      );
+      res.json({ status: "pending", transactionId: reference });
+      return;
+    }
+    sendPaymentError(res, error, "status_check");
   }
 });
 

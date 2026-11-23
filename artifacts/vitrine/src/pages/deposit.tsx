@@ -652,6 +652,7 @@ export default function DepositPage() {
                   <Loader2 className="w-12 h-12 animate-spin text-purple-600 mx-auto" />
                   <p className="text-lg font-bold">Vérification en cours…</p>
                   <p className="text-sm text-gray-500">Nous attendons la confirmation de votre paiement. Cette page se met à jour automatiquement.</p>
+                  <p className="text-sm font-medium text-amber-700">La confirmation du service mobile peut arriver avec un délai. Ne relancez pas le paiement pendant cette vérification.</p>
                 </div>
               </div>
             )}

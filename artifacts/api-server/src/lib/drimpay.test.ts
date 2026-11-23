@@ -4,6 +4,8 @@ import assert from "node:assert/strict";
 import {
   DRIMPAY_COUNTRIES,
   DRIMPAY_LIVE_API_BASE,
+  DrimPayError,
+  drimPayRequest,
   findDrimPayOperator,
   getDrimPayApiKey,
   verifyDrimPayWebhookSignature,
@@ -38,6 +40,34 @@ test("DrimPay accepts only a live server key", (t) => {
 
   process.env.DRIMPAY_API_KEY = "dp_sandbox_sk_unit_test";
   assert.throws(() => getDrimPayApiKey(), /clé live/);
+});
+
+test("DrimPay network failures are marked as an unknown payment outcome", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+  globalThis.fetch = async () => { throw new TypeError("network failure"); };
+
+  await assert.rejects(
+    drimPayRequest("/payin/initiate", "dp_live_sk_unit_test", { method: "POST", body: {} }),
+    (error: unknown) => error instanceof DrimPayError && error.outcomeUnknown,
+  );
+});
+
+test("DrimPay server errors are uncertain while client rejections are definitive", async (t) => {
+  const originalFetch = globalThis.fetch;
+  t.after(() => { globalThis.fetch = originalFetch; });
+
+  globalThis.fetch = async () => new Response("{}", { status: 503 });
+  await assert.rejects(
+    drimPayRequest("/payin/initiate", "dp_live_sk_unit_test", { method: "POST", body: {} }),
+    (error: unknown) => error instanceof DrimPayError && error.outcomeUnknown,
+  );
+
+  globalThis.fetch = async () => new Response('{"message":"rejected"}', { status: 400 });
+  await assert.rejects(
+    drimPayRequest("/payin/initiate", "dp_live_sk_unit_test", { method: "POST", body: {} }),
+    (error: unknown) => error instanceof DrimPayError && !error.outcomeUnknown,
+  );
 });
 
 test("webhook HMAC verifies the raw body and rejects stale or altered requests", () => {
