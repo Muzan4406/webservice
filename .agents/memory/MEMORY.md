@@ -1,2 +1,3 @@
 - [Backend build strategy](backend-build.md) — must use CJS full-bundle (not ESM + external packages) for production
 - [PWA cache policy](pwa-cache-policy.md) — navigation HTML and the service worker must revalidate after deployments
+- [DrimPay uncertain outcomes](drimpay-timeout.md) — a late operator prompt can follow a server timeout; reconcile by order ID/webhook before any new initiation

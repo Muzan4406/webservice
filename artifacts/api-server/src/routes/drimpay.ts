@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Response } from "express";
-import { and, eq, or } from "drizzle-orm";
+import { and, desc, eq, or } from "drizzle-orm";
 import {
   db,
   appSettingsTable,
@@ -200,6 +200,22 @@ router.post("/drimpay/collect", requireAuth, async (req: AuthRequest, res): Prom
       return;
     }
 
+    const [activePendingDeposit] = await db
+      .select()
+      .from(pendingSpDepositsTable)
+      .where(eq(pendingSpDepositsTable.userId, req.userId!))
+      .orderBy(desc(pendingSpDepositsTable.createdAt))
+      .limit(1);
+    if (activePendingDeposit && activePendingDeposit.externalReference !== orderId) {
+      res.json({
+        type: "ussd_push",
+        transactionId: activePendingDeposit.externalReference,
+        status: "pending",
+        confirmationPending: activePendingDeposit.drimpayReference === activePendingDeposit.externalReference,
+      });
+      return;
+    }
+
     let [pending] = await db
       .select()
       .from(pendingSpDepositsTable)
@@ -305,12 +321,7 @@ router.post("/drimpay/collect", requireAuth, async (req: AuthRequest, res): Prom
     });
   } catch (error) {
     const outcomeUnknown = isPaymentOutcomeUnknown(error, providerRequestStarted);
-    if (pendingId && !providerRequestStarted) {
-      await db.delete(pendingSpDepositsTable)
-        .where(eq(pendingSpDepositsTable.id, pendingId))
-        .catch(() => undefined);
-    }
-    if (pendingId && drimPayError && drimPayError.statusCode < 500) {
+    if (pendingId && !outcomeUnknown) {
       await db.delete(pendingSpDepositsTable)
         .where(eq(pendingSpDepositsTable.id, pendingId))
         .catch(() => undefined);
@@ -360,6 +371,26 @@ router.post("/drimpay/collect-vip", requireAuth, async (req: AuthRequest, res): 
   let providerRequestStarted = false;
   let pendingReference = orderId;
   try {
+    const [activeVipPayment] = await db
+      .select()
+      .from(vipPaymentsTable)
+      .where(and(
+        eq(vipPaymentsTable.userId, req.userId!),
+        eq(vipPaymentsTable.status, "pending"),
+      ))
+      .orderBy(desc(vipPaymentsTable.createdAt))
+      .limit(1);
+    const activeVipTransactionId = activeVipPayment?.drimpayOrderId ?? activeVipPayment?.drimpayReference;
+    if (activeVipPayment && activeVipTransactionId && activeVipTransactionId !== orderId) {
+      res.json({
+        type: "ussd_push",
+        transactionId: activeVipTransactionId,
+        status: "pending",
+        confirmationPending: activeVipPayment.drimpayReference === activeVipPayment.drimpayOrderId,
+      });
+      return;
+    }
+
     let [vipPayment] = await db
       .select()
       .from(vipPaymentsTable)
@@ -467,7 +498,6 @@ router.post("/drimpay/collect-vip", requireAuth, async (req: AuthRequest, res): 
       ...(response.expires_at ? { expiresAt: response.expires_at } : {}),
     });
   } catch (error) {
-    const drimPayError = error instanceof DrimPayError ? error as DrimPayError : null;
     const outcomeUnknown = isPaymentOutcomeUnknown(error, providerRequestStarted);
     if (vipPaymentId && !outcomeUnknown) {
       await db.update(vipPaymentsTable)

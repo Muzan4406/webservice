@@ -140,7 +140,9 @@ export default function DepositPage() {
         const data = await apiFetch(`/api/drimpay/status/${encodeURIComponent(intlTransactionId)}`);
         if (data.status === 'success') setIntlStep('done');
         else if (['failed', 'expired', 'cancelled', 'reversed'].includes(data.status)) setIntlStep('failed');
-      } catch { /* ignorer */ }
+      } catch (error: any) {
+        if (error?.status === 404) setIntlStep('failed');
+      }
     }, 5000);
     return () => clearInterval(interval);
   }, [intlTransactionId, intlStep]);

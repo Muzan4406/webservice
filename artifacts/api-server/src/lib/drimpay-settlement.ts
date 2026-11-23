@@ -145,9 +145,8 @@ export async function settleDrimPayPayment(payment: DrimPayPaymentEvent): Promis
   }
 
   if (status === "failed" || status === "expired" || status === "cancelled") {
-    if (pendingDeposit && pendingDeposit.drimpayReference !== reference) {
-      await db.update(pendingSpDepositsTable)
-        .set({ drimpayReference: reference })
+    if (pendingDeposit) {
+      await db.delete(pendingSpDepositsTable)
         .where(eq(pendingSpDepositsTable.id, pendingDeposit.id));
     }
     if (vipPayment?.status === "pending") {
@@ -159,6 +158,10 @@ export async function settleDrimPayPayment(payment: DrimPayPaymentEvent): Promis
   }
 
   if (status === "reversed") {
+    if (pendingDeposit) {
+      await db.delete(pendingSpDepositsTable)
+        .where(eq(pendingSpDepositsTable.id, pendingDeposit.id));
+    }
     const [deposit] = await db
       .select()
       .from(depositsTable)
