@@ -8,6 +8,7 @@ import {
 } from "@workspace/db";
 import { logger } from "./logger.js";
 import { tg } from "./telegram.js";
+import { nextVipExpiration } from "./vip-entitlement.js";
 
 export type DrimPayPaymentEvent = {
   event?: string;
@@ -118,28 +119,48 @@ export async function settleDrimPayPayment(payment: DrimPayPaymentEvent): Promis
     }
 
     if (vipPayment?.status === "pending") {
-      await db.update(vipPaymentsTable)
-        .set({
-          drimpayReference: reference,
-          status: "completed",
-          updatedAt: new Date(),
-        })
-        .where(eq(vipPaymentsTable.id, vipPayment.id));
+      const activatedAt = new Date();
+      let activated = false;
+      await db.transaction(async (tx) => {
+        const [lockedPayment] = await tx
+          .select()
+          .from(vipPaymentsTable)
+          .where(eq(vipPaymentsTable.id, vipPayment.id))
+          .for("update");
+        if (!lockedPayment || lockedPayment.status !== "pending") return;
 
-      await db.update(usersTable)
-        .set({ isVip: true, updatedAt: new Date() })
-        .where(eq(usersTable.id, vipPayment.userId));
+        const [vipUser] = await tx
+          .select({ vipExpiresAt: usersTable.vipExpiresAt })
+          .from(usersTable)
+          .where(eq(usersTable.id, lockedPayment.userId))
+          .for("update");
+        if (!vipUser) throw new Error("VIP payment has no matching user");
 
-      const [vipUser] = await db
-        .select({ username: usersTable.username, userId: usersTable.userId })
-        .from(usersTable)
-        .where(eq(usersTable.id, vipPayment.userId));
-
-      await tg.vipActivated({
-        username: vipUser?.username ?? String(vipPayment.userId),
-        userId: vipUser?.userId ?? String(vipPayment.userId),
-        amount: Number(vipPayment.amount),
+        await tx.update(usersTable)
+          .set({
+            isVip: true,
+            vipExpiresAt: nextVipExpiration(vipUser.vipExpiresAt, activatedAt),
+            updatedAt: activatedAt,
+          })
+          .where(eq(usersTable.id, lockedPayment.userId));
+        await tx.update(vipPaymentsTable)
+          .set({ drimpayReference: reference, status: "completed", updatedAt: activatedAt })
+          .where(eq(vipPaymentsTable.id, lockedPayment.id));
+        activated = true;
       });
+
+      if (activated) {
+        const [vipUser] = await db
+          .select({ username: usersTable.username, userId: usersTable.userId })
+          .from(usersTable)
+          .where(eq(usersTable.id, vipPayment.userId));
+
+        await tg.vipActivated({
+          username: vipUser?.username ?? String(vipPayment.userId),
+          userId: vipUser?.userId ?? String(vipPayment.userId),
+          amount: Number(vipPayment.amount),
+        });
+      }
     }
     return;
   }

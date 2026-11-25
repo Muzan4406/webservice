@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from "express";
 import { db, sessionsTable, usersTable } from "@workspace/db";
 import { eq, and, gt } from "drizzle-orm";
+import { isVipActive } from "../lib/vip-entitlement.js";
 
 export interface AuthRequest extends Request {
   userId?: number;
@@ -42,6 +43,7 @@ export async function requireAuth(
     return;
   }
 
+  user.isVip = isVipActive(user, now);
   req.userId = user.id;
   req.user = user;
   req.isAdmin = user.isAdmin;

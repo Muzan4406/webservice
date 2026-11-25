@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import bcrypt from "bcryptjs";
 import { db, usersTable, depositsTable, withdrawalsTable, paymentConfigTable, appSettingsTable } from "@workspace/db";
-import { eq, ilike, desc, or, isNotNull } from "drizzle-orm";
+import { and, eq, ilike, desc, or, isNotNull, isNull, gt } from "drizzle-orm";
 import {
   GetAdminUsersQueryParams,
   GetAdminDepositsQueryParams,
@@ -11,6 +11,7 @@ import {
   UpdateAppSettingsBody,
 } from "@workspace/api-zod";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
+import { isVipActive, nextVipExpiration } from "../lib/vip-entitlement.js";
 
 const router: IRouter = Router();
 
@@ -23,7 +24,10 @@ router.get("/admin/stats", requireAuth, async (req: AuthRequest, res): Promise<v
 
   const [totalUsers, vipUsers] = await Promise.all([
     db.$count(usersTable),
-    db.$count(usersTable, eq(usersTable.isVip, true)),
+    db.$count(usersTable, and(
+      eq(usersTable.isVip, true),
+      or(isNull(usersTable.vipExpiresAt), gt(usersTable.vipExpiresAt, new Date())),
+    )),
   ]);
 
   const allDeposits = await db.select({ status: depositsTable.status, amount: depositsTable.amount }).from(depositsTable);
@@ -106,7 +110,8 @@ router.get("/admin/users", requireAuth, async (req: AuthRequest, res): Promise<v
       userId: u.userId,
       referralCode: u.referralCode,
       referralCount: referralCounts[u.id] ?? 0,
-      isVip: u.isVip,
+      isVip: isVipActive(u),
+      vipExpiresAt: u.vipExpiresAt ?? null,
       isAdmin: u.isAdmin,
       isBanned: u.isBanned,
       createdAt: u.createdAt,
@@ -137,14 +142,29 @@ router.put("/admin/users/:id", requireAuth, async (req: AuthRequest, res): Promi
     return;
   }
 
-  const updateData: Partial<{ isVip: boolean; isBanned: boolean; isAdmin: boolean; updatedAt: Date }> = {
-    updatedAt: new Date(),
-  };
-  if (parsed.data.isVip !== undefined) updateData.isVip = parsed.data.isVip;
-  if (parsed.data.isBanned !== undefined) updateData.isBanned = parsed.data.isBanned;
-  if (parsed.data.isAdmin !== undefined) updateData.isAdmin = parsed.data.isAdmin;
+  const user = await db.transaction(async (tx) => {
+    const [current] = await tx.select().from(usersTable).where(eq(usersTable.id, id)).for("update");
+    if (!current) return null;
 
-  const [user] = await db.update(usersTable).set(updateData).where(eq(usersTable.id, id)).returning();
+    const updateData: Partial<{
+      isVip: boolean;
+      vipExpiresAt: Date | null;
+      isBanned: boolean;
+      isAdmin: boolean;
+      updatedAt: Date;
+    }> = { updatedAt: new Date() };
+    if (parsed.data.isVip !== undefined) {
+      updateData.isVip = parsed.data.isVip;
+      updateData.vipExpiresAt = parsed.data.isVip
+        ? nextVipExpiration(current.vipExpiresAt, new Date())
+        : null;
+    }
+    if (parsed.data.isBanned !== undefined) updateData.isBanned = parsed.data.isBanned;
+    if (parsed.data.isAdmin !== undefined) updateData.isAdmin = parsed.data.isAdmin;
+
+    const [updated] = await tx.update(usersTable).set(updateData).where(eq(usersTable.id, id)).returning();
+    return updated ?? null;
+  });
 
   if (!user) {
     res.status(404).json({ error: "User not found" });
@@ -169,7 +189,8 @@ router.put("/admin/users/:id", requireAuth, async (req: AuthRequest, res): Promi
     userId: user.userId,
     referralCode: user.referralCode,
     referralCount: referralCounts[user.id] ?? 0,
-    isVip: user.isVip,
+    isVip: isVipActive(user),
+    vipExpiresAt: user.vipExpiresAt ?? null,
     isAdmin: user.isAdmin,
     isBanned: user.isBanned,
     createdAt: user.createdAt,

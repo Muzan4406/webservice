@@ -44538,6 +44538,7 @@ var RegisterResponse = objectType({
     "referralCode": stringType(),
     "referralCount": numberType(),
     "isVip": booleanType(),
+    "vipExpiresAt": coerce.date().nullable(),
     "isAdmin": booleanType(),
     "photoUrl": stringType().nullish(),
     "createdAt": coerce.date()
@@ -44557,6 +44558,7 @@ var LoginResponse = objectType({
     "referralCode": stringType(),
     "referralCount": numberType(),
     "isVip": booleanType(),
+    "vipExpiresAt": coerce.date().nullable(),
     "isAdmin": booleanType(),
     "photoUrl": stringType().nullish(),
     "createdAt": coerce.date()
@@ -44582,6 +44584,7 @@ var GoogleAuthResponse = objectType({
     "referralCode": stringType(),
     "referralCount": numberType(),
     "isVip": booleanType(),
+    "vipExpiresAt": coerce.date().nullable(),
     "isAdmin": booleanType(),
     "photoUrl": stringType().nullish(),
     "createdAt": coerce.date()
@@ -44596,6 +44599,7 @@ var GetProfileResponse = objectType({
   "referralCode": stringType(),
   "referralCount": numberType(),
   "isVip": booleanType(),
+  "vipExpiresAt": coerce.date().nullable(),
   "isAdmin": booleanType(),
   "photoUrl": stringType().nullish(),
   "createdAt": coerce.date()
@@ -44611,6 +44615,7 @@ var UpdateProfileResponse = objectType({
   "referralCode": stringType(),
   "referralCount": numberType(),
   "isVip": booleanType(),
+  "vipExpiresAt": coerce.date().nullable(),
   "isAdmin": booleanType(),
   "photoUrl": stringType().nullish(),
   "createdAt": coerce.date()
@@ -44802,10 +44807,28 @@ var ProcessWithdrawalResponse = objectType({
   "status": enumType(["pending", "processed", "rejected"]),
   "createdAt": coerce.date()
 });
+var RejectWithdrawalParams = objectType({
+  "id": coerce.number()
+});
+var RejectWithdrawalBody = objectType({
+  "reason": stringType()
+});
+var RejectWithdrawalResponse = objectType({
+  "id": numberType(),
+  "userId": numberType(),
+  "username": stringType().optional(),
+  "amount": numberType(),
+  "phone": stringType(),
+  "country": stringType(),
+  "operator": stringType(),
+  "code": stringType().nullish().describe("Withdrawal code obtained by the user from 1xBet"),
+  "status": enumType(["pending", "processed", "rejected"]),
+  "createdAt": coerce.date()
+});
 var GetDailyCouponsResponse = objectType({
   "coupons": arrayType(objectType({
     "id": numberType(),
-    "type": enumType(["daily", "vip", "validated", "montante"]),
+    "type": enumType(["daily", "vip"]),
     "title": stringType(),
     "content": stringType(),
     "imageUrl": stringType().nullish(),
@@ -44817,7 +44840,31 @@ var GetDailyCouponsResponse = objectType({
 var GetVipCouponsResponse = objectType({
   "coupons": arrayType(objectType({
     "id": numberType(),
-    "type": enumType(["daily", "vip", "validated", "montante"]),
+    "type": enumType(["daily", "vip"]),
+    "title": stringType(),
+    "content": stringType(),
+    "imageUrl": stringType().nullish(),
+    "date": coerce.date(),
+    "odds": numberType().nullish(),
+    "createdAt": coerce.date()
+  }))
+});
+var GetValidatedCouponsResponse = objectType({
+  "coupons": arrayType(objectType({
+    "id": numberType(),
+    "type": enumType(["daily", "vip"]),
+    "title": stringType(),
+    "content": stringType(),
+    "imageUrl": stringType().nullish(),
+    "date": coerce.date(),
+    "odds": numberType().nullish(),
+    "createdAt": coerce.date()
+  }))
+});
+var GetMontanteCouponsResponse = objectType({
+  "coupons": arrayType(objectType({
+    "id": numberType(),
+    "type": enumType(["daily", "vip"]),
     "title": stringType(),
     "content": stringType(),
     "imageUrl": stringType().nullish(),
@@ -44832,7 +44879,7 @@ var GetAllCouponsQueryParams = objectType({
 var GetAllCouponsResponse = objectType({
   "coupons": arrayType(objectType({
     "id": numberType(),
-    "type": enumType(["daily", "vip", "validated", "montante"]),
+    "type": enumType(["daily", "vip"]),
     "title": stringType(),
     "content": stringType(),
     "imageUrl": stringType().nullish(),
@@ -44842,7 +44889,7 @@ var GetAllCouponsResponse = objectType({
   }))
 });
 var CreateCouponBody = objectType({
-  "type": enumType(["daily", "vip", "validated", "montante"]),
+  "type": enumType(["daily", "vip"]),
   "title": stringType(),
   "content": stringType().optional(),
   "imageUrl": stringType().optional(),
@@ -44851,7 +44898,7 @@ var CreateCouponBody = objectType({
 });
 var CreateCouponResponse = objectType({
   "id": numberType(),
-  "type": enumType(["daily", "vip", "validated", "montante"]),
+  "type": enumType(["daily", "vip"]),
   "title": stringType(),
   "content": stringType(),
   "imageUrl": stringType().nullish(),
@@ -44863,7 +44910,7 @@ var UpdateCouponParams = objectType({
   "id": coerce.number()
 });
 var UpdateCouponBody = objectType({
-  "type": enumType(["daily", "vip", "validated", "montante"]),
+  "type": enumType(["daily", "vip"]),
   "title": stringType(),
   "content": stringType().optional(),
   "imageUrl": stringType().optional(),
@@ -44872,7 +44919,7 @@ var UpdateCouponBody = objectType({
 });
 var UpdateCouponResponse = objectType({
   "id": numberType(),
-  "type": enumType(["daily", "vip", "validated", "montante"]),
+  "type": enumType(["daily", "vip"]),
   "title": stringType(),
   "content": stringType(),
   "imageUrl": stringType().nullish(),
@@ -45155,6 +45202,7 @@ var GetAdminUsersResponse = objectType({
     "referralCode": stringType(),
     "referralCount": numberType(),
     "isVip": booleanType(),
+    "vipExpiresAt": coerce.date().nullable(),
     "isAdmin": booleanType(),
     "isBanned": booleanType(),
     "createdAt": coerce.date()
@@ -45190,6 +45238,7 @@ var UpdateAdminUserResponse = objectType({
   "referralCode": stringType(),
   "referralCount": numberType(),
   "isVip": booleanType(),
+  "vipExpiresAt": coerce.date().nullable(),
   "isAdmin": booleanType(),
   "isBanned": booleanType(),
   "createdAt": coerce.date()
@@ -65557,6 +65606,7 @@ var usersTable = pgTable("users", {
   referredById: integer("referred_by_id"),
   // FK to users.id (self-referential)
   isVip: boolean("is_vip").notNull().default(false),
+  vipExpiresAt: timestamp("vip_expires_at"),
   isBanned: boolean("is_banned").notNull().default(false),
   isAdmin: boolean("is_admin").notNull().default(false),
   photoUrl: text("photo_url"),
@@ -65840,6 +65890,16 @@ function generateReferralCode(username) {
   return `${username.slice(0, 4).toUpperCase()}${rand}`;
 }
 
+// src/lib/vip-entitlement.ts
+var VIP_DURATION_MS = 30 * 24 * 60 * 60 * 1e3;
+function isVipActive(user, now = /* @__PURE__ */ new Date()) {
+  return user.isVip && (!user.vipExpiresAt || user.vipExpiresAt.getTime() > now.getTime());
+}
+function nextVipExpiration(currentExpiry, activatedAt = /* @__PURE__ */ new Date()) {
+  const startAt = currentExpiry && currentExpiry.getTime() > activatedAt.getTime() ? currentExpiry : activatedAt;
+  return new Date(startAt.getTime() + VIP_DURATION_MS);
+}
+
 // src/middlewares/auth.ts
 async function requireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
@@ -65859,6 +65919,7 @@ async function requireAuth(req, res, next) {
     res.status(401).json({ error: "Account not found or banned" });
     return;
   }
+  user.isVip = isVipActive(user, now);
   req.userId = user.id;
   req.user = user;
   req.isAdmin = user.isAdmin;
@@ -66081,7 +66142,8 @@ function buildUserResponse(user, referralCount = 0) {
     referralCode: user.referralCode,
     referralCount,
     activeReferralCount: 0,
-    isVip: user.isVip,
+    isVip: isVipActive(user),
+    vipExpiresAt: user.vipExpiresAt ?? null,
     isAdmin: user.isAdmin,
     photoUrl: user.photoUrl,
     createdAt: user.createdAt
@@ -66301,6 +66363,7 @@ router3.get("/profile", requireAuth, async (req, res) => {
     referralCount,
     activeReferralCount,
     isVip: user.isVip,
+    vipExpiresAt: user.vipExpiresAt ?? null,
     isAdmin: user.isAdmin,
     photoUrl: user.photoUrl,
     createdAt: user.createdAt
@@ -66325,7 +66388,8 @@ router3.put("/profile", requireAuth, async (req, res) => {
     referralCode: updated.referralCode,
     referralCount,
     activeReferralCount,
-    isVip: updated.isVip,
+    isVip: updated.isVip && (!updated.vipExpiresAt || updated.vipExpiresAt.getTime() > Date.now()),
+    vipExpiresAt: updated.vipExpiresAt ?? null,
     isAdmin: updated.isAdmin,
     photoUrl: updated.photoUrl,
     createdAt: updated.createdAt
@@ -66697,8 +66761,12 @@ router6.post("/coupons", requireAuth, async (req, res) => {
   const today = (/* @__PURE__ */ new Date()).toISOString().split("T")[0];
   const dateStr = date6 instanceof Date ? date6.toISOString().split("T")[0] : date6 ? String(date6) : today;
   const [coupon] = await db.insert(couponsTable).values({ type, title, content: content ?? "", imageUrl, date: dateStr, odds: odds != null ? String(odds) : null }).returning();
-  const usersWithTokens = await db.select({ pushToken: usersTable.pushToken, isVip: usersTable.isVip }).from(usersTable).where(eq(usersTable.isBanned, false));
-  const eligibleTokens = type === "vip" ? usersWithTokens.filter((u) => u.isVip).map((u) => u.pushToken) : usersWithTokens.map((u) => u.pushToken);
+  const usersWithTokens = type === "vip" ? await db.select({ pushToken: usersTable.pushToken }).from(usersTable).where(and(
+    eq(usersTable.isBanned, false),
+    eq(usersTable.isVip, true),
+    or(isNull(usersTable.vipExpiresAt), gt(usersTable.vipExpiresAt, /* @__PURE__ */ new Date()))
+  )) : await db.select({ pushToken: usersTable.pushToken }).from(usersTable).where(eq(usersTable.isBanned, false));
+  const eligibleTokens = usersWithTokens.map((u) => u.pushToken);
   const label = type === "vip" ? "\u2B50 Nouveau coupon VIP disponible !" : "\u{1F3AF} Nouveau coupon du jour disponible !";
   broadcastPushNotification(eligibleTokens, { title: label, body: title, data: { type: "new_coupon", couponType: type } });
   res.status(201).json(formatCoupon(coupon));
@@ -66746,19 +66814,15 @@ var import_express7 = __toESM(require_express2(), 1);
 var router7 = (0, import_express7.Router)();
 router7.post("/vip/purchase", requireAuth, async (req, res) => {
   const user = req.user;
-  if (user.isVip) {
-    res.json({ message: "You are already VIP" });
-    return;
-  }
   let [settings] = await db.select().from(appSettingsTable).limit(1);
   const vipPrice = settings ? parseFloat(settings.vipPriceFcfa) : 5e3;
   notifyAdmins({
     title: "\u2B50 Demande VIP",
-    body: `${user.username} souhaite activer le VIP (${vipPrice.toLocaleString("fr-FR")} FCFA)`,
+    body: `${user.username} souhaite activer ou renouveler le VIP 30 jours (${vipPrice.toLocaleString("fr-FR")} FCFA)`,
     data: { type: "vip_request", userId: String(user.id) }
   });
   res.json({
-    message: `L'acc\xE8s VIP co\xFBte ${vipPrice.toLocaleString("fr-FR")} FCFA. Effectuez le paiement via le moyen configur\xE9 puis attendez la confirmation de l'administrateur.`,
+    message: `L'acc\xE8s VIP co\xFBte ${vipPrice.toLocaleString("fr-FR")} FCFA pour 30 jours. Effectuez le paiement via le moyen configur\xE9 puis attendez la confirmation de l'administrateur.`,
     paymentUrl: null
   });
 });
@@ -66772,24 +66836,34 @@ router7.post("/vip/confirm", requireAuth, async (req, res) => {
     res.status(400).json({ error: parsed.error.message });
     return;
   }
-  const [user] = await db.update(usersTable).set({ isVip: true, updatedAt: /* @__PURE__ */ new Date() }).where(eq(usersTable.id, parsed.data.userId)).returning();
+  const now = /* @__PURE__ */ new Date();
+  const user = await db.transaction(async (tx) => {
+    const [current] = await tx.select({ vipExpiresAt: usersTable.vipExpiresAt }).from(usersTable).where(eq(usersTable.id, parsed.data.userId)).for("update");
+    if (!current) return null;
+    const [updated] = await tx.update(usersTable).set({
+      isVip: true,
+      vipExpiresAt: nextVipExpiration(current.vipExpiresAt, now),
+      updatedAt: now
+    }).where(eq(usersTable.id, parsed.data.userId)).returning();
+    return updated ?? null;
+  });
   if (!user) {
     res.status(404).json({ error: "User not found" });
     return;
   }
   sendPushNotification([user.pushToken], {
     title: "\u2B50 Acc\xE8s VIP activ\xE9 !",
-    body: "F\xE9licitations ! Votre acc\xE8s VIP est maintenant actif. Profitez des coupons exclusifs.",
-    data: { type: "vip_confirmed" }
+    body: "F\xE9licitations ! Votre acc\xE8s VIP est actif pour 30 jours. Profitez des coupons exclusifs.",
+    data: { type: "vip_confirmed", vipExpiresAt: user.vipExpiresAt?.toISOString() }
   });
   db.insert(notificationsTable).values({
     userId: user.id,
     title: "\u2B50 Acc\xE8s VIP activ\xE9 !",
-    message: "F\xE9licitations ! Votre acc\xE8s VIP est maintenant actif. Profitez des coupons exclusifs.",
+    message: "F\xE9licitations ! Votre acc\xE8s VIP est actif pour 30 jours. Profitez des coupons exclusifs.",
     isRead: false
   }).catch(() => {
   });
-  res.json({ success: true, message: `VIP activated for ${user.username}` });
+  res.json({ success: true, message: `VIP activated for ${user.username}`, vipExpiresAt: user.vipExpiresAt });
 });
 var vip_default = router7;
 
@@ -67114,7 +67188,10 @@ router12.get("/admin/stats", requireAuth, async (req, res) => {
   }
   const [totalUsers, vipUsers] = await Promise.all([
     db.$count(usersTable),
-    db.$count(usersTable, eq(usersTable.isVip, true))
+    db.$count(usersTable, and(
+      eq(usersTable.isVip, true),
+      or(isNull(usersTable.vipExpiresAt), gt(usersTable.vipExpiresAt, /* @__PURE__ */ new Date()))
+    ))
   ]);
   const allDeposits = await db.select({ status: depositsTable.status, amount: depositsTable.amount }).from(depositsTable);
   const allWithdrawals = await db.select({ status: withdrawalsTable.status, amount: withdrawalsTable.amount }).from(withdrawalsTable);
@@ -67171,7 +67248,8 @@ router12.get("/admin/users", requireAuth, async (req, res) => {
       userId: u.userId,
       referralCode: u.referralCode,
       referralCount: referralCounts[u.id] ?? 0,
-      isVip: u.isVip,
+      isVip: isVipActive(u),
+      vipExpiresAt: u.vipExpiresAt ?? null,
       isAdmin: u.isAdmin,
       isBanned: u.isBanned,
       createdAt: u.createdAt
@@ -67197,13 +67275,19 @@ router12.put("/admin/users/:id", requireAuth, async (req, res) => {
     res.status(400).json({ error: "Vous ne pouvez pas retirer vos propres droits admin." });
     return;
   }
-  const updateData = {
-    updatedAt: /* @__PURE__ */ new Date()
-  };
-  if (parsed.data.isVip !== void 0) updateData.isVip = parsed.data.isVip;
-  if (parsed.data.isBanned !== void 0) updateData.isBanned = parsed.data.isBanned;
-  if (parsed.data.isAdmin !== void 0) updateData.isAdmin = parsed.data.isAdmin;
-  const [user] = await db.update(usersTable).set(updateData).where(eq(usersTable.id, id)).returning();
+  const user = await db.transaction(async (tx) => {
+    const [current] = await tx.select().from(usersTable).where(eq(usersTable.id, id)).for("update");
+    if (!current) return null;
+    const updateData = { updatedAt: /* @__PURE__ */ new Date() };
+    if (parsed.data.isVip !== void 0) {
+      updateData.isVip = parsed.data.isVip;
+      updateData.vipExpiresAt = parsed.data.isVip ? nextVipExpiration(current.vipExpiresAt, /* @__PURE__ */ new Date()) : null;
+    }
+    if (parsed.data.isBanned !== void 0) updateData.isBanned = parsed.data.isBanned;
+    if (parsed.data.isAdmin !== void 0) updateData.isAdmin = parsed.data.isAdmin;
+    const [updated] = await tx.update(usersTable).set(updateData).where(eq(usersTable.id, id)).returning();
+    return updated ?? null;
+  });
   if (!user) {
     res.status(404).json({ error: "User not found" });
     return;
@@ -67222,7 +67306,8 @@ router12.put("/admin/users/:id", requireAuth, async (req, res) => {
     userId: user.userId,
     referralCode: user.referralCode,
     referralCount: referralCounts[user.id] ?? 0,
-    isVip: user.isVip,
+    isVip: isVipActive(user),
+    vipExpiresAt: user.vipExpiresAt ?? null,
     isAdmin: user.isAdmin,
     isBanned: user.isBanned,
     createdAt: user.createdAt
@@ -67781,18 +67866,29 @@ async function settleDrimPayPayment(payment) {
       await db.delete(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.id, pendingDeposit.id));
     }
     if (vipPayment?.status === "pending") {
-      await db.update(vipPaymentsTable).set({
-        drimpayReference: reference,
-        status: "completed",
-        updatedAt: /* @__PURE__ */ new Date()
-      }).where(eq(vipPaymentsTable.id, vipPayment.id));
-      await db.update(usersTable).set({ isVip: true, updatedAt: /* @__PURE__ */ new Date() }).where(eq(usersTable.id, vipPayment.userId));
-      const [vipUser] = await db.select({ username: usersTable.username, userId: usersTable.userId }).from(usersTable).where(eq(usersTable.id, vipPayment.userId));
-      await tg.vipActivated({
-        username: vipUser?.username ?? String(vipPayment.userId),
-        userId: vipUser?.userId ?? String(vipPayment.userId),
-        amount: Number(vipPayment.amount)
+      const activatedAt = /* @__PURE__ */ new Date();
+      let activated = false;
+      await db.transaction(async (tx) => {
+        const [lockedPayment] = await tx.select().from(vipPaymentsTable).where(eq(vipPaymentsTable.id, vipPayment.id)).for("update");
+        if (!lockedPayment || lockedPayment.status !== "pending") return;
+        const [vipUser] = await tx.select({ vipExpiresAt: usersTable.vipExpiresAt }).from(usersTable).where(eq(usersTable.id, lockedPayment.userId)).for("update");
+        if (!vipUser) throw new Error("VIP payment has no matching user");
+        await tx.update(usersTable).set({
+          isVip: true,
+          vipExpiresAt: nextVipExpiration(vipUser.vipExpiresAt, activatedAt),
+          updatedAt: activatedAt
+        }).where(eq(usersTable.id, lockedPayment.userId));
+        await tx.update(vipPaymentsTable).set({ drimpayReference: reference, status: "completed", updatedAt: activatedAt }).where(eq(vipPaymentsTable.id, lockedPayment.id));
+        activated = true;
       });
+      if (activated) {
+        const [vipUser] = await db.select({ username: usersTable.username, userId: usersTable.userId }).from(usersTable).where(eq(usersTable.id, vipPayment.userId));
+        await tg.vipActivated({
+          username: vipUser?.username ?? String(vipPayment.userId),
+          userId: vipUser?.userId ?? String(vipPayment.userId),
+          amount: Number(vipPayment.amount)
+        });
+      }
     }
     return;
   }
@@ -67837,6 +67933,11 @@ async function settleDrimPayPayment(payment) {
       eq(vipPaymentsTable.status, "pending")
     ));
   }
+}
+
+// src/lib/payment-retry.ts
+function isUnresolvedDrimPayAttempt(providerReference, orderId) {
+  return !providerReference || orderId !== null && orderId !== void 0 && providerReference === orderId;
 }
 
 // src/routes/drimpay.ts
@@ -67903,6 +68004,13 @@ function respondWithPendingPayment(res, flow, orderId, error40) {
     confirmationPending: true
   });
 }
+function respondWithNoChargeConfirmation(res) {
+  res.json({
+    type: "ussd_push",
+    status: "confirmation_required",
+    requiresNoChargeConfirmation: true
+  });
+}
 function sendPaymentError(res, error40, flow) {
   logPaymentFailure(flow, error40);
   if (error40 instanceof DrimPayError) {
@@ -67966,14 +68074,23 @@ router16.post("/drimpay/collect", requireAuth, async (req, res) => {
       res.json({ type: "ussd_push", transactionId: completedDeposit.drimpayReference, status: "success" });
       return;
     }
-    const [activePendingDeposit] = await db.select().from(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.userId, req.userId)).orderBy(desc(pendingSpDepositsTable.createdAt)).limit(1);
-    if (activePendingDeposit && activePendingDeposit.externalReference !== orderId) {
+    const activePendingDeposits = await db.select().from(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.userId, req.userId)).orderBy(desc(pendingSpDepositsTable.createdAt));
+    const referencedPendingDeposit = activePendingDeposits.find(
+      (candidate) => !isUnresolvedDrimPayAttempt(candidate.drimpayReference, candidate.externalReference)
+    );
+    if (referencedPendingDeposit && referencedPendingDeposit.externalReference !== orderId) {
       res.json({
         type: "ussd_push",
-        transactionId: activePendingDeposit.externalReference,
-        status: "pending",
-        confirmationPending: activePendingDeposit.drimpayReference === activePendingDeposit.externalReference
+        transactionId: referencedPendingDeposit.drimpayReference,
+        status: "pending"
       });
+      return;
+    }
+    const unresolvedPendingDeposit = activePendingDeposits.find(
+      (candidate) => isUnresolvedDrimPayAttempt(candidate.drimpayReference, candidate.externalReference)
+    );
+    if (unresolvedPendingDeposit && unresolvedPendingDeposit.externalReference !== orderId && body.confirmedNoCharge !== true) {
+      respondWithNoChargeConfirmation(res);
       return;
     }
     let [pending] = await db.select().from(pendingSpDepositsTable).where(and(
@@ -68005,11 +68122,18 @@ router16.post("/drimpay/collect", requireAuth, async (req, res) => {
     }
     pendingId = pending.id;
     if (!shouldInitiate) {
+      if (isUnresolvedDrimPayAttempt(pending.drimpayReference, orderId)) {
+        if (body.confirmedNoCharge === true) {
+          res.status(409).json({ error: "Confirmez une nouvelle tentative apr\xE8s avoir v\xE9rifi\xE9 qu'aucun d\xE9bit n'a eu lieu." });
+          return;
+        }
+        respondWithNoChargeConfirmation(res);
+        return;
+      }
       res.json({
         type: "ussd_push",
         transactionId: pending.drimpayReference,
-        status: "pending",
-        confirmationPending: pending.drimpayReference === orderId
+        status: "pending"
       });
       return;
     }
@@ -68078,11 +68202,6 @@ router16.post("/drimpay/collect-vip", requireAuth, async (req, res) => {
     res.status(400).json({ error: input.error });
     return;
   }
-  const user = req.user;
-  if (user.isVip) {
-    res.status(400).json({ error: "Vous \xEAtes d\xE9j\xE0 VIP." });
-    return;
-  }
   const [settings] = await db.select().from(appSettingsTable).limit(1);
   const vipPrice = settings ? Number(settings.vipPriceFcfa) : 5e3;
   if (!Number.isSafeInteger(vipPrice) || vipPrice < MIN_AMOUNT || vipPrice > MAX_AMOUNT) {
@@ -68099,18 +68218,28 @@ router16.post("/drimpay/collect-vip", requireAuth, async (req, res) => {
   let providerRequestStarted = false;
   let pendingReference = orderId;
   try {
-    const [activeVipPayment] = await db.select().from(vipPaymentsTable).where(and(
+    const activeVipPayments = await db.select().from(vipPaymentsTable).where(and(
       eq(vipPaymentsTable.userId, req.userId),
       eq(vipPaymentsTable.status, "pending")
-    )).orderBy(desc(vipPaymentsTable.createdAt)).limit(1);
-    const activeVipTransactionId = activeVipPayment?.drimpayOrderId ?? activeVipPayment?.drimpayReference;
-    if (activeVipPayment && activeVipTransactionId && activeVipTransactionId !== orderId) {
+    )).orderBy(desc(vipPaymentsTable.createdAt));
+    const referencedVipPayment = activeVipPayments.find(
+      (candidate) => !isUnresolvedDrimPayAttempt(candidate.drimpayReference, candidate.drimpayOrderId)
+    );
+    const referencedVipOrderId = referencedVipPayment?.drimpayOrderId ?? referencedVipPayment?.drimpayReference;
+    if (referencedVipPayment && referencedVipOrderId !== orderId) {
       res.json({
         type: "ussd_push",
-        transactionId: activeVipTransactionId,
-        status: "pending",
-        confirmationPending: activeVipPayment.drimpayReference === activeVipPayment.drimpayOrderId
+        transactionId: referencedVipPayment.drimpayReference ?? referencedVipOrderId,
+        status: "pending"
       });
+      return;
+    }
+    const unresolvedVipPayment = activeVipPayments.find(
+      (candidate) => isUnresolvedDrimPayAttempt(candidate.drimpayReference, candidate.drimpayOrderId)
+    );
+    const unresolvedVipOrderId = unresolvedVipPayment?.drimpayOrderId ?? unresolvedVipPayment?.drimpayReference;
+    if (unresolvedVipPayment && unresolvedVipOrderId !== orderId && body.confirmedNoCharge !== true) {
+      respondWithNoChargeConfirmation(res);
       return;
     }
     let [vipPayment] = await db.select().from(vipPaymentsTable).where(eq(vipPaymentsTable.drimpayOrderId, orderId)).limit(1);
@@ -68146,11 +68275,22 @@ router16.post("/drimpay/collect-vip", requireAuth, async (req, res) => {
       return;
     }
     if (!shouldInitiate) {
+      const hasProviderReference = !isUnresolvedDrimPayAttempt(
+        vipPayment.drimpayReference,
+        vipPayment.drimpayOrderId
+      );
+      if (!hasProviderReference) {
+        if (body.confirmedNoCharge === true) {
+          res.status(409).json({ error: "Confirmez une nouvelle tentative apr\xE8s avoir v\xE9rifi\xE9 qu'aucun d\xE9bit n'a eu lieu." });
+          return;
+        }
+        respondWithNoChargeConfirmation(res);
+        return;
+      }
       res.json({
         type: "ussd_push",
         transactionId: vipPayment.drimpayReference ?? orderId,
-        status: "pending",
-        confirmationPending: vipPayment.drimpayReference === orderId
+        status: "pending"
       });
       return;
     }

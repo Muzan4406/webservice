@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   useGetAppSettings,
@@ -44,7 +44,7 @@ const VIP_BENEFITS = [
   { icon: '🎧', text: 'Priorité sur le service client' },
 ];
 
-type Step = 'form' | 'wave' | 'waiting' | 'done' | 'failed';
+type Step = 'form' | 'wave' | 'waiting' | 'confirmRetry' | 'done' | 'failed';
 
 export default function VipPurchasePage() {
   const [, setLocation] = useLocation();
@@ -62,9 +62,20 @@ export default function VipPurchasePage() {
   const [transactionId, setTransactionId] = useState('');
   const [waveUrl, setWaveUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [confirmedVipExpiresAt, setConfirmedVipExpiresAt] = useState<string | null>(user?.vipExpiresAt ?? null);
   const requestId = useRef('');
   const activeCountry = countries.find(country => country.code === selectedCountry);
   const activeOperator = activeCountry?.operators.find(operator => operator.code === selectedOperator);
+
+  const refreshVipProfile = useCallback(async () => {
+    try {
+      const fresh = await apiFetch('/api/profile');
+      setConfirmedVipExpiresAt(fresh.vipExpiresAt ?? null);
+      updateUser?.({ isVip: fresh.isVip, vipExpiresAt: fresh.vipExpiresAt ?? null });
+    } catch {
+      updateUser?.({ isVip: true });
+    }
+  }, [updateUser]);
 
   // La liste est limitée aux opérateurs de production publiés par DrimPay.
   useEffect(() => {
@@ -81,7 +92,7 @@ export default function VipPurchasePage() {
       try {
         const data = await apiFetch(`/api/drimpay/status/${encodeURIComponent(transactionId)}`);
         if (data.status === 'success') {
-          if (user && !user.isVip && updateUser) updateUser({ ...user, isVip: true });
+          await refreshVipProfile();
           setStep('done');
         } else if (['failed', 'expired', 'cancelled', 'reversed'].includes(data.status)) {
           setStep('failed');
@@ -89,9 +100,9 @@ export default function VipPurchasePage() {
       } catch { /* ignorer */ }
     }, 5000);
     return () => clearInterval(interval);
-  }, [transactionId, step]);
+  }, [transactionId, step, refreshVipProfile]);
 
-  async function handleContinue() {
+  async function submitPayment(confirmedNoCharge = false) {
     if (!selectedCountry) { toast.error('Sélectionnez votre pays.'); return; }
     if (!selectedOperator) { toast.error('Sélectionnez un opérateur.'); return; }
     if (!payerPhone.trim()) { toast.error('Entrez votre numéro de téléphone.'); return; }
@@ -113,12 +124,15 @@ export default function VipPurchasePage() {
           operator: selectedOperator,
           countryCode: activeCountry.code,
           operatorOtp: otpCode.trim() || undefined,
+          ...(confirmedNoCharge ? { confirmedNoCharge: true } : {}),
         },
       });
       requestId.current = '';
 
-      if (res.status === 'success') {
-        if (user && !user.isVip && updateUser) updateUser({ ...user, isVip: true });
+      if (res.requiresNoChargeConfirmation) {
+        setStep('confirmRetry');
+      } else if (res.status === 'success') {
+        await refreshVipProfile();
         setStep('done');
       } else if (res.type === 'wave') {
         setTransactionId(res.transactionId);
@@ -135,6 +149,16 @@ export default function VipPurchasePage() {
       setSubmitting(false);
     }
   }
+
+  async function handleContinue() {
+    await submitPayment();
+  }
+
+  const returnToPaymentForm = () => {
+    setTransactionId('');
+    setWaveUrl('');
+    setStep('form');
+  };
 
   function reset() {
     setStep('form');
@@ -154,7 +178,7 @@ export default function VipPurchasePage() {
           <button onClick={() => setLocation('/profile')} className="text-white/70 hover:text-white">
             <ArrowLeft className="w-6 h-6" />
           </button>
-          <h1 className="text-2xl font-bold text-white">Devenir VIP</h1>
+          <h1 className="text-2xl font-bold text-white">{user?.isVip ? 'Renouveler le VIP' : 'Devenir VIP'}</h1>
         </div>
         <p className="text-white/60 text-sm">Accédez à des avantages exclusifs</p>
       </div>
@@ -171,7 +195,7 @@ export default function VipPurchasePage() {
                   <Star className="w-7 h-7 text-amber-600 fill-amber-400" />
                 </div>
                 <p className="text-3xl font-bold text-amber-700">{vipPrice.toLocaleString()} XOF</p>
-                <p className="text-sm text-amber-600 mt-1">Paiement unique — accès à vie</p>
+                <p className="text-sm text-amber-600 mt-1">Accès VIP pendant 30 jours, renouvelable</p>
               </CardContent>
             </Card>
 
@@ -267,7 +291,7 @@ export default function VipPurchasePage() {
                   disabled={submitting || !selectedCountry || !selectedOperator || !payerPhone.trim() || (Boolean(activeOperator?.requiresOtp) && !otpCode)}
                 >
                   {submitting ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  Payer {vipPrice.toLocaleString()} {activeCountry?.currency ?? 'XOF'}
+                  {user?.isVip ? 'Renouveler' : 'Activer'} pour {vipPrice.toLocaleString()} {activeCountry?.currency ?? 'XOF'}
                 </Button>
               </CardContent>
             </Card>
@@ -301,6 +325,30 @@ export default function VipPurchasePage() {
                 <p className="text-lg font-bold">Vérification en cours…</p>
                 <p className="text-sm text-muted-foreground">Nous attendons la confirmation de votre paiement. Cette page se met à jour automatiquement.</p>
                 <p className="text-sm font-medium text-amber-700">La confirmation du service mobile peut arriver avec un délai. Ne relancez pas le paiement pendant cette vérification.</p>
+                <Button variant="outline" onClick={returnToPaymentForm} className="w-full">
+                  Je n’ai reçu aucune demande
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Step: confirm a retry after an unresolved old attempt */}
+        {step === 'confirmRetry' && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <Card className="border-amber-200">
+              <CardContent className="p-5 space-y-4">
+                <p className="text-lg font-bold text-amber-900">Vérifiez votre précédent paiement</p>
+                <p className="text-sm text-muted-foreground">
+                  Une ancienne tentative n’a pas reçu de référence DrimPay. Vérifiez le solde et l’historique de votre portefeuille mobile.
+                  Ne relancez pas si un débit est visible ou si une demande de paiement est encore affichée.
+                </p>
+                <Button disabled={submitting} onClick={() => submitPayment(true)} className="w-full">
+                  {submitting ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Vérification…</> : 'Je confirme qu’aucun débit n’a eu lieu'}
+                </Button>
+                <Button variant="outline" onClick={returnToPaymentForm} className="w-full">
+                  Annuler
+                </Button>
               </CardContent>
             </Card>
           </motion.div>
@@ -315,7 +363,11 @@ export default function VipPurchasePage() {
                   <Check className="w-10 h-10 text-green-600" />
                 </div>
                 <p className="text-2xl font-bold text-green-800">Félicitations ! 🎉</p>
-                <p className="text-sm text-green-700">Vous êtes maintenant membre VIP. Profitez de tous vos avantages dès maintenant.</p>
+                <p className="text-sm text-green-700">
+                  Votre accès VIP est actif pour 30 jours
+                  {confirmedVipExpiresAt ? `, jusqu’au ${new Date(confirmedVipExpiresAt).toLocaleDateString('fr-FR')}` : ''}.
+                  Vous pourrez le renouveler avant son expiration.
+                </p>
                 <Button className="bg-green-600 hover:bg-green-700 w-full" onClick={() => setLocation('/')}>
                   Retour à l'accueil
                 </Button>

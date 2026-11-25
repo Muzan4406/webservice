@@ -22,6 +22,7 @@ import {
   normalizeDrimPayStatus,
 } from "../lib/drimpay.js";
 import { settleDrimPayPayment, type DrimPayPaymentEvent } from "../lib/drimpay-settlement.js";
+import { isUnresolvedDrimPayAttempt } from "../lib/payment-retry.js";
 
 const router: IRouter = Router();
 
@@ -116,6 +117,16 @@ function respondWithPendingPayment(res: Response, flow: string, orderId: string,
   });
 }
 
+function respondWithNoChargeConfirmation(res: Response): void {
+  // An order ID is not a DrimPay reference. Keep its row for a late webhook and
+  // require the payer to verify no debit before a fresh order is created.
+  res.json({
+    type: "ussd_push",
+    status: "confirmation_required",
+    requiresNoChargeConfirmation: true,
+  });
+}
+
 function sendPaymentError(res: Response, error: unknown, flow: string): void {
   logPaymentFailure(flow, error);
   if (error instanceof DrimPayError) {
@@ -200,19 +211,31 @@ router.post("/drimpay/collect", requireAuth, async (req: AuthRequest, res): Prom
       return;
     }
 
-    const [activePendingDeposit] = await db
+    const activePendingDeposits = await db
       .select()
       .from(pendingSpDepositsTable)
       .where(eq(pendingSpDepositsTable.userId, req.userId!))
-      .orderBy(desc(pendingSpDepositsTable.createdAt))
-      .limit(1);
-    if (activePendingDeposit && activePendingDeposit.externalReference !== orderId) {
+      .orderBy(desc(pendingSpDepositsTable.createdAt));
+    const referencedPendingDeposit = activePendingDeposits.find((candidate) =>
+      !isUnresolvedDrimPayAttempt(candidate.drimpayReference, candidate.externalReference),
+    );
+    if (referencedPendingDeposit && referencedPendingDeposit.externalReference !== orderId) {
       res.json({
         type: "ussd_push",
-        transactionId: activePendingDeposit.externalReference,
+        transactionId: referencedPendingDeposit.drimpayReference,
         status: "pending",
-        confirmationPending: activePendingDeposit.drimpayReference === activePendingDeposit.externalReference,
       });
+      return;
+    }
+    const unresolvedPendingDeposit = activePendingDeposits.find((candidate) =>
+      isUnresolvedDrimPayAttempt(candidate.drimpayReference, candidate.externalReference),
+    );
+    if (
+      unresolvedPendingDeposit &&
+      unresolvedPendingDeposit.externalReference !== orderId &&
+      body.confirmedNoCharge !== true
+    ) {
+      respondWithNoChargeConfirmation(res);
       return;
     }
 
@@ -263,11 +286,18 @@ router.post("/drimpay/collect", requireAuth, async (req: AuthRequest, res): Prom
     pendingId = pending.id;
 
     if (!shouldInitiate) {
+      if (isUnresolvedDrimPayAttempt(pending.drimpayReference, orderId)) {
+        if (body.confirmedNoCharge === true) {
+          res.status(409).json({ error: "Confirmez une nouvelle tentative après avoir vérifié qu'aucun débit n'a eu lieu." });
+          return;
+        }
+        respondWithNoChargeConfirmation(res);
+        return;
+      }
       res.json({
         type: "ussd_push",
         transactionId: pending.drimpayReference,
         status: "pending",
-        confirmationPending: pending.drimpayReference === orderId,
       });
       return;
     }
@@ -348,12 +378,6 @@ router.post("/drimpay/collect-vip", requireAuth, async (req: AuthRequest, res): 
     return;
   }
 
-  const user = req.user!;
-  if (user.isVip) {
-    res.status(400).json({ error: "Vous êtes déjà VIP." });
-    return;
-  }
-
   const [settings] = await db.select().from(appSettingsTable).limit(1);
   const vipPrice = settings ? Number(settings.vipPriceFcfa) : 5000;
   if (!Number.isSafeInteger(vipPrice) || vipPrice < MIN_AMOUNT || vipPrice > MAX_AMOUNT) {
@@ -371,23 +395,36 @@ router.post("/drimpay/collect-vip", requireAuth, async (req: AuthRequest, res): 
   let providerRequestStarted = false;
   let pendingReference = orderId;
   try {
-    const [activeVipPayment] = await db
+    const activeVipPayments = await db
       .select()
       .from(vipPaymentsTable)
       .where(and(
         eq(vipPaymentsTable.userId, req.userId!),
         eq(vipPaymentsTable.status, "pending"),
       ))
-      .orderBy(desc(vipPaymentsTable.createdAt))
-      .limit(1);
-    const activeVipTransactionId = activeVipPayment?.drimpayOrderId ?? activeVipPayment?.drimpayReference;
-    if (activeVipPayment && activeVipTransactionId && activeVipTransactionId !== orderId) {
+      .orderBy(desc(vipPaymentsTable.createdAt));
+    const referencedVipPayment = activeVipPayments.find((candidate) =>
+      !isUnresolvedDrimPayAttempt(candidate.drimpayReference, candidate.drimpayOrderId),
+    );
+    const referencedVipOrderId = referencedVipPayment?.drimpayOrderId ?? referencedVipPayment?.drimpayReference;
+    if (referencedVipPayment && referencedVipOrderId !== orderId) {
       res.json({
         type: "ussd_push",
-        transactionId: activeVipTransactionId,
+        transactionId: referencedVipPayment.drimpayReference ?? referencedVipOrderId!,
         status: "pending",
-        confirmationPending: activeVipPayment.drimpayReference === activeVipPayment.drimpayOrderId,
       });
+      return;
+    }
+    const unresolvedVipPayment = activeVipPayments.find((candidate) =>
+      isUnresolvedDrimPayAttempt(candidate.drimpayReference, candidate.drimpayOrderId),
+    );
+    const unresolvedVipOrderId = unresolvedVipPayment?.drimpayOrderId ?? unresolvedVipPayment?.drimpayReference;
+    if (
+      unresolvedVipPayment &&
+      unresolvedVipOrderId !== orderId &&
+      body.confirmedNoCharge !== true
+    ) {
+      respondWithNoChargeConfirmation(res);
       return;
     }
 
@@ -440,11 +477,22 @@ router.post("/drimpay/collect-vip", requireAuth, async (req: AuthRequest, res): 
       return;
     }
     if (!shouldInitiate) {
+      const hasProviderReference = !isUnresolvedDrimPayAttempt(
+        vipPayment.drimpayReference,
+        vipPayment.drimpayOrderId,
+      );
+      if (!hasProviderReference) {
+        if (body.confirmedNoCharge === true) {
+          res.status(409).json({ error: "Confirmez une nouvelle tentative après avoir vérifié qu'aucun débit n'a eu lieu." });
+          return;
+        }
+        respondWithNoChargeConfirmation(res);
+        return;
+      }
       res.json({
         type: "ussd_push",
         transactionId: vipPayment.drimpayReference ?? orderId,
         status: "pending",
-        confirmationPending: vipPayment.drimpayReference === orderId,
       });
       return;
     }

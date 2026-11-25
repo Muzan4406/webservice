@@ -11,6 +11,7 @@ export const usersTable = pgTable("users", {
   referralCode: text("referral_code").notNull().unique(),
   referredById: integer("referred_by_id"), // FK to users.id (self-referential)
   isVip: boolean("is_vip").notNull().default(false),
+  vipExpiresAt: timestamp("vip_expires_at"),
   isBanned: boolean("is_banned").notNull().default(false),
   isAdmin: boolean("is_admin").notNull().default(false),
   photoUrl: text("photo_url"),

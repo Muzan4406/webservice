@@ -12,6 +12,14 @@ interface AuthContextType {
   updateUser: (updated: Partial<UserProfile>) => void;
 }
 
+function withEffectiveVipStatus(user: UserProfile): UserProfile {
+  const expiry = user.vipExpiresAt ? new Date(user.vipExpiresAt).getTime() : null;
+  return {
+    ...user,
+    isVip: user.isVip && (expiry === null || expiry > Date.now()),
+  };
+}
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -26,7 +34,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (storedToken && storedUser) {
       setToken(storedToken);
       try {
-        setUser(JSON.parse(storedUser));
+        setUser(withEffectiveVipStatus(JSON.parse(storedUser) as UserProfile));
         // Réabonner au push si la session était déjà active
         setTimeout(() => subscribeToPush(), 2000);
       } catch (e) {
@@ -38,10 +46,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const login = useCallback((newToken: string, newUser: UserProfile) => {
+    const currentUser = withEffectiveVipStatus(newUser);
     setToken(newToken);
-    setUser(newUser);
+    setUser(currentUser);
     localStorage.setItem('muzan_auth_token', newToken);
-    localStorage.setItem('muzan_auth_user', JSON.stringify(newUser));
+    localStorage.setItem('muzan_auth_user', JSON.stringify(currentUser));
     // Abonnement aux notifications push (silencieux si refusé)
     setTimeout(() => subscribeToPush(), 1500);
   }, []);
@@ -56,7 +65,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const updateUser = useCallback((updated: Partial<UserProfile>) => {
     setUser(prev => {
       if (!prev) return prev;
-      const next = { ...prev, ...updated };
+      const next = withEffectiveVipStatus({ ...prev, ...updated });
       localStorage.setItem('muzan_auth_user', JSON.stringify(next));
       return next;
     });

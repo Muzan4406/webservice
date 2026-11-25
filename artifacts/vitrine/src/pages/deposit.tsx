@@ -58,7 +58,7 @@ async function apiFetch(url: string, options?: { method?: string; body?: any }):
 
 type DrimPayOperator = { code: string; label: string; requiresOtp?: boolean; otpInstructions?: string };
 type DrimPayCountry = { code: string; name: string; currency: string; callingCode: string; operators: DrimPayOperator[] };
-type IntlStep = 'form' | 'wave' | 'waiting' | 'done' | 'failed';
+type IntlStep = 'form' | 'wave' | 'waiting' | 'confirmRetry' | 'done' | 'failed';
 
 const TMONEY_USSD = '*145*5*MONTANT*1181879*CODE SECRET#';
 
@@ -201,8 +201,7 @@ export default function DepositPage() {
     );
   };
 
-  const handleInternationalSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const startInternationalPayment = async (confirmedNoCharge = false) => {
     if (!intlOperator) { toast.error('Sélectionnez un opérateur.'); return; }
     if (!intlPhone.trim()) { toast.error('Entrez votre numéro de téléphone.'); return; }
     if (!selectedIntlCountry) { toast.error('Sélectionnez un pays disponible.'); return; }
@@ -222,10 +221,13 @@ export default function DepositPage() {
         countryCode: selectedIntlCountry.code,
         oneXbetAccountId: intlAccountId,
         operatorOtp: intlOtpCode.trim() || undefined,
+        ...(confirmedNoCharge ? { confirmedNoCharge: true } : {}),
       } });
       intlRequestId.current = '';
 
-      if (res.status === 'success') {
+      if (res.requiresNoChargeConfirmation) {
+        setIntlStep('confirmRetry');
+      } else if (res.status === 'success') {
         setIntlStep('done');
       } else if (res.type === 'wave') {
         setIntlTransactionId(res.transactionId);
@@ -241,6 +243,16 @@ export default function DepositPage() {
     } finally {
       setIntlSubmitting(false);
     }
+  };
+
+  const handleInternationalSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    await startInternationalPayment();
+  };
+
+  const returnToInternationalForm = () => {
+    setIntlTransactionId('');
+    setIntlStep('form');
   };
 
   const resetIntl = () => {
@@ -655,6 +667,33 @@ export default function DepositPage() {
                   <p className="text-lg font-bold">Vérification en cours…</p>
                   <p className="text-sm text-gray-500">Nous attendons la confirmation de votre paiement. Cette page se met à jour automatiquement.</p>
                   <p className="text-sm font-medium text-amber-700">La confirmation du service mobile peut arriver avec un délai. Ne relancez pas le paiement pendant cette vérification.</p>
+                  <Button type="button" variant="outline" onClick={returnToInternationalForm} className="w-full">
+                    Je n’ai reçu aucune demande
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Step: confirm a retry after an unresolved old attempt */}
+            {intlStep === 'confirmRetry' && (
+              <div className="bg-white rounded-2xl p-5 shadow-sm border border-amber-200">
+                <div className="space-y-4">
+                  <p className="text-lg font-bold text-amber-900">Vérifiez votre précédent paiement</p>
+                  <p className="text-sm text-gray-700">
+                    Une ancienne tentative n’a pas reçu de référence DrimPay. Vérifiez le solde et l’historique de votre portefeuille mobile.
+                    Ne relancez pas si un débit est visible ou si une demande de paiement est encore affichée.
+                  </p>
+                  <Button
+                    type="button"
+                    disabled={intlSubmitting}
+                    onClick={() => startInternationalPayment(true)}
+                    className="w-full bg-purple-600 hover:bg-purple-700"
+                  >
+                    {intlSubmitting ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Vérification…</> : 'Je confirme qu’aucun débit n’a eu lieu'}
+                  </Button>
+                  <Button type="button" variant="outline" onClick={returnToInternationalForm} className="w-full">
+                    Annuler
+                  </Button>
                 </div>
               </div>
             )}

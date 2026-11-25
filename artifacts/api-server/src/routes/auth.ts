@@ -7,6 +7,7 @@ import { generateToken, generateUserId, generateReferralCode } from "../lib/auth
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { tg } from "../lib/telegram";
 import { sendPushNotification } from "../lib/pushNotifications";
+import { isVipActive } from "../lib/vip-entitlement.js";
 
 const router: IRouter = Router();
 
@@ -28,7 +29,8 @@ function buildUserResponse(user: typeof usersTable.$inferSelect, referralCount =
     referralCode: user.referralCode,
     referralCount,
     activeReferralCount: 0,
-    isVip: user.isVip,
+    isVip: isVipActive(user),
+    vipExpiresAt: user.vipExpiresAt ?? null,
     isAdmin: user.isAdmin,
     photoUrl: user.photoUrl,
     createdAt: user.createdAt,

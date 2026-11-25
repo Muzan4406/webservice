@@ -361,6 +361,31 @@ paths:
               schema:
                 $ref: '#/components/schemas/Withdrawal'
 
+  /withdrawals/{id}/reject:
+    put:
+      operationId: rejectWithdrawal
+      tags: [Withdrawals]
+      summary: Admin reject a withdrawal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RejectRequest'
+      responses:
+        '200':
+          description: Withdrawal rejected
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Withdrawal'
+
   # ─── Coupons ─────────────────────────────────────────────────
   /coupons/daily:
     get:
@@ -394,6 +419,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /coupons/validated:
+    get:
+      operationId: getValidatedCoupons
+      tags: [Coupons]
+      summary: Get validated coupons
+      responses:
+        '200':
+          description: Validated coupons
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CouponListResponse'
+
+  /coupons/montante:
+    get:
+      operationId: getMontanteCoupons
+      tags: [Coupons]
+      summary: Get VIP montante coupons
+      responses:
+        '200':
+          description: VIP montante coupons
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CouponListResponse'
+        '403':
+          description: VIP access required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
   /coupons:
     get:
       operationId: getAllCoupons
@@ -404,7 +461,7 @@ paths:
           in: query
           schema:
             type: string
-            enum: [daily, vip]
+            enum: [daily, vip, validated, montante]
       responses:
         '200':
           description: All coupons
@@ -1212,7 +1269,7 @@ components:
     # ─── User ──────────────────────────────────────────────────
     UserProfile:
       type: object
-      required: [id, username, userId, referralCode, referralCount, isVip, isAdmin, createdAt]
+      required: [id, username, userId, referralCode, referralCount, isVip, vipExpiresAt, isAdmin, createdAt]
       properties:
         id:
           type: integer
@@ -1230,6 +1287,10 @@ components:
           type: integer
         isVip:
           type: boolean
+        vipExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
         isAdmin:
           type: boolean
         photoUrl:
@@ -1247,7 +1308,7 @@ components:
 
     AdminUser:
       type: object
-      required: [id, username, userId, referralCode, referralCount, isVip, isAdmin, isBanned, createdAt]
+      required: [id, username, userId, referralCode, referralCount, isVip, vipExpiresAt, isAdmin, isBanned, createdAt]
       properties:
         id:
           type: integer
@@ -1264,6 +1325,10 @@ components:
           type: integer
         isVip:
           type: boolean
+        vipExpiresAt:
+          type: string
+          format: date-time
+          nullable: true
         isAdmin:
           type: boolean
         isBanned:

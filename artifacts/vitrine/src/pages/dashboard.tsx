@@ -20,11 +20,13 @@ export default function DashboardPage() {
       // Only update if something meaningful changed (avoids infinite loops)
       if (
         fresh.isVip !== user.isVip ||
+        fresh.vipExpiresAt !== user.vipExpiresAt ||
         fresh.username !== user.username ||
         fresh.referralCount !== user.referralCount
       ) {
         updateUser({
           isVip: fresh.isVip,
+          vipExpiresAt: fresh.vipExpiresAt ?? null,
           username: fresh.username,
           referralCount: fresh.referralCount,
         });

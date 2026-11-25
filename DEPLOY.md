@@ -94,6 +94,10 @@ Le dépôt national manuel T-Money/Moov ne dépend pas de ces clés DrimPay.
    pnpm --filter @workspace/db run push
    ```
 
+   Cette version ajoute la colonne nullable `users.vip_expires_at`. Les membres VIP
+   existants restent actifs sans échéance jusqu'à leur prochain paiement; aucune
+   expiration rétroactive n'est appliquée. N'utilisez pas `push-force`.
+
 7. Vérifiez que `artifacts/api-server/uploads` est accessible en écriture par
    l'utilisateur du site, puis cliquez sur **Save** et **Restart App**.
 8. Activez le certificat SSL Let's Encrypt dans **SSL/TLS Certificates** et

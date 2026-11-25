@@ -41,6 +41,7 @@ export default function ProfilePage() {
     if (fresh) {
       updateUser({
         isVip: fresh.isVip,
+        vipExpiresAt: fresh.vipExpiresAt ?? null,
         username: fresh.username,
         referralCount: fresh.referralCount,
       });
@@ -149,6 +150,33 @@ export default function ProfilePage() {
               label="Membre depuis"
               value={format(new Date(user.createdAt), 'd MMMM yyyy', { locale: fr })}
             />
+          </Section>
+
+          <Section label="Accès VIP">
+            <div className="px-5 py-4">
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
+                  <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs text-gray-400">Statut</p>
+                  <p className="font-bold text-gray-900 text-sm">{user.isVip ? 'VIP actif' : 'VIP inactif'}</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {user.isVip
+                      ? user.vipExpiresAt
+                        ? `Valide jusqu’au ${format(new Date(user.vipExpiresAt), 'd MMMM yyyy', { locale: fr })}`
+                        : 'Votre accès actuel reste actif; le prochain paiement définira son échéance.'
+                      : 'L’accès VIP dure 30 jours après confirmation du paiement.'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setLocation('/vip-purchase')}
+                className="mt-4 w-full h-11 rounded-xl bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 transition-colors"
+              >
+                {user.isVip ? 'Renouveler mon VIP' : 'Activer mon VIP'}
+              </button>
+            </div>
           </Section>
 
           {/* Finances */}

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { db, couponsTable, usersTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import { and, eq, desc, gt, isNull, or } from "drizzle-orm";
 import { CreateCouponBody, GetAllCouponsQueryParams, UpdateCouponParams, DeleteCouponParams } from "@workspace/api-zod";
 import { requireAuth, type AuthRequest } from "../middlewares/auth";
 import { broadcastPushNotification } from "../lib/pushNotifications";
@@ -108,13 +108,20 @@ router.post("/coupons", requireAuth, async (req: AuthRequest, res): Promise<void
     .returning();
 
   // Push notification to all users (VIP only for vip coupons)
-  const usersWithTokens = await db
-    .select({ pushToken: usersTable.pushToken, isVip: usersTable.isVip })
-    .from(usersTable)
-    .where(eq(usersTable.isBanned, false));
-  const eligibleTokens = type === 'vip'
-    ? usersWithTokens.filter((u) => u.isVip).map((u) => u.pushToken)
-    : usersWithTokens.map((u) => u.pushToken);
+  const usersWithTokens = type === 'vip'
+    ? await db
+        .select({ pushToken: usersTable.pushToken })
+        .from(usersTable)
+        .where(and(
+          eq(usersTable.isBanned, false),
+          eq(usersTable.isVip, true),
+          or(isNull(usersTable.vipExpiresAt), gt(usersTable.vipExpiresAt, new Date())),
+        ))
+    : await db
+        .select({ pushToken: usersTable.pushToken })
+        .from(usersTable)
+        .where(eq(usersTable.isBanned, false));
+  const eligibleTokens = usersWithTokens.map((u) => u.pushToken);
   const label = type === 'vip' ? '⭐ Nouveau coupon VIP disponible !' : '🎯 Nouveau coupon du jour disponible !';
   broadcastPushNotification(eligibleTokens, { title: label, body: title, data: { type: 'new_coupon', couponType: type } });
 

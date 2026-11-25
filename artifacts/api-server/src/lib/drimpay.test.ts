@@ -10,6 +10,7 @@ import {
   getDrimPayApiKey,
   verifyDrimPayWebhookSignature,
 } from "./drimpay.js";
+import { isUnresolvedDrimPayAttempt } from "./payment-retry.js";
 
 test("DrimPay integration is pinned to the live API", () => {
   assert.equal(DRIMPAY_LIVE_API_BASE, "https://drimpay.com/api/v2");
@@ -26,6 +27,13 @@ test("only documented production country and operator combinations are exposed",
   assert.equal(findDrimPayOperator("SN", "free"), undefined);
   assert.equal(findDrimPayOperator("NE", "airtel"), undefined);
   assert.equal(findDrimPayOperator("CD", "vodacom"), undefined);
+});
+
+test("only attempts without a provider reference require an explicit safe retry", () => {
+  assert.equal(isUnresolvedDrimPayAttempt("dep_1_request-id", "dep_1_request-id"), true);
+  assert.equal(isUnresolvedDrimPayAttempt(null, "vip_1_request-id"), true);
+  assert.equal(isUnresolvedDrimPayAttempt("drimpay-ref-123", "dep_1_request-id"), false);
+  assert.equal(isUnresolvedDrimPayAttempt("drimpay-ref-123", null), false);
 });
 
 test("DrimPay accepts only a live server key", (t) => {

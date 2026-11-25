@@ -110,6 +110,13 @@ export default function AdminUsersPage() {
                       )}
                     </div>
                     <p className="text-xs text-gray-400 mt-0.5">{u.phone ?? u.userId}</p>
+                    {u.isVip && (
+                      <p className="text-[11px] text-amber-600 mt-1">
+                        {u.vipExpiresAt
+                          ? `VIP jusqu’au ${new Date(u.vipExpiresAt).toLocaleDateString('fr-FR')}`
+                          : 'VIP sans échéance enregistrée'}
+                      </p>
+                    )}
                   </div>
                   <p className="text-[11px] text-gray-400 shrink-0">{new Date(u.createdAt).toLocaleDateString('fr-FR')}</p>
                 </div>
