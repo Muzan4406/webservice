@@ -1,4 +1,4 @@
-export const ASHTECHPAY_API_BASE = "https://ashtechpay.com";
+export const ASHTECHPAY_API_BASE = "https://www.ashtechpay.com";
 
 export type AshtechPayOperator = {
   code: string;
@@ -20,12 +20,18 @@ export type AshtechPayTransaction = {
   status?: string;
   amount?: number;
   total_amount?: number;
+  credited_amount?: number;
   currency?: string;
   operator?: string;
   country_code?: string;
   flow?: string;
   wave_url?: string;
   ussd_code?: string | null;
+  provider_fee_amount?: number;
+  ashtech_fee_amount?: number;
+  total_fee_amount?: number;
+  provider_tax_rate?: number;
+  provider_tax_amount?: number;
   error?: string;
   message?: string;
 };
@@ -64,20 +70,18 @@ export function getAshtechPayApiKey(): string {
   if (!apiKey) {
     throw new AshtechPayError("Le service de paiement n'est pas configuré.", 503);
   }
+  if (!apiKey.startsWith("ak_")) {
+    throw new AshtechPayError("Configurez une clé Direct API AshTech Pay commençant par ak_.", 503);
+  }
   return apiKey;
 }
 
-export function getAshtechPayWebhookUrl(): string | undefined {
-  const configuredBase = process.env.WEBHOOK_BASE_URL?.trim();
-  if (!configuredBase) return undefined;
-
-  try {
-    const base = new URL(configuredBase);
-    if (base.protocol !== "https:") throw new Error("HTTPS required");
-    return new URL("/webhooks/ashtechpay", base.origin).toString();
-  } catch {
-    throw new AshtechPayError("WEBHOOK_BASE_URL doit être une adresse HTTPS valide.", 503);
+export function getAshtechPayUserId(): string {
+  const userId = process.env.ASHTECHPAY_USER_ID?.trim();
+  if (!userId) {
+    throw new AshtechPayError("L'identifiant du profil AshTech Pay n'est pas configuré.", 503);
   }
+  return userId;
 }
 
 export function normalizeAshtechPhone(value: unknown, country: AshtechPayCountry): string | null {
@@ -90,6 +94,11 @@ export function normalizeAshtechPhone(value: unknown, country: AshtechPayCountry
     return null;
   }
   return nationalNumber;
+}
+
+export function toAshtechInternationalPhone(value: unknown, country: AshtechPayCountry): string | null {
+  const nationalNumber = normalizeAshtechPhone(value, country);
+  return nationalNumber ? `${country.callingCode}${nationalNumber}` : null;
 }
 
 export function normalizeAshtechCountries(payload: unknown): AshtechPayCountry[] {
@@ -177,6 +186,16 @@ export async function ashtechPayRequest<T>(
     response.status === 401 || response.status === 403 ? 503 : response.status,
     response.status >= 500,
   );
+}
+
+export async function getAshtechPayTransaction(transactionId: string): Promise<AshtechPayTransaction> {
+  const userId = getAshtechPayUserId();
+  const path = `/v1/transaction/${encodeURIComponent(transactionId)}?user_id=${encodeURIComponent(userId)}`;
+  const { data } = await ashtechPayRequest<AshtechPayTransaction>(path);
+  if (data.transaction_id !== transactionId) {
+    throw new AshtechPayError("La réponse AshTech Pay ne correspond pas à la transaction.", 502);
+  }
+  return data;
 }
 
 export function getAshtechPhoneMetadata(countryCode: string): PhoneMetadata | undefined {

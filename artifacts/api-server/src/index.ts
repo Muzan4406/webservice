@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { startAshtechPayReconciliation } from "./lib/ashtechpay-reconciliation.js";
 
 const rawPort = process.env["PORT"] ?? "3000";
 const port = Number(rawPort);
@@ -15,4 +16,5 @@ app.listen(port, (err) => {
   }
 
   logger.info({ port }, "Server listening");
+  startAshtechPayReconciliation();
 });

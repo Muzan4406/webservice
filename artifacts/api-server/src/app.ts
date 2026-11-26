@@ -4,7 +4,6 @@ import pinoHttp from "pino-http";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import router from "./routes";
-import webhookRouter from "./routes/webhooks";
 import { logger } from "./lib/logger";
 import { getDatabaseIssue } from "./lib/database-errors.js";
 import { maintenanceGate } from "./middlewares/maintenance";
@@ -41,8 +40,7 @@ app.use(
 
 // ── CORS ─────────────────────────────────────────────────────────────────────
 // In production the frontend is served by this same Express process, so
-// same-origin requests never hit CORS. The header is only needed for external
-// clients (webhooks, mobile apps). Restrict to ALLOWED_ORIGIN when set.
+// same-origin requests never hit CORS. Restrict external client origins when set.
 const allowedOrigin = process.env.ALLOWED_ORIGIN;
 app.use(
   cors(
@@ -52,7 +50,6 @@ app.use(
   ),
 );
 
-app.use("/webhooks/ashtechpay", express.json({ limit: "1mb" }), webhookRouter);
 app.use(express.json({ limit: '25mb' }));
 app.use(express.urlencoded({ extended: true }));
 

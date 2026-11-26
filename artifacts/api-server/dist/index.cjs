@@ -20813,27 +20813,27 @@ var require_router = __commonJS({
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var methods = METHODS.map((method) => method.toLowerCase());
-    module2.exports = Router20;
+    module2.exports = Router19;
     module2.exports.Route = Route;
-    function Router20(options) {
-      if (!(this instanceof Router20)) {
-        return new Router20(options);
+    function Router19(options) {
+      if (!(this instanceof Router19)) {
+        return new Router19(options);
       }
       const opts = options || {};
-      function router20(req, res, next) {
-        router20.handle(req, res, next);
+      function router19(req, res, next) {
+        router19.handle(req, res, next);
       }
-      Object.setPrototypeOf(router20, this);
-      router20.caseSensitive = opts.caseSensitive;
-      router20.mergeParams = opts.mergeParams;
-      router20.params = {};
-      router20.strict = opts.strict;
-      router20.stack = [];
-      return router20;
+      Object.setPrototypeOf(router19, this);
+      router19.caseSensitive = opts.caseSensitive;
+      router19.mergeParams = opts.mergeParams;
+      router19.params = {};
+      router19.strict = opts.strict;
+      router19.stack = [];
+      return router19;
     }
-    Router20.prototype = function() {
+    Router19.prototype = function() {
     };
-    Router20.prototype.param = function param(name, fn) {
+    Router19.prototype.param = function param(name, fn) {
       if (!name) {
         throw new TypeError("argument name is required");
       }
@@ -20853,7 +20853,7 @@ var require_router = __commonJS({
       params.push(fn);
       return this;
     };
-    Router20.prototype.handle = function handle(req, res, callback) {
+    Router19.prototype.handle = function handle(req, res, callback) {
       if (!callback) {
         throw new TypeError("argument callback is required");
       }
@@ -20980,7 +20980,7 @@ var require_router = __commonJS({
         }
       }
     };
-    Router20.prototype.use = function use(handler) {
+    Router19.prototype.use = function use(handler) {
       let offset = 0;
       let path = "/";
       if (typeof handler !== "function") {
@@ -21013,7 +21013,7 @@ var require_router = __commonJS({
       }
       return this;
     };
-    Router20.prototype.route = function route(path) {
+    Router19.prototype.route = function route(path) {
       const route2 = new Route(path);
       const layer = new Layer(path, {
         sensitive: this.caseSensitive,
@@ -21028,7 +21028,7 @@ var require_router = __commonJS({
       return route2;
     };
     methods.concat("all").forEach(function(method) {
-      Router20.prototype[method] = function(path) {
+      Router19.prototype[method] = function(path) {
         const route = this.route(path);
         route[method].apply(route, slice.call(arguments, 1));
         return this;
@@ -21211,13 +21211,13 @@ var require_application = __commonJS({
     var compileTrust = require_utils3().compileTrust;
     var resolve = require("node:path").resolve;
     var once = require_once();
-    var Router20 = require_router();
+    var Router19 = require_router();
     var slice = Array.prototype.slice;
     var flatten = Array.prototype.flat;
     var app2 = exports2 = module2.exports = {};
     var trustProxyDefaultSymbol = "@@symbol:trust_proxy_default";
     app2.init = function init2() {
-      var router20 = null;
+      var router19 = null;
       this.cache = /* @__PURE__ */ Object.create(null);
       this.engines = /* @__PURE__ */ Object.create(null);
       this.settings = /* @__PURE__ */ Object.create(null);
@@ -21226,13 +21226,13 @@ var require_application = __commonJS({
         configurable: true,
         enumerable: true,
         get: function getrouter() {
-          if (router20 === null) {
-            router20 = new Router20({
+          if (router19 === null) {
+            router19 = new Router19({
               caseSensitive: this.enabled("case sensitive routing"),
               strict: this.enabled("strict routing")
             });
           }
-          return router20;
+          return router19;
         }
       });
     };
@@ -21303,15 +21303,15 @@ var require_application = __commonJS({
       if (fns.length === 0) {
         throw new TypeError("app.use() requires a middleware function");
       }
-      var router20 = this.router;
+      var router19 = this.router;
       fns.forEach(function(fn2) {
         if (!fn2 || !fn2.handle || !fn2.set) {
-          return router20.use(path, fn2);
+          return router19.use(path, fn2);
         }
         debug(".use app under %s", path);
         fn2.mountpath = path;
         fn2.parent = this;
-        router20.use(path, function mounted_app(req, res, next) {
+        router19.use(path, function mounted_app(req, res, next) {
           var orig = req.app;
           fn2.handle(req, res, function(err) {
             Object.setPrototypeOf(req, orig.request);
@@ -23976,7 +23976,7 @@ var require_express = __commonJS({
     var EventEmitter = require("node:events").EventEmitter;
     var mixin = require_merge_descriptors();
     var proto = require_application();
-    var Router20 = require_router();
+    var Router19 = require_router();
     var req = require_request();
     var res = require_response();
     exports2 = module2.exports = createApplication;
@@ -23998,8 +23998,8 @@ var require_express = __commonJS({
     exports2.application = proto;
     exports2.request = req;
     exports2.response = res;
-    exports2.Route = Router20.Route;
-    exports2.Router = Router20;
+    exports2.Route = Router19.Route;
+    exports2.Router = Router19;
     exports2.json = bodyParser.json;
     exports2.raw = bodyParser.raw;
     exports2.static = require_serve_static();
@@ -40619,7 +40619,7 @@ var require_src2 = __commonJS({
 });
 
 // src/app.ts
-var import_express20 = __toESM(require_express2(), 1);
+var import_express19 = __toESM(require_express2(), 1);
 var import_cors = __toESM(require_lib3(), 1);
 var import_pino_http = __toESM(require_logger(), 1);
 var import_node_path3 = require("node:path");
@@ -67747,7 +67747,7 @@ var import_express16 = __toESM(require_express2(), 1);
 var import_node_crypto2 = require("node:crypto");
 
 // src/lib/ashtechpay.ts
-var ASHTECHPAY_API_BASE = "https://ashtechpay.com";
+var ASHTECHPAY_API_BASE = "https://www.ashtechpay.com";
 var PHONE_METADATA = {
   BJ: { callingCode: "229", nationalNumberLength: 8 },
   BF: { callingCode: "226", nationalNumberLength: 8 },
@@ -67773,18 +67773,17 @@ function getAshtechPayApiKey() {
   if (!apiKey) {
     throw new AshtechPayError("Le service de paiement n'est pas configur\xE9.", 503);
   }
+  if (!apiKey.startsWith("ak_")) {
+    throw new AshtechPayError("Configurez une cl\xE9 Direct API AshTech Pay commen\xE7ant par ak_.", 503);
+  }
   return apiKey;
 }
-function getAshtechPayWebhookUrl() {
-  const configuredBase = process.env.WEBHOOK_BASE_URL?.trim();
-  if (!configuredBase) return void 0;
-  try {
-    const base = new URL(configuredBase);
-    if (base.protocol !== "https:") throw new Error("HTTPS required");
-    return new URL("/webhooks/ashtechpay", base.origin).toString();
-  } catch {
-    throw new AshtechPayError("WEBHOOK_BASE_URL doit \xEAtre une adresse HTTPS valide.", 503);
+function getAshtechPayUserId() {
+  const userId = process.env.ASHTECHPAY_USER_ID?.trim();
+  if (!userId) {
+    throw new AshtechPayError("L'identifiant du profil AshTech Pay n'est pas configur\xE9.", 503);
   }
+  return userId;
 }
 function normalizeAshtechPhone(value, country) {
   if (typeof value !== "string") return null;
@@ -67793,6 +67792,10 @@ function normalizeAshtechPhone(value, country) {
     return null;
   }
   return nationalNumber;
+}
+function toAshtechInternationalPhone(value, country) {
+  const nationalNumber = normalizeAshtechPhone(value, country);
+  return nationalNumber ? `${country.callingCode}${nationalNumber}` : null;
 }
 function normalizeAshtechCountries(payload) {
   if (!Array.isArray(payload)) {
@@ -67853,6 +67856,15 @@ async function ashtechPayRequest(path, apiKey = getAshtechPayApiKey(), init2 = {
     response.status === 401 || response.status === 403 ? 503 : response.status,
     response.status >= 500
   );
+}
+async function getAshtechPayTransaction(transactionId) {
+  const userId = getAshtechPayUserId();
+  const path = `/v1/transaction/${encodeURIComponent(transactionId)}?user_id=${encodeURIComponent(userId)}`;
+  const { data } = await ashtechPayRequest(path);
+  if (data.transaction_id !== transactionId) {
+    throw new AshtechPayError("La r\xE9ponse AshTech Pay ne correspond pas \xE0 la transaction.", 502);
+  }
+  return data;
 }
 
 // src/lib/ashtechpay-settlement.ts
@@ -68069,13 +68081,7 @@ function safeWavePaymentUrl(value) {
   }
 }
 async function fetchVerifiedTransaction(transactionId) {
-  const { data } = await ashtechPayRequest(
-    `/v1/transaction/${encodeURIComponent(transactionId)}`
-  );
-  if (data.transaction_id !== transactionId) {
-    throw new AshtechPayError("La r\xE9ponse de paiement ne correspond pas \xE0 la transaction.", 502);
-  }
-  return data;
+  return getAshtechPayTransaction(transactionId);
 }
 async function validatePaymentInput(body) {
   const requestId = typeof body.requestId === "string" && REQUEST_ID_PATTERN.test(body.requestId) ? body.requestId : "";
@@ -68086,7 +68092,7 @@ async function validatePaymentInput(body) {
   if (!country) return { error: "Pays non disponible avec Ashtechpay." };
   const operator = typeof body.operator === "string" ? country.operators.find((item) => item.code === body.operator) : void 0;
   if (!operator) return { error: "Op\xE9rateur non disponible pour ce pays." };
-  const phone = normalizeAshtechPhone(body.phone, country);
+  const phone = toAshtechInternationalPhone(body.phone, country);
   if (!phone) {
     return {
       error: `Entrez les ${country.nationalNumberLength} chiffres du num\xE9ro local, sans +${country.callingCode}.`
@@ -68340,7 +68346,7 @@ async function collectPayment(req, res, flow) {
       return;
     }
     const apiKey = getAshtechPayApiKey();
-    const notifyUrl = getAshtechPayWebhookUrl();
+    const ashtechUserId = getAshtechPayUserId();
     const inFlightReference = uncertainReference(IN_FLIGHT_PREFIX, providerReferenceForAttempt);
     if (flow === "vip" && vipPayment) {
       await db.update(vipPaymentsTable).set({ providerReference: inFlightReference, updatedAt: /* @__PURE__ */ new Date() }).where(eq(vipPaymentsTable.id, vipPayment.id));
@@ -68348,13 +68354,13 @@ async function collectPayment(req, res, flow) {
       await db.update(pendingSpDepositsTable).set({ providerReference: inFlightReference }).where(eq(pendingSpDepositsTable.id, pendingDeposit.id));
     }
     const payload = {
+      user_id: ashtechUserId,
       amount: input.amount,
       currency: input.country.currency,
       phone: input.phone,
       operator: input.operator,
       country_code: input.country.code,
       reference: providerReferenceForAttempt,
-      ...notifyUrl ? { notify_url: notifyUrl } : {},
       ...input.otp ? { otp: input.otp } : {}
     };
     providerRequestStarted = true;
@@ -68584,19 +68590,6 @@ router16.get("/ashtechpay/status/:reference", requireAuth, async (req, res) => {
     sendPaymentError(res, error40, "status_check");
   }
 });
-async function reconcileAshtechPayWebhook(payload) {
-  if (payload.event !== "payment.completed" && payload.event !== "payment.failed") return;
-  if (!payload.transaction_id) throw new Error("Webhook is missing transaction_id");
-  const transaction = await fetchVerifiedTransaction(payload.transaction_id);
-  if (payload.reference && transaction.reference !== payload.reference) {
-    throw new Error("Webhook reference does not match the provider status");
-  }
-  await settleAshtechPayPayment(transaction);
-  logger.info(
-    { event: payload.event, transactionId: payload.transaction_id },
-    "Ashtechpay callback reconciled with the live transaction status"
-  );
-}
 var ashtechpay_default = router16;
 
 // src/routes/chat.ts
@@ -68834,29 +68827,6 @@ router18.use(ashtechpay_default);
 router18.use(chat_default);
 var routes_default = router18;
 
-// src/routes/webhooks.ts
-var import_express19 = __toESM(require_express2(), 1);
-var router19 = (0, import_express19.Router)();
-router19.post("/", (req, res) => {
-  const payload = req.body;
-  if (!payload || typeof payload !== "object" || typeof payload.event !== "string" || typeof payload.transaction_id !== "string") {
-    res.status(400).json({ error: "Corps de notification invalide." });
-    return;
-  }
-  res.status(200).json({ received: true });
-  void reconcileAshtechPayWebhook({
-    event: payload.event,
-    transaction_id: payload.transaction_id,
-    ...typeof payload.reference === "string" ? { reference: payload.reference } : {}
-  }).catch((error40) => {
-    logger.error(
-      { errorType: error40 instanceof Error ? error40.name : typeof error40 },
-      "Ashtechpay callback reconciliation failed"
-    );
-  });
-});
-var webhooks_default = router19;
-
 // src/middlewares/maintenance.ts
 var ALWAYS_ALLOWED_PREFIXES = ["/app-settings", "/healthz", "/auth/login"];
 async function maintenanceGate(req, res, next) {
@@ -68893,7 +68863,7 @@ async function maintenanceGate(req, res, next) {
 // src/app.ts
 var import_meta2 = {};
 var _dirname = typeof __dirname !== "undefined" ? __dirname : (0, import_node_path3.dirname)((0, import_node_url2.fileURLToPath)(import_meta2.url));
-var app = (0, import_express20.default)();
+var app = (0, import_express19.default)();
 app.use(
   (0, import_pino_http.default)({
     logger,
@@ -68920,16 +68890,15 @@ app.use(
     // allow all in dev / when not configured
   )
 );
-app.use("/webhooks/ashtechpay", import_express20.default.json({ limit: "1mb" }), webhooks_default);
-app.use(import_express20.default.json({ limit: "25mb" }));
-app.use(import_express20.default.urlencoded({ extended: true }));
+app.use(import_express19.default.json({ limit: "25mb" }));
+app.use(import_express19.default.urlencoded({ extended: true }));
 var uploadsDir = (0, import_node_path3.join)(_dirname, "../uploads");
-app.use("/api/uploads", import_express20.default.static(uploadsDir));
+app.use("/api/uploads", import_express19.default.static(uploadsDir));
 app.use("/api", maintenanceGate, routes_default);
 if (process.env.NODE_ENV === "production") {
   const frontendDist = (0, import_node_path3.join)(_dirname, "../../vitrine/dist");
   app.use(
-    import_express20.default.static(frontendDist, {
+    import_express19.default.static(frontendDist, {
       setHeaders(res, filePath) {
         if (filePath.endsWith("/index.html") || filePath.endsWith("/manifest.json") || filePath.endsWith("/sw.js")) {
           res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -68954,6 +68923,81 @@ app.use((err, _req, res, _next) => {
 });
 var app_default = app;
 
+// src/lib/ashtechpay-reconciliation.ts
+var RECONCILE_INTERVAL_MS = 6e4;
+var MAX_TRANSACTIONS_PER_CYCLE = 12;
+var MAX_QUEUED_TRANSACTIONS = 100;
+var MIN_RETRY_INTERVAL_MS = 55e3;
+var lastAttemptAt = /* @__PURE__ */ new Map();
+var running = false;
+async function reconcilePendingPayments() {
+  if (running) return;
+  running = true;
+  try {
+    const now = Date.now();
+    for (const [transactionId, attemptedAt] of lastAttemptAt) {
+      if (now - attemptedAt > 10 * RECONCILE_INTERVAL_MS) lastAttemptAt.delete(transactionId);
+    }
+    const [deposits, vipPayments] = await Promise.all([
+      db.select({ transactionId: pendingSpDepositsTable.providerTransactionId }).from(pendingSpDepositsTable).where(and(
+        eq(pendingSpDepositsTable.paymentProvider, "ashtechpay"),
+        isNotNull(pendingSpDepositsTable.providerTransactionId)
+      )).orderBy(asc(pendingSpDepositsTable.createdAt)).limit(MAX_QUEUED_TRANSACTIONS),
+      db.select({ transactionId: vipPaymentsTable.providerTransactionId }).from(vipPaymentsTable).where(and(
+        eq(vipPaymentsTable.paymentProvider, "ashtechpay"),
+        eq(vipPaymentsTable.status, "pending"),
+        isNotNull(vipPaymentsTable.providerTransactionId)
+      )).orderBy(asc(vipPaymentsTable.createdAt)).limit(MAX_QUEUED_TRANSACTIONS)
+    ]);
+    const dueTransactionIds = [...new Set([
+      ...deposits.map(({ transactionId }) => transactionId),
+      ...vipPayments.map(({ transactionId }) => transactionId)
+    ].filter((transactionId) => Boolean(transactionId)))].filter((transactionId) => now - (lastAttemptAt.get(transactionId) ?? 0) >= MIN_RETRY_INTERVAL_MS).slice(0, MAX_TRANSACTIONS_PER_CYCLE);
+    for (let index = 0; index < dueTransactionIds.length; index += 4) {
+      const batch = dueTransactionIds.slice(index, index + 4);
+      await Promise.allSettled(batch.map(async (transactionId) => {
+        lastAttemptAt.set(transactionId, Date.now());
+        try {
+          const payment = await getAshtechPayTransaction(transactionId);
+          await settleAshtechPayPayment(payment);
+        } catch (error40) {
+          logger.warn({
+            errorType: error40 instanceof Error ? error40.name : typeof error40,
+            statusCode: typeof error40 === "object" && error40 && "statusCode" in error40 ? error40.statusCode : void 0
+          }, "Ashtechpay pending payment status check failed");
+        }
+      }));
+    }
+  } catch (error40) {
+    logger.error(
+      { errorType: error40 instanceof Error ? error40.name : typeof error40 },
+      "Ashtechpay background reconciliation failed"
+    );
+  } finally {
+    running = false;
+  }
+}
+function startAshtechPayReconciliation() {
+  if (!process.env.PG_URL) {
+    logger.warn("Ashtechpay background reconciliation is disabled because PG_URL is not set");
+    return;
+  }
+  try {
+    getAshtechPayApiKey();
+    getAshtechPayUserId();
+  } catch (error40) {
+    logger.warn(
+      { errorType: error40 instanceof Error ? error40.name : typeof error40 },
+      "Ashtechpay background reconciliation is disabled until its server configuration is complete"
+    );
+    return;
+  }
+  const timer = setInterval(() => void reconcilePendingPayments(), RECONCILE_INTERVAL_MS);
+  timer.unref();
+  void reconcilePendingPayments();
+  logger.info("Ashtechpay background reconciliation started");
+}
+
 // src/index.ts
 var rawPort = process.env["PORT"] ?? "3000";
 var port = Number(rawPort);
@@ -68966,6 +69010,7 @@ app_default.listen(port, (err) => {
     process.exit(1);
   }
   logger.info({ port }, "Server listening");
+  startAshtechPayReconciliation();
 });
 /*! Bundled license information:
 

@@ -15,10 +15,11 @@ import {
   ashtechPayRequest,
   AshtechPayError,
   getAshtechPayApiKey,
-  getAshtechPayWebhookUrl,
+  getAshtechPayTransaction,
+  getAshtechPayUserId,
   normalizeAshtechCountries,
-  normalizeAshtechPhone,
   normalizeAshtechStatus,
+  toAshtechInternationalPhone,
   type AshtechPayCountry,
   type AshtechPayTransaction,
 } from "../lib/ashtechpay.js";
@@ -114,13 +115,7 @@ function safeWavePaymentUrl(value: unknown): string | null {
 }
 
 async function fetchVerifiedTransaction(transactionId: string): Promise<AshtechPayTransaction> {
-  const { data } = await ashtechPayRequest<AshtechPayTransaction>(
-    `/v1/transaction/${encodeURIComponent(transactionId)}`,
-  );
-  if (data.transaction_id !== transactionId) {
-    throw new AshtechPayError("La réponse de paiement ne correspond pas à la transaction.", 502);
-  }
-  return data;
+  return getAshtechPayTransaction(transactionId);
 }
 
 type PaymentFlow = "international" | "vip";
@@ -152,7 +147,7 @@ async function validatePaymentInput(
   const operator = typeof body.operator === "string" ? country.operators.find((item) => item.code === body.operator) : undefined;
   if (!operator) return { error: "Opérateur non disponible pour ce pays." };
 
-  const phone = normalizeAshtechPhone(body.phone, country);
+  const phone = toAshtechInternationalPhone(body.phone, country);
   if (!phone) {
     return {
       error: `Entrez les ${country.nationalNumberLength} chiffres du numéro local, sans +${country.callingCode}.`,
@@ -476,7 +471,7 @@ async function collectPayment(
     }
 
     const apiKey = getAshtechPayApiKey();
-    const notifyUrl = getAshtechPayWebhookUrl();
+    const ashtechUserId = getAshtechPayUserId();
     const inFlightReference = uncertainReference(IN_FLIGHT_PREFIX, providerReferenceForAttempt);
     if (flow === "vip" && vipPayment) {
       await db.update(vipPaymentsTable)
@@ -488,13 +483,13 @@ async function collectPayment(
         .where(eq(pendingSpDepositsTable.id, pendingDeposit.id));
     }
     const payload: Record<string, unknown> = {
+      user_id: ashtechUserId,
       amount: input.amount,
       currency: input.country.currency,
       phone: input.phone,
       operator: input.operator,
       country_code: input.country.code,
       reference: providerReferenceForAttempt,
-      ...(notifyUrl ? { notify_url: notifyUrl } : {}),
       ...(input.otp ? { otp: input.otp } : {}),
     };
 
@@ -783,25 +778,5 @@ router.get("/ashtechpay/status/:reference", requireAuth, async (req: AuthRequest
     sendPaymentError(res, error, "status_check");
   }
 });
-
-type AshtechPayWebhookPayload = {
-  event?: string;
-  transaction_id?: string;
-  reference?: string;
-};
-
-export async function reconcileAshtechPayWebhook(payload: AshtechPayWebhookPayload): Promise<void> {
-  if (payload.event !== "payment.completed" && payload.event !== "payment.failed") return;
-  if (!payload.transaction_id) throw new Error("Webhook is missing transaction_id");
-  const transaction = await fetchVerifiedTransaction(payload.transaction_id);
-  if (payload.reference && transaction.reference !== payload.reference) {
-    throw new Error("Webhook reference does not match the provider status");
-  }
-  await settleAshtechPayPayment(transaction);
-  logger.info(
-    { event: payload.event, transactionId: payload.transaction_id },
-    "Ashtechpay callback reconciled with the live transaction status",
-  );
-}
 
 export default router;

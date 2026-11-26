@@ -43,8 +43,8 @@ Dans **Node.js → Custom environment variables**, ajoutez :
 |---|---|
 | `NODE_ENV` | `production` |
 | `PG_URL` | URL complète de PostgreSQL |
-| `ASHTECHPAY_API_KEY` | clé API Ashtechpay, utilisée uniquement par le serveur |
-| `WEBHOOK_BASE_URL` | origine publique HTTPS, par exemple `https://muzanservice.com` |
+| `ASHTECHPAY_API_KEY` | clé Direct API AshTech Pay `ak_...`, réservée au serveur |
+| `ASHTECHPAY_USER_ID` | identifiant de profil AshTech Pay associé à cette clé — non secret |
 | `ALLOWED_ORIGIN` | `https://votre-domaine.tld` (optionnel) |
 | `TELEGRAM_BOT_TOKEN` | optionnel |
 | `TELEGRAM_CHAT_ID` | optionnel |
@@ -52,16 +52,17 @@ Dans **Node.js → Custom environment variables**, ajoutez :
 | `VAPID_CONTACT` | optionnel, adresse de contact VAPID (par défaut `mailto:admin@example.com`) |
 | `LOG_LEVEL` | optionnel, niveau de journalisation (par défaut `info`) |
 
-La clé Ashtechpay est réservée au serveur et ne doit jamais être mise dans le
-navigateur, l'interface admin, GitHub ou un fichier `.env` versionné. Aucun
-secret webhook n'est requis. `WEBHOOK_BASE_URL` est une adresse publique non
-secrète; elle permet à Ashtechpay de notifier le site. Chaque notification est
-vérifiée en consultant le statut authentifié de la transaction chez Ashtechpay.
-L'API de production utilisée par le serveur est `https://ashtechpay.com`; ne
-configurez pas l'ancien domaine `.top` et n'utilisez pas de sandbox.
+La clé AshTech Pay `ak_...` est réservée au serveur et ne doit jamais être mise
+dans le navigateur, l'interface admin, GitHub ou un fichier `.env` versionné.
+L'API de production utilisée par le serveur est
+`https://www.ashtechpay.com`; ne configurez pas l'ancien domaine `.top` et
+n'utilisez pas de sandbox. La documentation Direct API exige aussi le
+`user_id` du profil AshTech lié à la clé. Il n'est pas secret et ne peut pas
+être remplacé par l'ID d'un utilisateur Muzan. Pour respecter votre choix de ne
+pas configurer de secret webhook, le serveur vérifie les transactions avec
+`GET /v1/transaction/:id?user_id=...` et réconcilie automatiquement les
+paiements en attente toutes les minutes.
 `PG_URL` doit pointer vers une base PostgreSQL déjà accessible depuis Plesk.
-Avec le domaine `muzanservice.com`, l'adresse complète du callback est
-`https://muzanservice.com/webhooks/ashtechpay`.
 
 Le dépôt national manuel T-Money/Moov ne dépend pas de la clé Ashtechpay.
 
@@ -107,7 +108,7 @@ Le dépôt national manuel T-Money/Moov ne dépend pas de la clé Ashtechpay.
 8. Vérifiez que `artifacts/api-server/uploads` est accessible en écriture par
    l'utilisateur du site, puis cliquez sur **Save** et **Restart App**.
 9. Activez le certificat SSL Let's Encrypt dans **SSL/TLS Certificates** et
-   forcez HTTPS. Utilisez ensuite l'URL HTTPS dans `WEBHOOK_BASE_URL`.
+   forcez HTTPS pour le site.
 
 ## Vérifications
 
@@ -152,7 +153,7 @@ Puis cliquez sur **Restart App** dans Plesk.
 | Page blanche | Vérifier `NODE_ENV=production`, `Document Root` et la présence de `vitrine/dist/index.html` |
 | `PG_URL is not set` | Ajouter `PG_URL` dans les variables Plesk puis redémarrer |
 | API 500 / tables absentes | Vérifier `/api/healthz`, puis exécuter `pnpm --filter @workspace/db run push` après avoir vérifié la base cible |
-| Webhook non reçu | Utiliser HTTPS et définir `WEBHOOK_BASE_URL` sur l'origine publique |
+| Paiement non vérifié | Contrôler la clé Direct API `ak_...`, `ASHTECHPAY_USER_ID`, puis `/api/healthz` et les journaux Node.js |
 
 ---
 
@@ -211,8 +212,8 @@ Dans hPanel → **Node.js** → **Environment Variables**, ajoute :
 | `NODE_ENV` | `production` |
 | `PORT` | `3000` *(Hostinger le gère automatiquement)* |
 | `PG_URL` | URL de ta base PostgreSQL |
-| `ASHTECHPAY_API_KEY` | Clé API Ashtechpay, réservée au serveur |
-| `WEBHOOK_BASE_URL` | `https://tondomaine.com` |
+| `ASHTECHPAY_API_KEY` | Clé Direct API `ak_...`, réservée au serveur |
+| `ASHTECHPAY_USER_ID` | ID non secret du profil AshTech Pay associé à la clé |
 | `TELEGRAM_BOT_TOKEN` | *(optionnel)* |
 | `TELEGRAM_CHAT_ID` | *(optionnel)* |
 
@@ -245,4 +246,4 @@ Clique **Save** puis **Restart**.
 - **Erreur `Cannot find module`** → relance `pnpm install` depuis le SSH
 - **Page blanche** → vérifie que `NODE_ENV=production` est bien défini
 - **API 500** → vérifie `PG_URL` dans les variables d'environnement
-- **Notification de paiement manquante** → vérifier HTTPS et `WEBHOOK_BASE_URL`; le serveur confirme chaque événement avec l'API Ashtechpay.
+- **Paiement non vérifié** → vérifier la clé Direct API et `ASHTECHPAY_USER_ID`; le serveur réinterroge les transactions en attente.
