@@ -11,7 +11,7 @@ import {
 } from "./ashtechpay.js";
 
 test("uses the live Ashtechpay API host and its documented active catalogue", () => {
-  assert.equal(ASHTECHPAY_API_BASE, "https://ashtechpay.top");
+  assert.equal(ASHTECHPAY_API_BASE, "https://ashtechpay.com");
   const countries = normalizeAshtechCountries([
     {
       code: "TG",

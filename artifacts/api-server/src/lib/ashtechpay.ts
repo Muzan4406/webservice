@@ -1,4 +1,4 @@
-export const ASHTECHPAY_API_BASE = "https://ashtechpay.top";
+export const ASHTECHPAY_API_BASE = "https://ashtechpay.com";
 
 export type AshtechPayOperator = {
   code: string;

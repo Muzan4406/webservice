@@ -67747,7 +67747,7 @@ var import_express16 = __toESM(require_express2(), 1);
 var import_node_crypto2 = require("node:crypto");
 
 // src/lib/ashtechpay.ts
-var ASHTECHPAY_API_BASE = "https://ashtechpay.top";
+var ASHTECHPAY_API_BASE = "https://ashtechpay.com";
 var PHONE_METADATA = {
   BJ: { callingCode: "229", nationalNumberLength: 8 },
   BF: { callingCode: "226", nationalNumberLength: 8 },

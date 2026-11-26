@@ -57,6 +57,8 @@ navigateur, l'interface admin, GitHub ou un fichier `.env` versionné. Aucun
 secret webhook n'est requis. `WEBHOOK_BASE_URL` est une adresse publique non
 secrète; elle permet à Ashtechpay de notifier le site. Chaque notification est
 vérifiée en consultant le statut authentifié de la transaction chez Ashtechpay.
+L'API de production utilisée par le serveur est `https://ashtechpay.com`; ne
+configurez pas l'ancien domaine `.top` et n'utilisez pas de sandbox.
 `PG_URL` doit pointer vers une base PostgreSQL déjà accessible depuis Plesk.
 Avec le domaine `muzanservice.com`, l'adresse complète du callback est
 `https://muzanservice.com/webhooks/ashtechpay`.
