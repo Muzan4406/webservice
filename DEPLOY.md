@@ -59,9 +59,12 @@ L'API de production utilisée par le serveur est
 n'utilisez pas de sandbox. La documentation Direct API exige aussi le
 `user_id` du profil AshTech lié à la clé. Il n'est pas secret et ne peut pas
 être remplacé par l'ID d'un utilisateur Muzan. Pour respecter votre choix de ne
-pas configurer de secret webhook, le serveur vérifie les transactions avec
+pas configurer de secret webhook, le serveur n'envoie pas de `notify_url` et
+n'attend pas de callback. Il vérifie les transactions avec
 `GET /v1/transaction/:id?user_id=...` et réconcilie automatiquement les
-paiements en attente toutes les minutes.
+paiements en attente toutes les minutes. Un webhook AshTech nécessiterait bien
+`ASHTECH_WEBHOOK_SECRET` selon la documentation actuelle; il n'est pas utilisé
+dans cette configuration.
 `PG_URL` doit pointer vers une base PostgreSQL déjà accessible depuis Plesk.
 
 Le dépôt national manuel T-Money/Moov ne dépend pas de la clé Ashtechpay.
