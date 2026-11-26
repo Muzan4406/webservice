@@ -111,8 +111,12 @@ curl https://votre-domaine.tld/api/healthz
 ```
 
 La première commande doit retourner une page servie par l'application. La
-seconde doit retourner `{"status":"ok"}`. Consultez
-**Node.js → Logs** dans Plesk si l'application redémarre.
+seconde doit retourner `{"status":"ok"}`. Cette réponse vérifie aussi que
+`users.vip_expires_at` est disponible. Si elle renvoie `503` avec
+`database_not_configured`, configurez `PG_URL`. Si elle renvoie
+`database_schema_outdated`, exécutez la commande de mise à jour du schéma
+ci-dessus, puis redémarrez l'application. Consultez **Node.js → Logs** dans
+Plesk si l'application redémarre.
 
 ## Mise à jour
 

@@ -29,7 +29,7 @@ function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string;
 }
 
 export default function ProfilePage() {
-  const { logout: authLogout, updateUser } = useAuth();
+  const { logout: authLogout, updateUser, user: cachedUser } = useAuth();
   const [, setLocation] = useLocation();
   const profile = useGetProfile();
   const appSettings = useGetAppSettings();
@@ -58,8 +58,11 @@ export default function ProfilePage() {
     });
   };
 
-  const user = profile.data as any;
+  const user = (profile.data ?? cachedUser) as any;
   const settings = appSettings.data as any;
+  const profileErrorMessage = profile.error instanceof Error
+    ? profile.error.message
+    : 'Impossible de récupérer les informations du profil.';
 
   return (
     <div className="min-h-screen bg-[#F4F6FB] pb-24">
@@ -105,6 +108,19 @@ export default function ProfilePage() {
       {/* Content overlaps header */}
       {user && (
         <div className="relative z-10 px-4 -mt-6 space-y-3">
+          {profile.isError && (
+            <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm">
+              <p className="font-semibold">Profil affiché depuis cet appareil</p>
+              <p className="mt-1 text-amber-800">{profileErrorMessage}</p>
+              <button
+                onClick={() => void profile.refetch()}
+                disabled={profile.isFetching}
+                className="mt-3 rounded-lg bg-amber-700 px-3 py-2 font-semibold text-white disabled:opacity-60"
+              >
+                {profile.isFetching ? 'Actualisation...' : 'Réessayer'}
+              </button>
+            </div>
+          )}
 
           {/* Admin shortcut */}
           {user.isAdmin && (
@@ -274,6 +290,19 @@ export default function ProfilePage() {
           >
             <LogOut className="w-4 h-4" />
             {logoutMutation.isPending ? 'Déconnexion...' : 'Se déconnecter'}
+          </button>
+        </div>
+      )}
+      {!user && profile.isError && (
+        <div role="alert" className="relative z-10 mx-4 -mt-6 rounded-2xl border border-red-200 bg-white p-5 shadow-sm">
+          <p className="font-semibold text-gray-900">Le profil ne peut pas être chargé.</p>
+          <p className="mt-1 text-sm text-gray-600">{profileErrorMessage}</p>
+          <button
+            onClick={() => void profile.refetch()}
+            disabled={profile.isFetching}
+            className="mt-4 h-10 rounded-xl bg-[#1a2a5e] px-4 text-sm font-semibold text-white disabled:opacity-60"
+          >
+            {profile.isFetching ? 'Actualisation...' : 'Réessayer'}
           </button>
         </div>
       )}

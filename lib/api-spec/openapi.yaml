@@ -1197,6 +1197,24 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/HealthStatus'
+        '503':
+          description: Database configuration or schema is not ready
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status, reason]
+                properties:
+                  status:
+                    type: string
+                    enum: [unavailable]
+                  reason:
+                    type: string
+                    enum:
+                      - database_not_configured
+                      - database_unavailable
+                      - database_schema_outdated
+                      - database_error
 
 components:
   schemas:

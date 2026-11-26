@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import router from "./routes";
 import webhookRouter from "./routes/webhooks";
 import { logger } from "./lib/logger";
+import { getDatabaseIssue } from "./lib/database-errors.js";
 import { maintenanceGate } from "./middlewares/maintenance";
 
 // Cross-format __dirname: works in both CJS bundles (where __dirname is a
@@ -93,6 +94,12 @@ if (process.env.NODE_ENV === "production") {
 
 // Global error handler — catches any unhandled async errors from route handlers
 app.use((err: Error, _req: Request, res: Response, _next: NextFunction) => {
+  const databaseIssue = getDatabaseIssue(err);
+  if (databaseIssue) {
+    logger.error({ reason: databaseIssue.code }, "Database request failed");
+    res.status(503).json({ error: databaseIssue.message, code: databaseIssue.code });
+    return;
+  }
   logger.error({ err }, "Unhandled error");
   res.status(500).json({ error: "Internal server error" });
 });

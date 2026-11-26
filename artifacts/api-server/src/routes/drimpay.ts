@@ -10,6 +10,7 @@ import {
 } from "@workspace/db";
 import { requireAuth, type AuthRequest } from "../middlewares/auth.js";
 import { logger } from "../lib/logger.js";
+import { getDatabaseIssue } from "../lib/database-errors.js";
 import {
   DRIMPAY_COUNTRIES,
   DrimPayError,
@@ -135,6 +136,11 @@ function sendPaymentError(res: Response, error: unknown, flow: string): void {
     res.status(status).json({ error: status === 503 && drimPayError.statusCode !== 503
       ? "La clé DrimPay est refusée ou indisponible."
       : drimPayError.message });
+    return;
+  }
+  const databaseIssue = getDatabaseIssue(error);
+  if (databaseIssue) {
+    res.status(503).json({ error: databaseIssue.message, code: databaseIssue.code });
     return;
   }
   res.status(500).json({ error: "Impossible de démarrer le paiement pour le moment. Réessayez plus tard." });

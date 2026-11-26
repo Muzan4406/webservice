@@ -602,3 +602,25 @@ export const GetAdminWithdrawalsStatus = {
   rejected: 'rejected',
 } as const;
 
+export type HealthCheck503Status = typeof HealthCheck503Status[keyof typeof HealthCheck503Status];
+
+
+export const HealthCheck503Status = {
+  unavailable: 'unavailable',
+} as const;
+
+export type HealthCheck503Reason = typeof HealthCheck503Reason[keyof typeof HealthCheck503Reason];
+
+
+export const HealthCheck503Reason = {
+  database_not_configured: 'database_not_configured',
+  database_unavailable: 'database_unavailable',
+  database_schema_outdated: 'database_schema_outdated',
+  database_error: 'database_error',
+} as const;
+
+export type HealthCheck503 = {
+  status: HealthCheck503Status;
+  reason: HealthCheck503Reason;
+};
+
