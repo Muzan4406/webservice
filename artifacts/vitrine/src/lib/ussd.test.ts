@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { buildDialableUssdCode } from "./ussd";
+import { buildDialableUssdCode, extractUssdCodeFromInstructions } from "./ussd";
 
 test("builds the T-Money dialer code with the amount and leaves the PIN to the payer", () => {
   assert.equal(
@@ -12,4 +12,11 @@ test("builds the T-Money dialer code with the amount and leaves the PIN to the p
 test("fills a configured Moov USSD template and rejects incomplete templates", () => {
   assert.equal(buildDialableUssdCode("*155*MONTANT*NUMERO#", "500", "90 00 00 00"), "*155*500*90000000#");
   assert.equal(buildDialableUssdCode("*155*MONTANT#", "", null), null);
+});
+
+test("extracts provider USSD instructions and inserts the amount before dialing", () => {
+  const template = extractUssdCodeFromInstructions("Composez *144*4*6*montant# pour recevoir votre OTP.");
+  assert.equal(template, "*144*4*6*montant#");
+  assert.equal(buildDialableUssdCode(template!, "500"), "*144*4*6*500#");
+  assert.equal(extractUssdCodeFromInstructions("Choisissez votre portefeuille dans l'application."), null);
 });

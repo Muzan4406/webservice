@@ -6,12 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/lib/toast';
-import { ArrowLeft, Globe, Smartphone, Info, Wrench, ImagePlus, X, Check, Loader2, PhoneCall } from 'lucide-react';
+import { ArrowLeft, Globe, Smartphone, Info, Wrench, ImagePlus, X, Check, Loader2 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { createPaymentRequestId } from '@/lib/payment-request-id';
 import { normalizeNationalPhoneInput } from '@/lib/national-phone';
-import { buildDialableUssdCode } from '@/lib/ussd';
+import { buildDialableUssdCode, extractUssdCodeFromInstructions } from '@/lib/ussd';
+import { UssdDialButton } from '@/components/UssdDialButton';
 
 async function uploadImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -137,6 +138,10 @@ export default function DepositPage() {
   const intlRequestId = useRef('');
   const selectedIntlCountry = intlCountries.find(country => country.code === intlCountry);
   const selectedIntlOperator = selectedIntlCountry?.operators.find(operator => operator.code === intlOperator);
+  const intlOtpUssdTemplate = extractUssdCodeFromInstructions(selectedIntlOperator?.otpInstructions);
+  const intlOtpDialCode = intlOtpUssdTemplate
+    ? buildDialableUssdCode(intlOtpUssdTemplate, intlAmount)
+    : null;
 
   const createDeposit = useCreateDeposit();
 
@@ -428,13 +433,13 @@ export default function DepositPage() {
                     </p>
                     {nationalOperator === 'tmoney' ? (
                       <div className="bg-white rounded-lg p-3 border border-blue-200">
-                        <code className="text-[#1a3aff] font-bold text-sm break-all">{TMONEY_USSD}</code>
+                        <code className="block break-all font-mono text-base font-bold tracking-wide text-[#1a3aff]">{TMONEY_USSD}</code>
                       </div>
                     ) : (
                       <>
                         {paymentConfig?.moovMoneyUssdCode && (
                           <div className="bg-white rounded-lg p-3 border border-blue-200">
-                            <code className="text-[#1a3aff] font-bold text-sm break-all">
+                            <code className="block break-all font-mono text-base font-bold tracking-wide text-[#1a3aff]">
                               {paymentConfig.moovMoneyUssdCode}
                             </code>
                           </div>
@@ -456,16 +461,17 @@ export default function DepositPage() {
                         )}
                       </>
                     )}
-                    {nationalDialCode && (
-                      <a
-                        href={`tel:${encodeURIComponent(nationalDialCode)}`}
-                        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#1a3aff] px-4 py-3 text-center text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
-                      >
-                        <PhoneCall className="h-4 w-4" />
-                        Ouvrir le composeur téléphonique
-                      </a>
+                    {(nationalOperator === 'tmoney' || Boolean(paymentConfig?.moovMoneyUssdCode)) && (
+                      <>
+                        <UssdDialButton code={nationalDialCode} />
+                        {!nationalDialCode && (
+                          <p className="text-xs text-gray-600">
+                            Saisissez un montant pour activer le bouton et préremplir le code dans le téléphone.
+                          </p>
+                        )}
+                      </>
                     )}
-                    {nationalOperator === 'tmoney' && nationalDialCode && (
+                    {nationalOperator === 'tmoney' && (
                       <p className="text-xs text-gray-600">
                         Ajoutez votre code secret directement dans le composeur. Le site ne le demande ni ne l’enregistre.
                       </p>
@@ -674,6 +680,17 @@ export default function DepositPage() {
                       <p className="text-sm font-medium text-amber-900">
                         {selectedIntlOperator.otpInstructions}
                       </p>
+                      {intlOtpUssdTemplate && (
+                        <div className="space-y-2">
+                          <code className="block break-all rounded-lg border border-amber-200 bg-white p-3 font-mono text-base font-bold tracking-wide text-purple-700">
+                            {intlOtpUssdTemplate}
+                          </code>
+                          <UssdDialButton code={intlOtpDialCode} variant="purple" />
+                          {!intlOtpDialCode && (
+                            <p className="text-xs text-amber-800">Saisissez le montant pour préremplir ce code USSD.</p>
+                          )}
+                        </div>
+                      )}
                       <div className="space-y-2">
                         <Label className="text-gray-700 font-medium">Code OTP Orange Money</Label>
                         <Input

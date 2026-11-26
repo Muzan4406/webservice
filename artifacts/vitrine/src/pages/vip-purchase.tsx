@@ -14,6 +14,8 @@ import {
 import { useLocation } from 'wouter';
 import { createPaymentRequestId } from '@/lib/payment-request-id';
 import { normalizeNationalPhoneInput } from '@/lib/national-phone';
+import { buildDialableUssdCode, extractUssdCodeFromInstructions } from '@/lib/ussd';
+import { UssdDialButton } from '@/components/UssdDialButton';
 
 async function apiFetch(url: string, options?: { method?: string; body?: any }): Promise<any> {
   const token = localStorage.getItem('muzan_auth_token');
@@ -83,6 +85,8 @@ export default function VipPurchasePage() {
   const requestId = useRef('');
   const activeCountry = countries.find(country => country.code === selectedCountry);
   const activeOperator = activeCountry?.operators.find(operator => operator.code === selectedOperator);
+  const otpUssdTemplate = extractUssdCodeFromInstructions(activeOperator?.otpInstructions);
+  const otpDialCode = otpUssdTemplate ? buildDialableUssdCode(otpUssdTemplate, String(vipPrice)) : null;
 
   const refreshVipProfile = useCallback(async () => {
     try {
@@ -334,6 +338,14 @@ export default function VipPurchasePage() {
                 {activeOperator?.requiresOtp && (
                   <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
                     <p className="text-sm text-amber-900">{activeOperator.otpInstructions}</p>
+                    {otpUssdTemplate && (
+                      <div className="space-y-2">
+                        <code className="block break-all rounded-lg border border-amber-200 bg-white p-3 font-mono text-base font-bold tracking-wide text-primary">
+                          {otpUssdTemplate}
+                        </code>
+                        <UssdDialButton code={otpDialCode} />
+                      </div>
+                    )}
                     <div className="space-y-2">
                       <Label>Code OTP Orange Money</Label>
                       <Input
