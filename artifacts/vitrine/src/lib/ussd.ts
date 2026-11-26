@@ -11,3 +11,8 @@ export function buildDialableUssdCode(template: string, amount: string, recipien
   code = code.replace(/\*?\s*(?:CODE\s+SECRET|PIN)\s*#?/gi, '*').replace(/\s+/g, '');
   return /^[*#][*#\d]*$/.test(code) ? code : null;
 }
+
+export function extractUssdCodeFromInstructions(instructions: string | undefined): string | null {
+  if (!instructions) return null;
+  return instructions.match(/(?:\*|#)[\d*#]+(?:montant)?#?/i)?.[0] ?? null;
+}
