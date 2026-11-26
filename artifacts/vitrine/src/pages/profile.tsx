@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { BottomNav } from '@/components/BottomNav';
 import {
   Star, ChevronRight, MessageCircle, Send, History, Users,
-  LogOut, Calendar, AtSign, Smartphone, Shield, Phone,
+  LogOut, Calendar, AtSign, Smartphone, Shield, Phone, UserRound,
 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { toast } from '@/lib/toast';
@@ -16,13 +16,13 @@ const BASE_URL = import.meta.env.BASE_URL;
 
 function InfoRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-3 px-5 py-4">
-      <div className="w-9 h-9 rounded-xl bg-[#1a2a5e]/8 flex items-center justify-center shrink-0">
+    <div className="flex min-h-[72px] items-center gap-3.5 px-4 py-3 sm:px-5">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#eef1fa] text-[#1a2a5e]">
         {icon}
       </div>
       <div className="min-w-0">
-        <p className="text-xs text-gray-400">{label}</p>
-        <p className="font-bold text-gray-900 text-sm truncate">{value}</p>
+        <p className="text-xs font-medium text-slate-500">{label}</p>
+        <p className="truncate text-sm font-semibold text-slate-900">{value}</p>
       </div>
     </div>
   );
@@ -35,7 +35,7 @@ export default function ProfilePage() {
   const appSettings = useGetAppSettings();
   const logoutMutation = useLogout();
 
-  // Sync fresh profile data back into AuthContext so other pages (dashboard) reflect VIP status immediately
+  // Sync fresh profile data back into AuthContext so other pages reflect VIP status immediately.
   useEffect(() => {
     const fresh = profile.data as any;
     if (fresh) {
@@ -65,119 +65,102 @@ export default function ProfilePage() {
     : 'Impossible de récupérer les informations du profil.';
 
   return (
-    <div className="min-h-screen bg-[#F4F6FB] pb-24">
-
-      {/* Hero header */}
-      <div className="bg-gradient-to-br from-[#1a2a5e] to-[#0f1a3e] px-5 pt-14 pb-16 relative overflow-hidden">
-        <div className="absolute -top-10 -right-10 w-48 h-48 rounded-full bg-white/5 pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-32 h-32 rounded-full bg-white/5 pointer-events-none" />
-
-        {profile.isLoading ? (
-          <div className="flex justify-center py-4">
-            <div className="w-8 h-8 rounded-full border-2 border-white/20 border-t-white animate-spin" />
+    <div className="min-h-[100dvh] bg-[#f3f5fa] pb-24">
+      <header className="relative overflow-hidden bg-gradient-to-br from-[#1a2a5e] via-[#19285a] to-[#111c42] px-4 pb-14 pt-10 text-white sm:px-8 sm:pb-[4.5rem] sm:pt-12">
+        <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full border border-white/[0.08]" />
+        <div aria-hidden="true" className="pointer-events-none absolute -right-4 -top-12 h-48 w-48 rounded-full border border-white/[0.08]" />
+        <div className="relative mx-auto max-w-5xl">
+          <div className="mb-5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-[0.18em] text-white/50">
+            <UserRound className="h-3.5 w-3.5" /> Mon compte
           </div>
-        ) : user ? (
-          <div className="flex items-center gap-4 relative z-10">
-            <div className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-white/20 shrink-0">
-              <img
-                src={user.photoUrl || `${BASE_URL}logo.png`}
-                alt={user.username}
-                className="w-full h-full object-cover"
-              />
-            </div>
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 flex-wrap">
-                <span className="text-lg font-bold text-white truncate">{user.username}</span>
-                {user.isVip && (
-                  <motion.span
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className="inline-flex items-center gap-1 bg-gradient-to-r from-[#FFD700] to-[#FFA500] text-black text-[11px] font-extrabold px-2.5 py-0.5 rounded-full shadow-md"
-                  >
-                    <Star className="w-3 h-3 fill-current" /> VIP
-                  </motion.span>
-                )}
+          {profile.isLoading ? (
+            <div className="flex items-center gap-4" aria-label="Chargement du profil">
+              <div className="h-16 w-16 animate-pulse rounded-2xl bg-white/15" />
+              <div className="space-y-2">
+                <div className="h-5 w-36 animate-pulse rounded bg-white/15" />
+                <div className="h-3 w-24 animate-pulse rounded bg-white/10" />
               </div>
-              <p className="text-white/50 text-xs mt-0.5">ID: {user.userId}</p>
-              <p className="text-white/40 text-xs">{user.country}</p>
             </div>
-          </div>
-        ) : null}
-      </div>
+          ) : user ? (
+            <div className="flex items-center gap-4">
+              <div className="h-[68px] w-[68px] shrink-0 overflow-hidden rounded-2xl border border-white/25 bg-white/10 shadow-lg">
+                <img src={user.photoUrl || `${BASE_URL}logo.png`} alt={user.username} className="h-full w-full object-cover" />
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="max-w-full truncate text-xl font-extrabold tracking-tight sm:text-2xl">{user.username}</h1>
+                  {user.isVip && (
+                    <motion.span
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className="inline-flex items-center gap-1 rounded-full bg-[#f4c64e] px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wide text-[#3c2e0b]"
+                    >
+                      <Star className="h-3 w-3 fill-current" /> VIP
+                    </motion.span>
+                  )}
+                </div>
+                <p className="mt-1 text-xs font-medium tracking-wide text-white/60">ID : {user.userId}</p>
+              </div>
+            </div>
+          ) : (
+            <div>
+              <h1 className="text-2xl font-extrabold">Mon compte</h1>
+              <p className="mt-1 text-sm text-white/60">Vos informations personnelles</p>
+            </div>
+          )}
+        </div>
+      </header>
 
-      {/* Content overlaps header */}
       {user && (
-        <div className="relative z-10 px-4 -mt-6 space-y-3">
+        <main className="relative z-10 mx-auto -mt-6 max-w-5xl space-y-5 px-4 sm:px-8">
           {profile.isError && (
-            <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 shadow-sm">
-              <p className="font-semibold">Profil affiché depuis cet appareil</p>
-              <p className="mt-1 text-amber-800">{profileErrorMessage}</p>
+            <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 shadow-sm">
+              <p className="font-bold">Profil affiché depuis cet appareil</p>
+              <p className="mt-1 text-amber-900/80">{profileErrorMessage}</p>
               <button
                 onClick={() => void profile.refetch()}
                 disabled={profile.isFetching}
-                className="mt-3 rounded-lg bg-amber-700 px-3 py-2 font-semibold text-white disabled:opacity-60"
+                className="mt-3 min-h-10 rounded-xl bg-amber-800 px-4 text-sm font-bold text-white transition hover:bg-amber-900 disabled:opacity-60"
               >
                 {profile.isFetching ? 'Actualisation...' : 'Réessayer'}
               </button>
             </div>
           )}
 
-          {/* Admin shortcut */}
           {user.isAdmin && (
             <button
               onClick={() => setLocation('/admin')}
-              className="w-full bg-[#1a2a5e] rounded-2xl p-4 flex items-center gap-3 shadow-md text-left active:scale-[0.99] transition-transform"
+              className="flex min-h-[76px] w-full items-center gap-3 rounded-2xl bg-[#1a2a5e] p-4 text-left shadow-md transition hover:bg-[#22366f] active:scale-[0.995]"
             >
-              <div className="w-10 h-10 rounded-xl bg-white/15 flex items-center justify-center shrink-0">
-                <Shield className="w-5 h-5 text-white" />
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-white text-sm">Administration</p>
-                <p className="text-white/55 text-xs">Gérer dépôts, retraits & concours</p>
-              </div>
-              <ChevronRight className="w-4 h-4 text-white/40 shrink-0" />
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-white/10"><Shield className="h-5 w-5 text-white" /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-bold text-white">Administration</span>
+                <span className="mt-0.5 block text-xs text-white/60">Gérer dépôts, retraits & concours</span>
+              </span>
+              <ChevronRight className="h-4 w-4 shrink-0 text-white/50" />
             </button>
           )}
 
-          {/* Informations */}
           <Section label="Informations">
-            {user.phone && (
-              <InfoRow
-                icon={<Phone className="w-4 h-4 text-[#1a2a5e]" />}
-                label="Téléphone"
-                value={user.phone}
-              />
-            )}
+            {user.phone && <InfoRow icon={<Phone className="h-4 w-4" />} label="Téléphone" value={user.phone} />}
             <Divider />
-            <InfoRow
-              icon={<AtSign className="w-4 h-4 text-[#1a2a5e]" />}
-              label="Nom d'utilisateur"
-              value={user.username}
-            />
+            <InfoRow icon={<AtSign className="h-4 w-4" />} label="Nom d'utilisateur" value={user.username} />
             <Divider />
-            <InfoRow
-              icon={<Smartphone className="w-4 h-4 text-[#1a2a5e]" />}
-              label="ID utilisateur"
-              value={user.userId}
-            />
+            <InfoRow icon={<Smartphone className="h-4 w-4" />} label="ID utilisateur" value={user.userId} />
             <Divider />
-            <InfoRow
-              icon={<Calendar className="w-4 h-4 text-[#1a2a5e]" />}
-              label="Membre depuis"
-              value={format(new Date(user.createdAt), 'd MMMM yyyy', { locale: fr })}
-            />
+            <InfoRow icon={<Calendar className="h-4 w-4" />} label="Membre depuis" value={format(new Date(user.createdAt), 'd MMMM yyyy', { locale: fr })} />
           </Section>
 
           <Section label="Accès VIP">
-            <div className="px-5 py-4">
-              <div className="flex items-start gap-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-50 flex items-center justify-center shrink-0">
-                  <Star className="w-4 h-4 text-amber-500 fill-amber-400" />
+            <div className="p-4 sm:p-5">
+              <div className="flex items-start gap-3.5">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#fff6df] text-amber-600">
+                  <Star className="h-4 w-4 fill-amber-400" />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs text-gray-400">Statut</p>
-                  <p className="font-bold text-gray-900 text-sm">{user.isVip ? 'VIP actif' : 'VIP inactif'}</p>
-                  <p className="text-xs text-gray-500 mt-1">
+                <div className="min-w-0 flex-1 pt-0.5">
+                  <p className="text-xs font-medium text-slate-500">Statut</p>
+                  <p className="mt-0.5 text-sm font-bold text-slate-900">{user.isVip ? 'VIP actif' : 'VIP inactif'}</p>
+                  <p className="mt-1.5 text-xs leading-relaxed text-slate-600">
                     {user.isVip
                       ? user.vipExpiresAt
                         ? `Valide jusqu’au ${format(new Date(user.vipExpiresAt), 'd MMMM yyyy', { locale: fr })}`
@@ -188,120 +171,51 @@ export default function ProfilePage() {
               </div>
               <button
                 onClick={() => setLocation('/vip-purchase')}
-                className="mt-4 w-full h-11 rounded-xl bg-amber-500 text-white text-sm font-bold hover:bg-amber-600 transition-colors"
+                className="mt-4 min-h-12 w-full rounded-xl bg-[#e8ae32] px-4 text-sm font-extrabold text-[#332607] transition hover:bg-[#dda127] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-amber-500 focus-visible:ring-offset-2"
               >
                 {user.isVip ? 'Renouveler mon VIP' : 'Activer mon VIP'}
               </button>
             </div>
           </Section>
 
-          {/* Finances */}
           <Section label="Finances">
-            <NavRow
-              icon={<History className="w-4 h-4 text-green-600" />}
-              iconBg="bg-green-50"
-              label="Historique des transactions"
-              onClick={() => setLocation('/transactions')}
-            />
+            <NavRow icon={<History className="h-4 w-4" />} iconBg="bg-emerald-50 text-emerald-700" label="Historique des transactions" onClick={() => setLocation('/transactions')} />
           </Section>
 
-          {/* Parrainage */}
           <Section label="Parrainage">
             <NavRow
-              icon={<Users className="w-4 h-4 text-green-600" />}
-              iconBg="bg-green-50"
-              label={
-                <span className="flex flex-col">
-                  <span className="text-xs text-gray-400 font-normal">Mon code</span>
-                  <span className="text-green-600 font-bold tracking-wider">{user.referralCode}</span>
-                </span>
-              }
+              icon={<Users className="h-4 w-4" />}
+              iconBg="bg-emerald-50 text-emerald-700"
+              label={<span className="flex flex-col gap-0.5"><span className="text-xs font-medium text-slate-500">Mon code</span><span className="font-bold tracking-wider text-emerald-700">{user.referralCode}</span></span>}
               onClick={() => setLocation('/referral')}
             />
           </Section>
 
-          {/* Support */}
           {(settings?.whatsappChannelUrl || settings?.whatsappSupport1Url || settings?.whatsappSupport2Url || settings?.telegramSupportUrl) && (
             <Section label="Support">
-              {settings?.whatsappChannelUrl && (
-                <a href={settings.whatsappChannelUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
-                      <MessageCircle className="w-4 h-4 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-800 text-sm">Chaîne WhatsApp</p>
-                      <p className="text-xs text-gray-400">Suivre nos annonces</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-300" />
-                </a>
-              )}
-              {settings?.whatsappSupport1Url && <><Divider />
-                <a href={settings.whatsappSupport1Url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
-                      <MessageCircle className="w-4 h-4 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-800 text-sm">WhatsApp Support 1</p>
-                      <p className="text-xs text-gray-400">Contacter un conseiller</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-300" />
-                </a>
-              </>}
-              {settings?.whatsappSupport2Url && <><Divider />
-                <a href={settings.whatsappSupport2Url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-green-50 flex items-center justify-center shrink-0">
-                      <MessageCircle className="w-4 h-4 text-green-600" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-800 text-sm">WhatsApp Support 2</p>
-                      <p className="text-xs text-gray-400">Contacter un conseiller</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-300" />
-                </a>
-              </>}
-              {settings?.telegramSupportUrl && <><Divider />
-                <a href={settings.telegramSupportUrl} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center shrink-0">
-                      <Send className="w-4 h-4 text-blue-500" />
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-800 text-sm">Telegram Support</p>
-                      <p className="text-xs text-gray-400">Contacter un conseiller</p>
-                    </div>
-                  </div>
-                  <ChevronRight className="w-4 h-4 text-gray-300" />
-                </a>
-              </>}
+              {settings?.whatsappChannelUrl && <SupportLink href={settings.whatsappChannelUrl} icon={<MessageCircle className="h-4 w-4" />} label="Chaîne WhatsApp" detail="Suivre nos annonces" tone="green" />}
+              {settings?.whatsappSupport1Url && <><Divider /><SupportLink href={settings.whatsappSupport1Url} icon={<MessageCircle className="h-4 w-4" />} label="WhatsApp Support 1" detail="Contacter un conseiller" tone="green" /></>}
+              {settings?.whatsappSupport2Url && <><Divider /><SupportLink href={settings.whatsappSupport2Url} icon={<MessageCircle className="h-4 w-4" />} label="WhatsApp Support 2" detail="Contacter un conseiller" tone="green" /></>}
+              {settings?.telegramSupportUrl && <><Divider /><SupportLink href={settings.telegramSupportUrl} icon={<Send className="h-4 w-4" />} label="Telegram Support" detail="Contacter un conseiller" tone="blue" /></>}
             </Section>
           )}
 
-          {/* Déconnexion */}
           <button
             onClick={handleLogout}
             disabled={logoutMutation.isPending}
-            className="w-full h-12 rounded-2xl bg-red-50 border border-red-100 text-red-500 font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.99] transition-all hover:bg-red-100"
+            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border border-rose-200 bg-rose-50 text-sm font-bold text-rose-700 transition hover:bg-rose-100 disabled:opacity-60"
           >
-            <LogOut className="w-4 h-4" />
+            <LogOut className="h-4 w-4" />
             {logoutMutation.isPending ? 'Déconnexion...' : 'Se déconnecter'}
           </button>
-        </div>
+        </main>
       )}
+
       {!user && profile.isError && (
-        <div role="alert" className="relative z-10 mx-4 -mt-6 rounded-2xl border border-red-200 bg-white p-5 shadow-sm">
-          <p className="font-semibold text-gray-900">Le profil ne peut pas être chargé.</p>
-          <p className="mt-1 text-sm text-gray-600">{profileErrorMessage}</p>
-          <button
-            onClick={() => void profile.refetch()}
-            disabled={profile.isFetching}
-            className="mt-4 h-10 rounded-xl bg-[#1a2a5e] px-4 text-sm font-semibold text-white disabled:opacity-60"
-          >
+        <div role="alert" className="relative z-10 mx-4 -mt-6 rounded-2xl border border-rose-200 bg-white p-5 shadow-sm sm:mx-auto sm:max-w-2xl">
+          <p className="font-bold text-slate-900">Le profil ne peut pas être chargé.</p>
+          <p className="mt-1 text-sm text-slate-600">{profileErrorMessage}</p>
+          <button onClick={() => void profile.refetch()} disabled={profile.isFetching} className="mt-4 min-h-11 rounded-xl bg-[#1a2a5e] px-4 text-sm font-semibold text-white disabled:opacity-60">
             {profile.isFetching ? 'Actualisation...' : 'Réessayer'}
           </button>
         </div>
@@ -312,20 +226,19 @@ export default function ProfilePage() {
   );
 }
 
-/* ─── Helpers ─── */
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="space-y-1">
-      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider px-1">{label}</p>
-      <div className="bg-white rounded-2xl shadow-sm overflow-hidden divide-y divide-gray-100">
+    <section className="space-y-2">
+      <h2 className="px-1 text-[11px] font-extrabold uppercase tracking-[0.16em] text-slate-500">{label}</h2>
+      <div className="overflow-hidden rounded-2xl border border-slate-200/80 bg-white shadow-[0_2px_10px_rgba(20,35,75,0.045)] divide-y divide-slate-100">
         {children}
       </div>
-    </div>
+    </section>
   );
 }
 
 function Divider() {
-  return <div className="h-px bg-gray-100 mx-5" />;
+  return <div className="mx-4 h-px bg-slate-100 sm:mx-5" />;
 }
 
 function NavRow({ icon, iconBg, label, onClick }: {
@@ -335,14 +248,30 @@ function NavRow({ icon, iconBg, label, onClick }: {
   onClick: () => void;
 }) {
   return (
-    <button onClick={onClick} className="w-full flex items-center justify-between px-5 py-4 hover:bg-gray-50 transition-colors">
-      <div className="flex items-center gap-3">
-        <div className={`w-9 h-9 rounded-xl ${iconBg} flex items-center justify-center shrink-0`}>
-          {icon}
-        </div>
-        <span className="text-sm font-medium text-gray-800">{label}</span>
-      </div>
-      <ChevronRight className="w-4 h-4 text-gray-300" />
+    <button onClick={onClick} className="flex min-h-[68px] w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-slate-50 sm:px-5">
+      <span className="flex min-w-0 items-center gap-3.5">
+        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${iconBg}`}>{icon}</span>
+        <span className="text-sm font-semibold text-slate-800">{label}</span>
+      </span>
+      <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
     </button>
+  );
+}
+
+function SupportLink({ href, icon, label, detail, tone }: {
+  href: string; icon: React.ReactNode; label: string; detail: string; tone: 'green' | 'blue';
+}) {
+  const tint = tone === 'green' ? 'bg-emerald-50 text-emerald-700' : 'bg-sky-50 text-sky-700';
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer" className="flex min-h-[68px] items-center justify-between gap-3 px-4 py-3 transition hover:bg-slate-50 sm:px-5">
+      <span className="flex min-w-0 items-center gap-3.5">
+        <span className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl ${tint}`}>{icon}</span>
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-semibold text-slate-800">{label}</span>
+          <span className="mt-0.5 block text-xs text-slate-500">{detail}</span>
+        </span>
+      </span>
+      <ChevronRight className="h-4 w-4 shrink-0 text-slate-400" />
+    </a>
   );
 }

@@ -267,6 +267,7 @@ export default function DepositPage() {
 
   const tmoneyVisible = !paymentConfig || paymentConfig.tmoneyEnabled;
   const moovVisible = !paymentConfig || paymentConfig.moovMoneyEnabled;
+  const selectedNationalOperatorVisible = nationalOperator === 'tmoney' ? tmoneyVisible : moovVisible;
   const bothDisabled = paymentConfig && !paymentConfig.tmoneyEnabled && !paymentConfig.moovMoneyEnabled;
 
   return (
@@ -377,48 +378,55 @@ export default function DepositPage() {
                   </div>
                 </div>
 
-                {/* USSD Instructions */}
-                {nationalOperator === 'tmoney' && tmoneyVisible && (
+                {/* Use the same instruction layout for both national operators. */}
+                {selectedNationalOperatorVisible && (
                   <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-2">
                     <div className="flex items-center gap-2 text-[#1a3aff] font-semibold text-sm">
                       <Info className="w-4 h-4" />
                       Comment payer
                     </div>
                     <p className="text-sm text-gray-700">
-                      1. Composez le code USSD sur votre téléphone :
+                      1. {nationalOperator === 'tmoney'
+                        ? 'Composez le code USSD sur votre téléphone :'
+                        : paymentConfig?.moovMoneyUssdCode
+                          ? 'Composez le code USSD Moov Money configuré :'
+                          : 'Effectuez le transfert Moov Money vers le numéro destinataire ci-dessous.'}
                     </p>
-                    <div className="bg-white rounded-lg p-3 border border-blue-200">
-                      <code className="text-[#1a3aff] font-bold text-sm break-all">{TMONEY_USSD}</code>
-                    </div>
+                    {nationalOperator === 'tmoney' ? (
+                      <div className="bg-white rounded-lg p-3 border border-blue-200">
+                        <code className="text-[#1a3aff] font-bold text-sm break-all">{TMONEY_USSD}</code>
+                      </div>
+                    ) : (
+                      <>
+                        {paymentConfig?.moovMoneyUssdCode && (
+                          <div className="bg-white rounded-lg p-3 border border-blue-200">
+                            <code className="text-[#1a3aff] font-bold text-sm break-all">
+                              {paymentConfig.moovMoneyUssdCode}
+                            </code>
+                          </div>
+                        )}
+                        {paymentConfig?.moovMoneyNumber && (
+                          <>
+                            <p className="text-sm text-gray-700">Numéro Moov Money destinataire :</p>
+                            <div className="bg-white rounded-lg p-3 border border-blue-200">
+                              <code className="text-[#1a3aff] font-bold text-sm break-all">
+                                {paymentConfig.moovMoneyNumber}
+                              </code>
+                            </div>
+                          </>
+                        )}
+                        {!paymentConfig?.moovMoneyUssdCode && !paymentConfig?.moovMoneyNumber && (
+                          <p className="text-sm text-amber-700">
+                            Les instructions Moov ne sont pas configurées. Contactez le support avant d’effectuer un transfert.
+                          </p>
+                        )}
+                      </>
+                    )}
                     <p className="text-sm text-gray-700">
                       2. Notez le <strong>numéro de référence</strong> reçu par SMS.
                     </p>
                     <p className="text-sm text-gray-700">
                       3. Entrez-le dans le champ ci-dessous.
-                    </p>
-                  </div>
-                )}
-
-                {nationalOperator === 'moov_money' && moovVisible && !paymentConfig?.moovMoneyEnabled && (
-                  <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 flex flex-col items-center text-center gap-3">
-                    <div className="w-14 h-14 rounded-full bg-amber-100 flex items-center justify-center">
-                      <Wrench className="w-7 h-7 text-amber-500" />
-                    </div>
-                    <p className="font-bold text-gray-800 text-base">Dépôt Moov Money indisponible</p>
-                    <p className="text-sm text-gray-500">
-                      Ce mode de paiement est temporairement suspendu pour maintenance. Veuillez utiliser T-Money ou réessayer plus tard.
-                    </p>
-                  </div>
-                )}
-
-                {nationalOperator === 'moov_money' && (!paymentConfig || paymentConfig.moovMoneyEnabled) && (
-                  <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 space-y-2">
-                    <div className="flex items-center gap-2 text-[#1a3aff] font-semibold text-sm">
-                      <Info className="w-4 h-4" />
-                      Comment payer
-                    </div>
-                    <p className="text-sm text-gray-700">
-                      Effectuez un transfert Moov Money vers le numéro indiqué par votre agent, puis entrez votre ID de compte 1xBet et la référence de la transaction.
                     </p>
                   </div>
                 )}
