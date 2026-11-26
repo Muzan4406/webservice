@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Response } from "express";
+import { randomUUID } from "node:crypto";
 import { and, desc, eq, or } from "drizzle-orm";
 import {
   db,
@@ -92,8 +93,8 @@ function safePaymentErrorMetadata(error: unknown): Record<string, unknown> {
   };
 }
 
-function logPaymentFailure(flow: string, error: unknown): void {
-  const metadata = { flow, ...safePaymentErrorMetadata(error) };
+function logPaymentFailure(flow: string, error: unknown, diagnosticId: string): void {
+  const metadata = { diagnosticId, flow, ...safePaymentErrorMetadata(error) };
   if (error instanceof DrimPayError && error.statusCode < 500) {
     logger.warn(metadata, "DrimPay payment request was rejected");
   } else {
@@ -129,21 +130,26 @@ function respondWithNoChargeConfirmation(res: Response): void {
 }
 
 function sendPaymentError(res: Response, error: unknown, flow: string): void {
-  logPaymentFailure(flow, error);
+  const diagnosticId = randomUUID();
+  logPaymentFailure(flow, error, diagnosticId);
   if (error instanceof DrimPayError) {
     const drimPayError = error as DrimPayError;
     const status = drimPayError.statusCode === 401 || drimPayError.statusCode === 403 ? 503 : drimPayError.statusCode;
     res.status(status).json({ error: status === 503 && drimPayError.statusCode !== 503
       ? "La clé DrimPay est refusée ou indisponible."
-      : drimPayError.message });
+      : drimPayError.message, diagnosticId });
     return;
   }
   const databaseIssue = getDatabaseIssue(error);
   if (databaseIssue) {
-    res.status(503).json({ error: databaseIssue.message, code: databaseIssue.code });
+    res.status(503).json({ error: databaseIssue.message, code: databaseIssue.code, diagnosticId });
     return;
   }
-  res.status(500).json({ error: "Impossible de démarrer le paiement pour le moment. Réessayez plus tard." });
+  res.status(500).json({
+    error: "Impossible de démarrer le paiement pour le moment. Réessayez plus tard.",
+    code: "payment_start_failed",
+    diagnosticId,
+  });
 }
 
 function safeWavePaymentUrl(value: unknown): string | null {
@@ -384,23 +390,23 @@ router.post("/drimpay/collect-vip", requireAuth, async (req: AuthRequest, res): 
     return;
   }
 
-  const [settings] = await db.select().from(appSettingsTable).limit(1);
-  const vipPrice = settings ? Number(settings.vipPriceFcfa) : 5000;
-  if (!Number.isSafeInteger(vipPrice) || vipPrice < MIN_AMOUNT || vipPrice > MAX_AMOUNT) {
-    res.status(503).json({ error: "Le prix VIP n'est pas configuré correctement pour DrimPay." });
-    return;
-  }
-  if (input.amount !== vipPrice) {
-    res.status(409).json({ error: "Le prix VIP a changé. Actualisez la page avant de réessayer." });
-    return;
-  }
-
   const orderId = `vip_${req.userId}_${requestId}`;
   let vipPaymentId: number | undefined;
   let shouldInitiate = false;
   let providerRequestStarted = false;
   let pendingReference = orderId;
   try {
+    const [settings] = await db.select().from(appSettingsTable).limit(1);
+    const vipPrice = settings ? Number(settings.vipPriceFcfa) : 5000;
+    if (!Number.isSafeInteger(vipPrice) || vipPrice < MIN_AMOUNT || vipPrice > MAX_AMOUNT) {
+      res.status(503).json({ error: "Le prix VIP n'est pas configuré correctement pour DrimPay." });
+      return;
+    }
+    if (input.amount !== vipPrice) {
+      res.status(409).json({ error: "Le prix VIP a changé. Actualisez la page avant de réessayer." });
+      return;
+    }
+
     const activeVipPayments = await db
       .select()
       .from(vipPaymentsTable)

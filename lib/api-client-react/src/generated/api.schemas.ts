@@ -551,10 +551,18 @@ export const HealthStatusSchema = {
   'vip-expiry-v1': 'vip-expiry-v1',
 } as const;
 
+export type HealthStatusPaymentSchema = typeof HealthStatusPaymentSchema[keyof typeof HealthStatusPaymentSchema];
+
+
+export const HealthStatusPaymentSchema = {
+  'drimpay-v1': 'drimpay-v1',
+} as const;
+
 export interface HealthStatus {
   status: HealthStatusStatus;
   database: HealthStatusDatabase;
   schema: HealthStatusSchema;
+  paymentSchema: HealthStatusPaymentSchema;
 }
 
 export type ResetCounters200 = {

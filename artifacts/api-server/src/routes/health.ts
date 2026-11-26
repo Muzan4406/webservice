@@ -1,6 +1,13 @@
 import { Router, type IRouter } from "express";
 import { HealthCheckResponse } from "@workspace/api-zod";
-import { db, usersTable } from "@workspace/db";
+import {
+  appSettingsTable,
+  db,
+  depositsTable,
+  pendingSpDepositsTable,
+  usersTable,
+  vipPaymentsTable,
+} from "@workspace/db";
 import { getDatabaseIssue } from "../lib/database-errors.js";
 import { logger } from "../lib/logger.js";
 
@@ -13,16 +20,20 @@ router.get("/healthz", async (_req, res): Promise<void> => {
   }
 
   try {
-    // A zero-row query verifies both database connectivity and the VIP expiry
-    // column required by the current authentication/payment code.
-    await db
-      .select({ id: usersTable.id, vipExpiresAt: usersTable.vipExpiresAt })
-      .from(usersTable)
-      .limit(0);
+    // Zero-row queries verify the tables and columns used by login, VIP, and
+    // both DrimPay initiation/status flows without reading customer records.
+    await Promise.all([
+      db.select({ id: usersTable.id, vipExpiresAt: usersTable.vipExpiresAt }).from(usersTable).limit(0),
+      db.select({ id: appSettingsTable.id, vipPrice: appSettingsTable.vipPriceFcfa }).from(appSettingsTable).limit(0),
+      db.select({ id: vipPaymentsTable.id, orderId: vipPaymentsTable.drimpayOrderId }).from(vipPaymentsTable).limit(0),
+      db.select({ id: pendingSpDepositsTable.id, orderId: pendingSpDepositsTable.externalReference }).from(pendingSpDepositsTable).limit(0),
+      db.select({ id: depositsTable.id, reference: depositsTable.drimpayReference }).from(depositsTable).limit(0),
+    ]);
     res.json(HealthCheckResponse.parse({
       status: "ok",
       database: "ready",
       schema: "vip-expiry-v1",
+      paymentSchema: "drimpay-v1",
     }));
   } catch (error) {
     const issue = getDatabaseIssue(error);

@@ -111,13 +111,17 @@ curl https://votre-domaine.tld/api/healthz
 ```
 
 La première commande doit retourner une page servie par l'application. La
-seconde doit retourner `{"status":"ok","database":"ready","schema":"vip-expiry-v1"}`.
-Cette réponse vérifie aussi que `users.vip_expires_at` est disponible et permet
-de confirmer que la version récente du serveur est déployée. Si elle renvoie `503` avec
-`database_not_configured`, configurez `PG_URL`. Si elle renvoie
-`database_schema_outdated`, exécutez la commande de mise à jour du schéma
-ci-dessus, puis redémarrez l'application. Consultez **Node.js → Logs** dans
-Plesk si l'application redémarre.
+seconde doit retourner `{"status":"ok","database":"ready","schema":"vip-expiry-v1","paymentSchema":"drimpay-v1"}`.
+Cette réponse vérifie la connexion PostgreSQL ainsi que les colonnes nécessaires
+aux comptes VIP, aux paramètres de l'application et aux parcours DrimPay
+(dépôts internationaux et paiements VIP). Elle confirme que la version récente
+du serveur est déployée. Si elle renvoie `503` avec `database_not_configured`,
+configurez `PG_URL`. Si elle renvoie `database_schema_outdated`, exécutez la
+commande de mise à jour du schéma ci-dessus, puis redémarrez l'application.
+Consultez **Node.js → Logs** dans Plesk si l'application redémarre. Une erreur de
+démarrage de paiement affiche aussi une référence de diagnostic : recherchez
+cette référence dans les journaux Node.js, sans partager de clés ni de mots de
+passe.
 
 ## Mise à jour
 

@@ -13,6 +13,7 @@ import {
   Headphones, CircleCheck, TriangleAlert, XCircle, Smartphone,
 } from 'lucide-react';
 import { useLocation } from 'wouter';
+import { createPaymentRequestId } from '@/lib/payment-request-id';
 
 async function apiFetch(url: string, options?: { method?: string; body?: any }): Promise<any> {
   const token = localStorage.getItem('muzan_auth_token');
@@ -24,10 +25,16 @@ async function apiFetch(url: string, options?: { method?: string; body?: any }):
     },
     ...(options?.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
   });
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const error = new Error(data.error ?? 'Erreur réseau') as Error & { status?: number };
+    const error = new Error(data?.error ?? `Erreur réseau (${res.status})`) as Error & {
+      status?: number;
+      diagnosticId?: string;
+      code?: string;
+    };
     error.status = res.status;
+    if (typeof data?.diagnosticId === 'string') error.diagnosticId = data.diagnosticId;
+    if (typeof data?.code === 'string') error.code = data.code;
     throw error;
   }
   return data;
@@ -63,6 +70,7 @@ export default function VipPurchasePage() {
   const [transactionId, setTransactionId] = useState('');
   const [waveUrl, setWaveUrl] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [paymentStartError, setPaymentStartError] = useState<string | null>(null);
   const [confirmedVipExpiresAt, setConfirmedVipExpiresAt] = useState<string | null>(user?.vipExpiresAt ?? null);
   const requestId = useRef('');
   const activeCountry = countries.find(country => country.code === selectedCountry);
@@ -114,8 +122,9 @@ export default function VipPurchasePage() {
     }
 
     setSubmitting(true);
+    setPaymentStartError(null);
     try {
-      if (!requestId.current) requestId.current = crypto.randomUUID();
+      if (!requestId.current) requestId.current = createPaymentRequestId();
       const res = await apiFetch('/api/drimpay/collect-vip', {
         method: 'POST',
         body: {
@@ -145,7 +154,10 @@ export default function VipPurchasePage() {
       }
     } catch (e: any) {
       if (e?.status && e.status < 500) requestId.current = '';
-      toast.error(e?.message ?? 'Erreur lors du paiement.');
+      const message = e?.diagnosticId
+        ? `${e.message} (référence ${e.diagnosticId})`
+        : e?.message ?? 'Erreur lors du paiement.';
+      setPaymentStartError(message);
     } finally {
       setSubmitting(false);
     }
@@ -163,6 +175,7 @@ export default function VipPurchasePage() {
 
   function reset() {
     setStep('form');
+    setPaymentStartError(null);
     setSelectedOperator('');
     setPayerPhone('');
     setOtpCode('');
@@ -172,170 +185,210 @@ export default function VipPurchasePage() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-[#f3f5fa] pb-24 md:pb-8">
-      <header className="relative overflow-hidden bg-gradient-to-br from-[#1a2a5e] via-[#19285a] to-[#111c42] px-4 pb-9 pt-8 text-white sm:px-8 sm:pb-12">
-        <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-24 h-72 w-72 rounded-full border border-white/[0.08]" />
-        <div className="relative mx-auto max-w-5xl">
+    <div className="min-h-[100dvh] bg-[#f3f6f8] pb-24 text-[#182e3a] md:pb-8">
+      <header className="border-b border-[#dce5e8] bg-[#f8faf9]">
+        <div className="mx-auto flex h-[60px] max-w-3xl items-center gap-3 px-4 sm:px-7">
           <button
             onClick={() => setLocation('/profile')}
             aria-label="Retour au profil"
-            className="mb-5 flex h-10 w-10 items-center justify-center rounded-xl border border-white/15 bg-white/[0.07] text-white/80 transition hover:bg-white/15 hover:text-white"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-[#506772] transition hover:bg-[#eaf0f1] hover:text-[#183846] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#18745f]"
           >
             <ArrowLeft className="h-5 w-5" />
           </button>
-          <div className="flex flex-wrap items-end justify-between gap-4">
-            <div>
-              <p className="mb-2 text-[11px] font-extrabold uppercase tracking-[0.18em] text-white/50">Muzan Service</p>
-              <h1 className="text-2xl font-extrabold tracking-tight sm:text-3xl">{user?.isVip ? 'Renouveler le VIP' : 'Devenir VIP'}</h1>
-              <p className="mt-2 text-sm text-white/65">Accédez à des avantages exclusifs</p>
-            </div>
-            <div className="hidden h-14 w-14 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.07] sm:flex">
-              <Star className="h-7 w-7 fill-[#f4c64e] text-[#f4c64e]" />
-            </div>
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold uppercase tracking-[0.17em] text-[#71858c]">Muzan Service</p>
+            <p className="truncate text-sm font-bold text-[#203c49]">Paiement VIP</p>
+          </div>
+          <div className="ml-auto flex items-center gap-1.5 rounded-full border border-[#dce8e3] bg-white px-2.5 py-1.5 text-[11px] font-semibold text-[#386b5d]">
+            <ShieldCheck className="h-3.5 w-3.5" />
+            Paiement sécurisé
           </div>
         </div>
       </header>
 
-      <main className="mx-auto -mt-4 max-w-5xl px-4 sm:px-8">
+      <main className="mx-auto max-w-3xl px-4 pb-8 pt-6 sm:px-7 sm:pt-9">
         {step === 'form' && (
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="grid items-start gap-4 lg:grid-cols-[0.9fr_1.1fr]">
-            <div className="space-y-4">
-              <Card className="overflow-hidden border-amber-200/80 bg-gradient-to-br from-[#fff8e8] to-[#fff2d5] shadow-sm">
-                <CardContent className="p-5 sm:p-6">
-                  <div className="flex items-center gap-4">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-100 text-amber-700">
-                      <Star className="h-6 w-6 fill-amber-400" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="text-xs font-bold uppercase tracking-[0.14em] text-amber-800/70">Accès 30 jours</p>
-                      <p className="mt-0.5 text-2xl font-extrabold tracking-tight text-[#59420d] sm:text-3xl">{vipPrice.toLocaleString()} XOF</p>
-                    </div>
-                  </div>
-                  <p className="mt-4 border-t border-amber-200/70 pt-3 text-xs leading-relaxed text-amber-900/75">Renouvelable à tout moment, y compris avant la fin de votre accès.</p>
-                </CardContent>
-              </Card>
-
-              <Card className="border-slate-200/80 shadow-sm">
-                <CardContent className="p-5 sm:p-6">
-                  <h2 className="text-base font-extrabold text-slate-900">Avantages VIP</h2>
-                  <p className="mt-1 text-xs text-slate-500">Les avantages inclus avec votre accès</p>
-                  <div className="mt-4 space-y-1">
-                    {VIP_BENEFITS.map((benefit, index) => (
-                      <div key={index} className="flex min-h-11 items-center gap-3 rounded-xl px-2 py-2">
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#eef1fa] text-[#1a2a5e]">{benefit.icon}</span>
-                        <span className="text-sm leading-snug text-slate-700">{benefit.text}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-[620px]">
+            <div className="mb-5">
+              <p className="mb-1.5 text-[11px] font-bold uppercase tracking-[0.15em] text-[#18745f]">
+                {user?.isVip ? 'Votre abonnement' : 'Accès membre'}
+              </p>
+              <h1 className="text-[26px] font-extrabold leading-tight tracking-[-0.035em] text-[#183846] sm:text-[32px]">
+                {user?.isVip ? 'Renouveler le VIP' : 'Activer votre VIP'}
+              </h1>
+              <p className="mt-2 max-w-md text-sm leading-relaxed text-[#60747c]">
+                Réglez par Mobile Money. Votre accès démarre dès la confirmation de l’opérateur.
+              </p>
             </div>
 
-            <Card className="border-slate-200/80 shadow-sm">
-              <CardContent className="space-y-5 p-5 sm:p-6">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#eef1fa] text-[#1a2a5e]"><Smartphone className="h-4 w-4" /></span>
-                    <h2 className="text-base font-extrabold text-slate-900">Paiement Mobile Money</h2>
+            <section aria-label="Récapitulatif de l'offre" className="mb-4 overflow-hidden rounded-2xl border border-[#dce5e8] bg-white shadow-[0_3px_14px_rgba(24,56,70,0.045)]">
+              <div className="flex items-center justify-between gap-3 px-4 py-4 sm:px-5">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#edf5f1] text-[#18745f]">
+                    <Star className="h-[18px] w-[18px]" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-sm font-bold text-[#203c49]">Formule VIP</p>
+                    <p className="mt-0.5 text-xs text-[#71858c]">Accès pendant 30 jours</p>
                   </div>
-                  <p className="mt-2 pl-10 text-xs leading-relaxed text-slate-500">Choisissez votre pays et votre opérateur pour continuer.</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-lg font-extrabold tracking-tight text-[#183846]">{vipPrice.toLocaleString()} <span className="text-xs font-bold tracking-normal text-[#64777e]">XOF</span></p>
+                  <p className="text-[10px] font-medium text-[#71858c]">Prix fixe</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 border-t border-[#edf1f2] bg-[#f8faf9] px-4 py-2.5 text-[11px] leading-relaxed text-[#657980] sm:px-5">
+                <Check className="mt-px h-3.5 w-3.5 shrink-0 text-[#18745f]" />
+                Renouvelable à tout moment, y compris avant la fin de votre accès.
+              </div>
+            </section>
+
+            <Card className="overflow-hidden rounded-2xl border-[#dce5e8] bg-white shadow-[0_5px_20px_rgba(24,56,70,0.055)]">
+              <CardContent className="p-4 sm:p-6">
+                <div className="mb-5 flex items-start gap-3 border-b border-[#edf1f2] pb-4">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#edf5f1] text-[#18745f]">
+                    <Smartphone className="h-[17px] w-[17px]" />
+                  </span>
+                  <div>
+                    <h2 className="text-base font-extrabold text-[#203c49]">Vos informations de paiement</h2>
+                    <p className="mt-1 text-xs leading-relaxed text-[#71858c]">Sélectionnez le pays et le portefeuille à débiter.</p>
+                  </div>
                 </div>
 
-                <div className="space-y-2">
-                  <Label className="text-sm font-semibold text-slate-700">Votre pays</Label>
-                  <select
-                    className="h-12 w-full rounded-xl border border-slate-200 bg-white px-3 text-sm text-slate-800 shadow-sm outline-none transition focus:border-[#1a2a5e]/50 focus:ring-2 focus:ring-[#1a2a5e]/10"
-                    value={selectedCountry}
-                    onChange={e => { setSelectedCountry(e.target.value); setSelectedOperator(''); setOtpCode(''); }}
-                  >
-                    <option value="">{countriesLoading ? 'Chargement…' : 'Sélectionner un pays'}</option>
-                    {countries.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
-                  </select>
-                </div>
-
-                {selectedCountry && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-slate-700">Opérateur Mobile Money</Label>
-                    {!activeCountry?.operators.length ? (
-                      <p className="rounded-xl bg-slate-50 px-3 py-3 text-sm text-slate-500">Aucun opérateur disponible.</p>
-                    ) : (
-                      <div className="space-y-2">
-                        {activeCountry.operators.map(op => (
-                          <button
-                            key={op.code}
-                            type="button"
-                            onClick={() => { setSelectedOperator(op.code); setOtpCode(''); }}
-                            className={`flex min-h-12 w-full items-center justify-between rounded-xl border px-3.5 py-3 text-left transition ${
-                              selectedOperator === op.code
-                                ? 'border-[#1a2a5e] bg-[#f1f3fa] text-[#1a2a5e] shadow-sm'
-                                : 'border-slate-200 bg-white text-slate-800 hover:border-slate-300 hover:bg-slate-50'
-                            }`}
-                          >
-                            <span className="text-sm font-semibold">{op.label}</span>
-                            {selectedOperator === op.code && <Check className="h-4 w-4 shrink-0" />}
-                          </button>
-                        ))}
+                <div className="space-y-4">
+                  {paymentStartError && (
+                    <div
+                      role="alert"
+                      className="flex items-start gap-3 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-3 text-left"
+                    >
+                      <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0 text-rose-700" />
+                      <div className="min-w-0">
+                        <p className="text-xs font-extrabold text-rose-900">Le paiement n’a pas démarré</p>
+                        <p className="mt-1 break-words text-xs leading-relaxed text-rose-800">{paymentStartError}</p>
                       </div>
-                    )}
+                    </div>
+                  )}
+                  <div className="space-y-1.5">
+                    <Label className="text-xs font-bold text-[#405962]">Pays</Label>
+                    <select
+                      className="h-[50px] w-full appearance-none rounded-xl border border-[#d7e1e4] bg-[#fbfcfc] px-3.5 text-sm text-[#203c49] outline-none transition focus:border-[#27836c] focus:ring-4 focus:ring-[#27836c]/10"
+                      value={selectedCountry}
+                      onChange={e => { setSelectedCountry(e.target.value); setSelectedOperator(''); setOtpCode(''); setPaymentStartError(null); }}
+                    >
+                      <option value="">{countriesLoading ? 'Chargement des pays…' : 'Choisir un pays'}</option>
+                      {countries.map(country => <option key={country.code} value={country.code}>{country.name}</option>)}
+                    </select>
                   </div>
-                )}
 
-                {selectedOperator && (
-                  <div className="space-y-2">
-                    <Label className="text-sm font-semibold text-slate-700">Numéro de téléphone au format international</Label>
-                    <Input
-                      className="h-12 rounded-xl border-slate-200 text-base"
-                      placeholder={`Ex: +${activeCountry?.callingCode}90000000`}
-                      value={payerPhone}
-                      onChange={e => setPayerPhone(e.target.value)}
-                      type="tel"
-                      required
-                    />
-                  </div>
-                )}
+                  {selectedCountry && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-[#405962]">Opérateur Mobile Money</Label>
+                      {!activeCountry?.operators.length ? (
+                        <p className="rounded-xl border border-[#e4eaec] bg-[#f8faf9] px-3.5 py-3 text-sm text-[#71858c]">Aucun opérateur disponible.</p>
+                      ) : (
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {activeCountry.operators.map(op => (
+                            <button
+                              key={op.code}
+                              type="button"
+                              onClick={() => { setSelectedOperator(op.code); setOtpCode(''); setPaymentStartError(null); }}
+                              aria-pressed={selectedOperator === op.code}
+                              className={`flex min-h-[50px] items-center justify-between rounded-xl border px-3.5 text-left transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#27836c] ${
+                                selectedOperator === op.code
+                                  ? 'border-[#27836c] bg-[#f0f7f3] text-[#205b4b]'
+                                  : 'border-[#dce5e8] bg-white text-[#405962] hover:border-[#afc7bf] hover:bg-[#fbfcfc]'
+                              }`}
+                            >
+                              <span className="text-sm font-bold">{op.label}</span>
+                              {selectedOperator === op.code && <Check className="h-4 w-4 shrink-0 text-[#18745f]" />}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
-                {activeOperator?.requiresOtp && (
-                  <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50/80 p-4">
-                    <p className="text-sm leading-relaxed text-amber-950">{activeOperator.otpInstructions}</p>
-                    <div className="space-y-2">
-                      <Label className="text-sm font-semibold text-amber-950">Code OTP Orange Money</Label>
+                  {selectedOperator && (
+                    <div className="space-y-1.5">
+                      <Label className="text-xs font-bold text-[#405962]">Numéro de téléphone (format international)</Label>
                       <Input
-                        className="h-12 rounded-xl border-amber-200 bg-white text-base"
-                        value={otpCode}
-                        onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                        inputMode="numeric"
-                        placeholder="Code reçu après le code USSD"
+                        className="h-[50px] rounded-xl border-[#d7e1e4] bg-[#fbfcfc] px-3.5 text-base focus-visible:ring-[#27836c]/20"
+                        placeholder={`Ex: +${activeCountry?.callingCode}90000000`}
+                        value={payerPhone}
+                        onChange={e => { setPayerPhone(e.target.value); setPaymentStartError(null); }}
+                        type="tel"
+                        required
                       />
                     </div>
-                  </div>
-                )}
+                  )}
 
-                <div className="space-y-2 pt-1">
-                  <Button
-                    className="h-12 w-full rounded-xl bg-[#1a2a5e] font-bold shadow-sm hover:bg-[#23366e]"
-                    onClick={handleContinue}
-                    disabled={submitting || !selectedCountry || !selectedOperator || !payerPhone.trim() || (Boolean(activeOperator?.requiresOtp) && !otpCode)}
-                  >
-                    {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                    {user?.isVip ? 'Renouveler' : 'Activer'} pour {vipPrice.toLocaleString()} {activeCountry?.currency ?? 'XOF'}
-                  </Button>
-                  <p className="text-center text-[11px] leading-relaxed text-slate-500">Votre accès est activé après confirmation du paiement.</p>
+                  {activeOperator?.requiresOtp && (
+                    <div className="space-y-3 rounded-xl border border-[#eadfbd] bg-[#fbf8ef] p-3.5">
+                      <p className="text-xs leading-relaxed text-[#675a36]">{activeOperator.otpInstructions}</p>
+                      <div className="space-y-1.5">
+                        <Label className="text-xs font-bold text-[#514626]">Code OTP Orange Money</Label>
+                        <Input
+                          className="h-[50px] rounded-xl border-[#e1d6b5] bg-white text-base"
+                          value={otpCode}
+                          onChange={e => { setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 8)); setPaymentStartError(null); }}
+                          inputMode="numeric"
+                          placeholder="Code reçu après le code USSD"
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="border-t border-[#edf1f2] pt-4">
+                    <div className="mb-3 flex items-center justify-between text-xs">
+                      <span className="text-[#71858c]">Total à payer</span>
+                      <span className="font-extrabold text-[#203c49]">{vipPrice.toLocaleString()} {activeCountry?.currency ?? 'XOF'}</span>
+                    </div>
+                    <Button
+                      className="h-[50px] w-full rounded-xl bg-[#176c58] text-sm font-extrabold shadow-[0_3px_8px_rgba(23,108,88,0.16)] hover:bg-[#125b49] disabled:bg-[#aebdb8] disabled:text-white"
+                      onClick={handleContinue}
+                      disabled={submitting || !selectedCountry || !selectedOperator || !payerPhone.trim() || (Boolean(activeOperator?.requiresOtp) && !otpCode)}
+                    >
+                      {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <ShieldCheck className="mr-2 h-4 w-4" />}
+                      {submitting ? 'Connexion à l’opérateur…' : `${user?.isVip ? 'Renouveler' : 'Payer et activer'} — ${vipPrice.toLocaleString()} ${activeCountry?.currency ?? 'XOF'}`}
+                    </Button>
+                    <p className="mt-3 text-center text-[11px] leading-relaxed text-[#71858c]">
+                      Une demande de confirmation apparaîtra sur votre téléphone. Ne la validez qu’après avoir vérifié le montant.
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
+
+            <section className="mt-5 rounded-2xl border border-[#dce5e8] bg-[#f8faf9] px-4 py-4 sm:px-5">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <h2 className="text-sm font-extrabold text-[#294550]">Inclus avec le VIP</h2>
+                  <p className="mt-0.5 text-[11px] text-[#71858c]">Vos avantages pendant 30 jours</p>
+                </div>
+                <Star className="h-4 w-4 text-[#718d80]" />
+              </div>
+              <div className="grid gap-x-4 gap-y-2 sm:grid-cols-2">
+                {VIP_BENEFITS.map((benefit, index) => (
+                  <div key={index} className="flex items-start gap-2.5 py-1">
+                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-white text-[#397663]">{benefit.icon}</span>
+                    <span className="text-xs leading-relaxed text-[#526a72]">{benefit.text}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
           </motion.div>
         )}
 
         {step === 'wave' && (
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-xl">
-            <Card className="border-slate-200/80 shadow-sm">
-              <CardContent className="space-y-4 p-6 text-center sm:p-8">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#eef1fa] text-[#1a2a5e]"><Smartphone className="h-6 w-6" /></div>
-                <div><p className="text-lg font-extrabold text-slate-900">Finaliser via Wave</p><p className="mt-1 text-sm text-slate-500">Cliquez ci-dessous pour ouvrir la page Wave.</p></div>
-                <Button className="h-12 w-full rounded-xl bg-[#1a2a5e] font-bold hover:bg-[#23366e]" onClick={() => { window.open(waveUrl, '_blank', 'noopener,noreferrer'); setStep('waiting'); }}>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-[520px] pt-4">
+            <Card className="rounded-2xl border-[#dce5e8] bg-white shadow-[0_5px_20px_rgba(24,56,70,0.055)]">
+              <CardContent className="space-y-4 p-5 text-center sm:p-8">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-[#edf5f1] text-[#18745f]"><Smartphone className="h-5 w-5" /></div>
+                <div><p className="text-lg font-extrabold text-[#203c49]">Finaliser via Wave</p><p className="mt-1 text-sm leading-relaxed text-[#64777e]">Ouvrez la page Wave pour confirmer votre paiement.</p></div>
+                <Button className="h-12 w-full rounded-xl bg-[#176c58] font-bold hover:bg-[#125b49]" onClick={() => { window.open(waveUrl, '_blank', 'noopener,noreferrer'); setStep('waiting'); }}>
                   Ouvrir Wave
                 </Button>
-                <button onClick={() => setStep('waiting')} className="min-h-10 px-3 text-sm font-semibold text-slate-600 underline-offset-4 hover:text-slate-900 hover:underline">
+                <button onClick={() => setStep('waiting')} className="min-h-10 px-3 text-sm font-semibold text-[#526a72] underline-offset-4 hover:text-[#183846] hover:underline">
                   J'ai déjà payé, vérifier le statut
                 </button>
               </CardContent>
@@ -344,14 +397,13 @@ export default function VipPurchasePage() {
         )}
 
         {step === 'waiting' && (
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-xl">
-            <Card className="border-slate-200/80 shadow-sm">
-              <CardContent className="space-y-4 p-6 text-center sm:p-9">
-                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#eef1fa]"><Loader2 className="h-7 w-7 animate-spin text-[#1a2a5e]" /></div>
-                <p className="text-lg font-extrabold text-slate-900">Vérification en cours…</p>
-                <p className="text-sm leading-relaxed text-slate-600">Nous attendons la confirmation de votre paiement. Cette page se met à jour automatiquement.</p>
-                <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-left text-sm leading-relaxed text-amber-900">La confirmation du service mobile peut arriver avec un délai. Ne relancez pas le paiement pendant cette vérification.</p>
-                <Button variant="outline" onClick={returnToPaymentForm} className="h-11 w-full rounded-xl border-slate-300">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-[520px] pt-4">
+            <Card className="rounded-2xl border-[#dce5e8] bg-white shadow-[0_5px_20px_rgba(24,56,70,0.055)]">
+              <CardContent className="space-y-4 p-5 text-center sm:p-8">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-[#edf5f1]"><Loader2 className="h-6 w-6 animate-spin text-[#18745f]" /></div>
+                <div><p className="text-lg font-extrabold text-[#203c49]">Confirmation en attente</p><p className="mt-1 text-sm leading-relaxed text-[#64777e]">Nous attendons la confirmation de votre paiement. Cette page se met à jour automatiquement.</p></div>
+                <p className="rounded-xl border border-[#eadfbd] bg-[#fbf8ef] p-3.5 text-left text-xs leading-relaxed text-[#675a36]">La confirmation du service mobile peut arriver avec un délai. Ne relancez pas le paiement pendant cette vérification.</p>
+                <Button variant="outline" onClick={returnToPaymentForm} className="h-11 w-full rounded-xl border-[#d2dddf] text-[#405962]">
                   Je n’ai reçu aucune demande
                 </Button>
               </CardContent>
@@ -360,34 +412,33 @@ export default function VipPurchasePage() {
         )}
 
         {step === 'confirmRetry' && (
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-xl">
-            <Card className="border-amber-200 shadow-sm">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="mx-auto max-w-[520px] pt-4">
+            <Card className="rounded-2xl border-[#eadfbd] bg-white shadow-[0_5px_20px_rgba(24,56,70,0.055)]">
               <CardContent className="space-y-4 p-5 sm:p-6">
                 <div className="flex items-start gap-3">
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800"><TriangleAlert className="h-5 w-5" /></span>
-                  <div><p className="text-base font-extrabold text-amber-950">Vérifiez votre précédent paiement</p><p className="mt-1 text-sm leading-relaxed text-slate-600">Une ancienne tentative n’a pas reçu de référence DrimPay. Vérifiez le solde et l’historique de votre portefeuille mobile. Ne relancez pas si un débit est visible ou si une demande de paiement est encore affichée.</p></div>
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#fbf4df] text-[#8a6a23]"><TriangleAlert className="h-[18px] w-[18px]" /></span>
+                  <div><p className="text-base font-extrabold text-[#3e493c]">Vérifiez votre précédent paiement</p><p className="mt-1 text-sm leading-relaxed text-[#64777e]">Une ancienne tentative n’a pas reçu de référence DrimPay. Vérifiez le solde et l’historique de votre portefeuille mobile. Ne relancez pas si un débit est visible ou si une demande de paiement est encore affichée.</p></div>
                 </div>
-                <Button disabled={submitting} onClick={() => submitPayment(true)} className="h-12 w-full rounded-xl bg-[#1a2a5e] font-bold hover:bg-[#23366e]">
+                <Button disabled={submitting} onClick={() => submitPayment(true)} className="h-12 w-full rounded-xl bg-[#176c58] font-bold hover:bg-[#125b49]">
                   {submitting ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Vérification…</> : 'Je confirme qu’aucun débit n’a eu lieu'}
                 </Button>
-                <Button variant="outline" onClick={returnToPaymentForm} className="h-11 w-full rounded-xl">Annuler</Button>
+                <Button variant="outline" onClick={returnToPaymentForm} className="h-11 w-full rounded-xl border-[#d2dddf]">Annuler</Button>
               </CardContent>
             </Card>
           </motion.div>
         )}
 
         {step === 'done' && (
-          <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="mx-auto max-w-xl">
-            <Card className="border-emerald-200 bg-emerald-50/80 shadow-sm">
-              <CardContent className="space-y-4 p-6 text-center sm:p-9">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700"><CircleCheck className="h-9 w-9" /></div>
-                <p className="text-2xl font-extrabold text-emerald-950">Paiement confirmé</p>
-                <p className="text-sm leading-relaxed text-emerald-900">
+          <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="mx-auto max-w-[520px] pt-4">
+            <Card className="rounded-2xl border-[#cfe3d8] bg-[#f3faf6] shadow-[0_5px_20px_rgba(24,56,70,0.055)]">
+              <CardContent className="space-y-4 p-5 text-center sm:p-8">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#e0f0e7] text-[#247451]"><CircleCheck className="h-8 w-8" /></div>
+                <div><p className="text-xl font-extrabold text-[#234a38]">Paiement confirmé</p><p className="mt-2 text-sm leading-relaxed text-[#4d705d]">
                   Votre accès VIP est actif pour 30 jours
                   {confirmedVipExpiresAt ? `, jusqu’au ${new Date(confirmedVipExpiresAt).toLocaleDateString('fr-FR')}` : ''}.
                   Vous pourrez le renouveler avant son expiration.
-                </p>
-                <Button className="h-12 w-full rounded-xl bg-emerald-700 font-bold hover:bg-emerald-800" onClick={() => setLocation('/')}>
+                </p></div>
+                <Button className="h-12 w-full rounded-xl bg-[#247451] font-bold hover:bg-[#1b6142]" onClick={() => setLocation('/')}>
                   Retour à l'accueil
                 </Button>
               </CardContent>
@@ -396,13 +447,12 @@ export default function VipPurchasePage() {
         )}
 
         {step === 'failed' && (
-          <motion.div initial={{ opacity: 0, scale: 0.97 }} animate={{ opacity: 1, scale: 1 }} className="mx-auto max-w-xl">
-            <Card className="border-rose-200 bg-rose-50/80 shadow-sm">
-              <CardContent className="space-y-4 p-6 text-center sm:p-9">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-rose-100 text-rose-700"><XCircle className="h-9 w-9" /></div>
-                <p className="text-2xl font-extrabold text-rose-950">Paiement échoué</p>
-                <p className="text-sm leading-relaxed text-rose-900">Le paiement a échoué ou a expiré. Veuillez réessayer.</p>
-                <Button variant="outline" onClick={reset} className="h-11 w-full rounded-xl border-rose-300 text-rose-800 hover:bg-rose-100">
+          <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} className="mx-auto max-w-[520px] pt-4">
+            <Card className="rounded-2xl border-[#ecd6d2] bg-[#fff8f6] shadow-[0_5px_20px_rgba(24,56,70,0.055)]">
+              <CardContent className="space-y-4 p-5 text-center sm:p-8">
+                <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[#f8e8e4] text-[#a54b3d]"><XCircle className="h-8 w-8" /></div>
+                <div><p className="text-xl font-extrabold text-[#703d36]">Paiement échoué</p><p className="mt-2 text-sm leading-relaxed text-[#805d57]">Le paiement a échoué ou a expiré. Veuillez réessayer.</p></div>
+                <Button variant="outline" onClick={reset} className="h-11 w-full rounded-xl border-[#dfbeb8] text-[#8c463b] hover:bg-[#fdf0ed]">
                   Réessayer
                 </Button>
               </CardContent>

@@ -52,6 +52,7 @@ export * from './healthCheck503Reason';
 export * from './healthCheck503Status';
 export * from './healthStatus';
 export * from './healthStatusDatabase';
+export * from './healthStatusPaymentSchema';
 export * from './healthStatusSchema';
 export * from './healthStatusStatus';
 export * from './initiatePaymentRequest';

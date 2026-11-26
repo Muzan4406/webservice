@@ -45358,7 +45358,8 @@ var UpdateAppSettingsResponse = objectType({
 var HealthCheckResponse = objectType({
   "status": enumType(["ok"]),
   "database": enumType(["ready"]),
-  "schema": enumType(["vip-expiry-v1"])
+  "schema": enumType(["vip-expiry-v1"]),
+  "paymentSchema": enumType(["drimpay-v1"])
 });
 
 // ../../node_modules/.pnpm/pg@8.22.0/node_modules/pg/esm/index.mjs
@@ -64205,11 +64206,18 @@ router.get("/healthz", async (_req, res) => {
     return;
   }
   try {
-    await db.select({ id: usersTable.id, vipExpiresAt: usersTable.vipExpiresAt }).from(usersTable).limit(0);
+    await Promise.all([
+      db.select({ id: usersTable.id, vipExpiresAt: usersTable.vipExpiresAt }).from(usersTable).limit(0),
+      db.select({ id: appSettingsTable.id, vipPrice: appSettingsTable.vipPriceFcfa }).from(appSettingsTable).limit(0),
+      db.select({ id: vipPaymentsTable.id, orderId: vipPaymentsTable.drimpayOrderId }).from(vipPaymentsTable).limit(0),
+      db.select({ id: pendingSpDepositsTable.id, orderId: pendingSpDepositsTable.externalReference }).from(pendingSpDepositsTable).limit(0),
+      db.select({ id: depositsTable.id, reference: depositsTable.drimpayReference }).from(depositsTable).limit(0)
+    ]);
     res.json(HealthCheckResponse.parse({
       status: "ok",
       database: "ready",
-      schema: "vip-expiry-v1"
+      schema: "vip-expiry-v1",
+      paymentSchema: "drimpay-v1"
     }));
   } catch (error40) {
     const issue2 = getDatabaseIssue(error40);
@@ -67728,6 +67736,7 @@ var transactions_default = router15;
 
 // src/routes/drimpay.ts
 var import_express16 = __toESM(require_express2(), 1);
+var import_node_crypto3 = require("node:crypto");
 
 // src/lib/drimpay.ts
 var import_node_crypto2 = require("node:crypto");
@@ -68034,8 +68043,8 @@ function safePaymentErrorMetadata(error40) {
     ...error40 instanceof DrimPayError ? { upstreamStatus: error40.statusCode, outcomeUnknown: error40.outcomeUnknown } : {}
   };
 }
-function logPaymentFailure(flow, error40) {
-  const metadata = { flow, ...safePaymentErrorMetadata(error40) };
+function logPaymentFailure(flow, error40, diagnosticId) {
+  const metadata = { diagnosticId, flow, ...safePaymentErrorMetadata(error40) };
   if (error40 instanceof DrimPayError && error40.statusCode < 500) {
     logger.warn(metadata, "DrimPay payment request was rejected");
   } else {
@@ -68065,19 +68074,24 @@ function respondWithNoChargeConfirmation(res) {
   });
 }
 function sendPaymentError(res, error40, flow) {
-  logPaymentFailure(flow, error40);
+  const diagnosticId = (0, import_node_crypto3.randomUUID)();
+  logPaymentFailure(flow, error40, diagnosticId);
   if (error40 instanceof DrimPayError) {
     const drimPayError = error40;
     const status = drimPayError.statusCode === 401 || drimPayError.statusCode === 403 ? 503 : drimPayError.statusCode;
-    res.status(status).json({ error: status === 503 && drimPayError.statusCode !== 503 ? "La cl\xE9 DrimPay est refus\xE9e ou indisponible." : drimPayError.message });
+    res.status(status).json({ error: status === 503 && drimPayError.statusCode !== 503 ? "La cl\xE9 DrimPay est refus\xE9e ou indisponible." : drimPayError.message, diagnosticId });
     return;
   }
   const databaseIssue = getDatabaseIssue(error40);
   if (databaseIssue) {
-    res.status(503).json({ error: databaseIssue.message, code: databaseIssue.code });
+    res.status(503).json({ error: databaseIssue.message, code: databaseIssue.code, diagnosticId });
     return;
   }
-  res.status(500).json({ error: "Impossible de d\xE9marrer le paiement pour le moment. R\xE9essayez plus tard." });
+  res.status(500).json({
+    error: "Impossible de d\xE9marrer le paiement pour le moment. R\xE9essayez plus tard.",
+    code: "payment_start_failed",
+    diagnosticId
+  });
 }
 function safeWavePaymentUrl(value) {
   if (typeof value !== "string") return null;
@@ -68260,22 +68274,22 @@ router16.post("/drimpay/collect-vip", requireAuth, async (req, res) => {
     res.status(400).json({ error: input.error });
     return;
   }
-  const [settings] = await db.select().from(appSettingsTable).limit(1);
-  const vipPrice = settings ? Number(settings.vipPriceFcfa) : 5e3;
-  if (!Number.isSafeInteger(vipPrice) || vipPrice < MIN_AMOUNT || vipPrice > MAX_AMOUNT) {
-    res.status(503).json({ error: "Le prix VIP n'est pas configur\xE9 correctement pour DrimPay." });
-    return;
-  }
-  if (input.amount !== vipPrice) {
-    res.status(409).json({ error: "Le prix VIP a chang\xE9. Actualisez la page avant de r\xE9essayer." });
-    return;
-  }
   const orderId = `vip_${req.userId}_${requestId}`;
   let vipPaymentId;
   let shouldInitiate = false;
   let providerRequestStarted = false;
   let pendingReference = orderId;
   try {
+    const [settings] = await db.select().from(appSettingsTable).limit(1);
+    const vipPrice = settings ? Number(settings.vipPriceFcfa) : 5e3;
+    if (!Number.isSafeInteger(vipPrice) || vipPrice < MIN_AMOUNT || vipPrice > MAX_AMOUNT) {
+      res.status(503).json({ error: "Le prix VIP n'est pas configur\xE9 correctement pour DrimPay." });
+      return;
+    }
+    if (input.amount !== vipPrice) {
+      res.status(409).json({ error: "Le prix VIP a chang\xE9. Actualisez la page avant de r\xE9essayer." });
+      return;
+    }
     const activeVipPayments = await db.select().from(vipPaymentsTable).where(and(
       eq(vipPaymentsTable.userId, req.userId),
       eq(vipPaymentsTable.status, "pending")

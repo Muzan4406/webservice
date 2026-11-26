@@ -9,6 +9,7 @@ import { toast } from '@/lib/toast';
 import { ArrowLeft, Globe, Smartphone, Info, Wrench, ImagePlus, X, Check, Loader2 } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
+import { createPaymentRequestId } from '@/lib/payment-request-id';
 
 async function uploadImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -47,10 +48,16 @@ async function apiFetch(url: string, options?: { method?: string; body?: any }):
     },
     ...(options?.body !== undefined ? { body: JSON.stringify(options.body) } : {}),
   });
-  const data = await res.json();
+  const data = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const error = new Error(data.error ?? 'Erreur réseau') as Error & { status?: number };
+    const error = new Error(data?.error ?? `Erreur réseau (${res.status})`) as Error & {
+      status?: number;
+      diagnosticId?: string;
+      code?: string;
+    };
     error.status = res.status;
+    if (typeof data?.diagnosticId === 'string') error.diagnosticId = data.diagnosticId;
+    if (typeof data?.code === 'string') error.code = data.code;
     throw error;
   }
   return data;
@@ -212,7 +219,7 @@ export default function DepositPage() {
 
     setIntlSubmitting(true);
     try {
-      if (!intlRequestId.current) intlRequestId.current = crypto.randomUUID();
+      if (!intlRequestId.current) intlRequestId.current = createPaymentRequestId();
       const res = await apiFetch('/api/drimpay/collect', { method: 'POST', body: {
         requestId: intlRequestId.current,
         amount: Number(intlAmount),
@@ -239,7 +246,10 @@ export default function DepositPage() {
       }
     } catch (e: any) {
       if (e?.status && e.status < 500) intlRequestId.current = '';
-      toast.error(e?.message ?? 'Erreur lors du paiement.');
+      const message = e?.diagnosticId
+        ? `${e.message} (référence ${e.diagnosticId})`
+        : e?.message ?? 'Erreur lors du paiement.';
+      toast.error(message);
     } finally {
       setIntlSubmitting(false);
     }
