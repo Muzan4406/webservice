@@ -7,6 +7,7 @@ export const depositsTable = pgTable(
   {
     id: serial("id").primaryKey(),
     userId: integer("user_id").notNull(),
+    paymentProvider: text("payment_provider").notNull().default("legacy"),
     type: text("type").notNull(), // 'national' | 'international'
     operator: text("operator").notNull(), // 'tmoney' | 'moov_money' | 'other'
     oneXbetAccountId: text("one_xbet_account_id").notNull(), // user's 1xBet account ID
@@ -15,9 +16,7 @@ export const depositsTable = pgTable(
     referenceId: text("reference_id"), // unique enforced via DB index below
     screenshotUrl: text("screenshot_url"),
     country: text("country"),
-    // Keep the legacy SQL column name so this provider switch does not rename
-    // or discard historical payment references.
-    drimpayReference: text("sendavapay_reference"),
+    providerReference: text("provider_reference"),
     status: text("status").notNull().default("pending"), // 'pending' | 'validated' | 'rejected'
     rejectionReason: text("rejection_reason"),
     createdAt: timestamp("created_at").notNull().defaultNow(),

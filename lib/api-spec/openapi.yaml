@@ -562,144 +562,77 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessResponse'
 
-  # ─── SendavaPay ──────────────────────────────────────────────
-  /sendavapay/countries:
+  # ─── Ashtechpay ───────────────────────────────────────────────
+  /ashtechpay/countries:
     get:
-      operationId: getSendavapayCountries
-      tags: [SendavaPay]
-      summary: Get available countries for SendavaPay
+      operationId: getAshtechPayCountries
+      tags: [Ashtechpay]
+      summary: Get active Ashtechpay countries and operators
       responses:
         '200':
           description: Countries list
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SendavapayCountriesResponse'
+                type: array
+                items:
+                  $ref: '#/components/schemas/AshtechPayCountry'
 
-  /sendavapay/operators/{countryCode}:
+  /ashtechpay/collect:
+    post:
+      operationId: collectAshtechPayDeposit
+      tags: [Ashtechpay]
+      summary: Collect an international deposit through Ashtechpay
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AshtechPayCollectRequest'
+      responses:
+        '200':
+          description: Payment initiated or OTP required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AshtechPayCollectResponse'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /ashtechpay/collect-vip:
+    post:
+      operationId: collectAshtechPayVip
+      tags: [Ashtechpay]
+      summary: Collect a VIP payment through Ashtechpay
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AshtechPayCollectRequest'
+      responses:
+        '200':
+          description: Payment initiated or OTP required
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AshtechPayCollectResponse'
+        '400':
+          description: Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /ashtechpay/status/{reference}:
     get:
-      operationId: getSendavapayOperators
-      tags: [SendavaPay]
-      summary: Get payment operators for a country
-      parameters:
-        - name: countryCode
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
-        '200':
-          description: Operators list
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SendavapayOperatorsResponse'
-
-  /sendavapay/create-deposit-payment:
-    post:
-      operationId: createDepositPayment
-      tags: [SendavaPay]
-      summary: Create a SendavaPay payment for an international deposit
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateDepositPaymentRequest'
-      responses:
-        '200':
-          description: Payment created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SendavapayPaymentResponse'
-        '400':
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /sendavapay/create-vip-payment:
-    post:
-      operationId: createVipPayment
-      tags: [SendavaPay]
-      summary: Create a SendavaPay payment for VIP access
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CreateVipPaymentRequest'
-      responses:
-        '200':
-          description: Payment created
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SendavapayPaymentResponse'
-        '400':
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /sendavapay/initiate:
-    post:
-      operationId: initiateSendavapayPayment
-      tags: [SendavaPay]
-      summary: Initiate a SendavaPay payment (send push to payer)
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/InitiatePaymentRequest'
-      responses:
-        '200':
-          description: Payment initiated
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/InitiatePaymentResponse'
-        '400':
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /sendavapay/submit-otp:
-    post:
-      operationId: submitPaymentOtp
-      tags: [SendavaPay]
-      summary: Submit OTP for payment confirmation
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/SubmitOtpRequest'
-      responses:
-        '200':
-          description: OTP accepted
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/SuccessResponse'
-        '400':
-          description: Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-  /sendavapay/status/{reference}:
-    get:
-      operationId: getSendavapayPaymentStatus
-      tags: [SendavaPay]
-      summary: Get SendavaPay payment status
+      operationId: getAshtechPayPaymentStatus
+      tags: [Ashtechpay]
+      summary: Get Ashtechpay payment status
       parameters:
         - name: reference
           in: path
@@ -712,7 +645,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SendavapayStatusResponse'
+                $ref: '#/components/schemas/AshtechPayPaymentStatusResponse'
 
   # ─── Promotions ──────────────────────────────────────────────
   /promotions:
@@ -1834,18 +1767,6 @@ components:
         moovMoneyUssdCode:
           type: string
           nullable: true
-        internationalPaymentApiUrl:
-          type: string
-          nullable: true
-        internationalPaymentApiKey:
-          type: string
-          nullable: true
-        sendavapayApiKey:
-          type: string
-          nullable: true
-        sendavapayWebhookSecret:
-          type: string
-          nullable: true
 
     AppSettings:
       type: object
@@ -1908,10 +1829,10 @@ components:
         limit:
           type: integer
 
-    # ─── SendavaPay ────────────────────────────────────────────
-    SendavapayCountry:
+    # ─── Ashtechpay ────────────────────────────────────────────
+    AshtechPayCountry:
       type: object
-      required: [code, name, currency]
+      required: [code, name, currency, callingCode, nationalNumberLength, operators]
       properties:
         code:
           type: string
@@ -1919,143 +1840,91 @@ components:
           type: string
         currency:
           type: string
-        operators:
-          type: number
-
-    SendavapayCountriesResponse:
-      type: object
-      required: [countries]
-      properties:
-        countries:
-          type: array
-          items:
-            $ref: '#/components/schemas/SendavapayCountry'
-
-    SendavapayOperator:
-      type: object
-      required: [id, name]
-      properties:
-        id:
+        callingCode:
           type: string
-        name:
-          type: string
-        requiresOtp:
-          type: boolean
-        status:
-          type: string
-
-    SendavapayOperatorsResponse:
-      type: object
-      required: [operators]
-      properties:
+        nationalNumberLength:
+          type: integer
         operators:
           type: array
           items:
-            $ref: '#/components/schemas/SendavapayOperator'
+            $ref: '#/components/schemas/AshtechPayOperator'
 
-    CreateDepositPaymentRequest:
+    AshtechPayOperator:
       type: object
-      required: [amount, currency, payerCountry, oneXbetAccountId]
+      required: [code, label]
       properties:
+        code:
+          type: string
+        label:
+          type: string
+
+    AshtechPayCollectRequest:
+      type: object
+      required: [requestId, amount, phone, operator, countryCode]
+      properties:
+        requestId:
+          type: string
         amount:
           type: number
-        currency:
+        phone:
           type: string
-        payerCountry:
+        operator:
+          type: string
+        countryCode:
           type: string
         oneXbetAccountId:
           type: string
-
-    CreateVipPaymentRequest:
-      type: object
-      required: [currency, payerCountry]
-      properties:
-        currency:
-          type: string
-        payerCountry:
-          type: string
-
-    SendavapayPaymentResponse:
-      type: object
-      required: [paymentToken, reference, amount, currency, expiresAt]
-      properties:
-        paymentToken:
-          type: string
-        reference:
-          type: string
-        depositId:
-          type: integer
           nullable: true
-        amount:
-          type: string
-        currency:
-          type: string
-        expiresAt:
-          type: string
-          format: date-time
-
-    InitiatePaymentRequest:
-      type: object
-      required: [paymentToken, payerName, payerPhone, payerCountry, operatorId]
-      properties:
-        paymentToken:
-          type: string
-        payerName:
-          type: string
-        payerPhone:
-          type: string
-        payerEmail:
-          type: string
-        payerCountry:
-          type: string
-        operatorId:
-          type: string
-
-    InitiatePaymentResponse:
-      type: object
-      required: [success]
-      properties:
-        success:
-          type: boolean
-        reference:
-          type: string
-          nullable: true
-        requiresOtp:
-          type: boolean
-        otpToken:
-          type: string
-          nullable: true
-        requiresRedirect:
-          type: boolean
-        redirectUrl:
-          type: string
-          nullable: true
-        message:
-          type: string
-          nullable: true
-
-    SubmitOtpRequest:
-      type: object
-      required: [otpToken, otp]
-      properties:
-        otpToken:
-          type: string
         otp:
           type: string
+          nullable: true
+        confirmedNoCharge:
+          type: boolean
+          nullable: true
 
-    SendavapayStatusResponse:
+    AshtechPayCollectResponse:
       type: object
-      required: [reference, status, amount, currency]
+      required: [status]
       properties:
-        reference:
-          type: string
         status:
           type: string
-        amount:
+          enum: [pending, success, failed, otp_required, confirmation_required]
+        transactionId:
           type: string
-        currency:
+          nullable: true
+        requestId:
           type: string
-        completedAt:
+          nullable: true
+        type:
+          type: string
+          nullable: true
+        paymentUrl:
+          type: string
+          nullable: true
+        ussdCode:
+          type: string
+          nullable: true
+        otpBySms:
+          type: boolean
+        requiresNoChargeConfirmation:
+          type: boolean
+        diagnosticId:
+          type: string
+          nullable: true
+
+    AshtechPayPaymentStatusResponse:
+      type: object
+      required: [status, transactionId]
+      properties:
+        status:
+          type: string
+          enum: [pending, success, failed, otp_required, confirmation_required]
+        transactionId:
+          type: string
+        requestId:
+          type: string
+          nullable: true
+        ussdCode:
           type: string
           nullable: true
 
@@ -2100,4 +1969,4 @@ components:
           enum: [vip-expiry-v1]
         paymentSchema:
           type: string
-          enum: [drimpay-v1]
+          enum: [ashtechpay-v1]

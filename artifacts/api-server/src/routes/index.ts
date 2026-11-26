@@ -14,7 +14,7 @@ import adminRouter from "./admin";
 import uploadRouter from "./upload";
 import appSettingsRouter from "./app-settings";
 import transactionsRouter from "./transactions";
-import drimpayRouter from "./drimpay.js";
+import ashtechPayRouter from "./ashtechpay.js";
 import chatRouter from "./chat";
 
 const router: IRouter = Router();
@@ -34,7 +34,7 @@ router.use(adminRouter);
 router.use(uploadRouter);
 router.use(appSettingsRouter);
 router.use(transactionsRouter);
-router.use(drimpayRouter);
+router.use(ashtechPayRouter);
 router.use(chatRouter);
 
 export default router;

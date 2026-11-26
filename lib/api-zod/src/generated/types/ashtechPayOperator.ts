@@ -5,9 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 
-export interface SendavapayCountry {
+export interface AshtechPayOperator {
   code: string;
-  name: string;
-  currency: string;
-  operators?: number;
+  label: string;
 }

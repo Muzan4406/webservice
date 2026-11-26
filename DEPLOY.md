@@ -43,8 +43,7 @@ Dans **Node.js → Custom environment variables**, ajoutez :
 |---|---|
 | `NODE_ENV` | `production` |
 | `PG_URL` | URL complète de PostgreSQL |
-| `DRIMPAY_API_KEY` | clé live DrimPay commençant par `dp_live_sk_` |
-| `DRIMPAY_WEBHOOK_SECRET` | secret HMAC du webhook associé à cette clé live |
+| `ASHTECHPAY_API_KEY` | clé API Ashtechpay, utilisée uniquement par le serveur |
 | `WEBHOOK_BASE_URL` | origine publique HTTPS, par exemple `https://muzanservice.com` |
 | `ALLOWED_ORIGIN` | `https://votre-domaine.tld` (optionnel) |
 | `TELEGRAM_BOT_TOKEN` | optionnel |
@@ -53,15 +52,16 @@ Dans **Node.js → Custom environment variables**, ajoutez :
 | `VAPID_CONTACT` | optionnel, adresse de contact VAPID (par défaut `mailto:admin@example.com`) |
 | `LOG_LEVEL` | optionnel, niveau de journalisation (par défaut `info`) |
 
-Les clés DrimPay sont réservées au serveur et ne doivent jamais être mises dans
-le navigateur, l'interface admin, GitHub ou un fichier `.env` versionné.
-`DRIMPAY_API_KEY` n'accepte que les clés live. `WEBHOOK_BASE_URL` doit être
-accessible publiquement en HTTPS pour que DrimPay puisse notifier les paiements.
+La clé Ashtechpay est réservée au serveur et ne doit jamais être mise dans le
+navigateur, l'interface admin, GitHub ou un fichier `.env` versionné. Aucun
+secret webhook n'est requis. `WEBHOOK_BASE_URL` est une adresse publique non
+secrète; elle permet à Ashtechpay de notifier le site. Chaque notification est
+vérifiée en consultant le statut authentifié de la transaction chez Ashtechpay.
 `PG_URL` doit pointer vers une base PostgreSQL déjà accessible depuis Plesk.
 Avec le domaine `muzanservice.com`, l'adresse complète du callback est
-`https://muzanservice.com/webhooks/drimpay`.
+`https://muzanservice.com/webhooks/ashtechpay`.
 
-Le dépôt national manuel T-Money/Moov ne dépend pas de ces clés DrimPay.
+Le dépôt national manuel T-Money/Moov ne dépend pas de la clé Ashtechpay.
 
 ## Installation et premier déploiement
 
@@ -88,20 +88,23 @@ Le dépôt national manuel T-Money/Moov ne dépend pas de ces clés DrimPay.
 
    Les fichiers `dist` sont déjà présents dans l'import actuel. Cette étape
    est néanmoins nécessaire après une modification du frontend ou du backend.
-6. Appliquez le schéma PostgreSQL après avoir configuré `PG_URL` :
+6. Avant le push Drizzle, exécutez une fois le script SQL fourni dans
+   `lib/db/migrations/0002_payment_provider_ashtechpay.sql` sur la base de
+   production. Il renomme les références historiques sans supprimer leurs
+   données et marque les anciennes tentatives comme historiques.
+7. Appliquez le schéma PostgreSQL après avoir configuré `PG_URL` :
 
    ```bash
    pnpm --filter @workspace/db run push
    ```
 
-   Cette commande synchronise le schéma avec les colonnes utilisées par les comptes
-   VIP et DrimPay. Examinez toute proposition de suppression ou de renommage avant
-   de la confirmer; n'utilisez jamais `push-force`. Les membres VIP déjà actifs
-   restent sans échéance jusqu'à leur prochain paiement.
+   Cette commande ajoute les champs utilisés par les parcours Ashtechpay et VIP.
+   Examinez toute proposition de suppression ou de renommage avant de la
+   confirmer; n'utilisez jamais `push-force`.
 
-7. Vérifiez que `artifacts/api-server/uploads` est accessible en écriture par
+8. Vérifiez que `artifacts/api-server/uploads` est accessible en écriture par
    l'utilisateur du site, puis cliquez sur **Save** et **Restart App**.
-8. Activez le certificat SSL Let's Encrypt dans **SSL/TLS Certificates** et
+9. Activez le certificat SSL Let's Encrypt dans **SSL/TLS Certificates** et
    forcez HTTPS. Utilisez ensuite l'URL HTTPS dans `WEBHOOK_BASE_URL`.
 
 ## Vérifications
@@ -112,9 +115,9 @@ curl https://votre-domaine.tld/api/healthz
 ```
 
 La première commande doit retourner une page servie par l'application. La
-seconde doit retourner `{"status":"ok","database":"ready","schema":"vip-expiry-v1","paymentSchema":"drimpay-v1"}`.
+seconde doit retourner `{"status":"ok","database":"ready","schema":"vip-expiry-v1","paymentSchema":"ashtechpay-v1"}`.
 Cette réponse vérifie la connexion PostgreSQL ainsi que les colonnes nécessaires
-aux comptes VIP, aux paramètres de l'application et aux parcours DrimPay
+aux comptes VIP, aux paramètres de l'application et aux parcours Ashtechpay
 (dépôts internationaux et paiements VIP). Elle confirme que la version récente
 du serveur est déployée. Si elle renvoie `503` avec `database_not_configured`,
 configurez `PG_URL`. Si elle renvoie `database_schema_outdated`, exécutez la
@@ -206,8 +209,7 @@ Dans hPanel → **Node.js** → **Environment Variables**, ajoute :
 | `NODE_ENV` | `production` |
 | `PORT` | `3000` *(Hostinger le gère automatiquement)* |
 | `PG_URL` | URL de ta base PostgreSQL |
-| `DRIMPAY_API_KEY` | Clé live DrimPay commençant par `dp_live_sk_` |
-| `DRIMPAY_WEBHOOK_SECRET` | Secret HMAC du webhook DrimPay live |
+| `ASHTECHPAY_API_KEY` | Clé API Ashtechpay, réservée au serveur |
 | `WEBHOOK_BASE_URL` | `https://tondomaine.com` |
 | `TELEGRAM_BOT_TOKEN` | *(optionnel)* |
 | `TELEGRAM_CHAT_ID` | *(optionnel)* |
@@ -241,4 +243,4 @@ Clique **Save** puis **Restart**.
 - **Erreur `Cannot find module`** → relance `pnpm install` depuis le SSH
 - **Page blanche** → vérifie que `NODE_ENV=production` est bien défini
 - **API 500** → vérifie `PG_URL` dans les variables d'environnement
-- **Webhooks DrimPay ne fonctionnent pas** → vérifie le domaine HTTPS, `WEBHOOK_BASE_URL` et `DRIMPAY_WEBHOOK_SECRET`
+- **Notification de paiement manquante** → vérifier HTTPS et `WEBHOOK_BASE_URL`; le serveur confirme chaque événement avec l'API Ashtechpay.

@@ -38750,12 +38750,12 @@ var require_jwa = __commonJS({
       };
     }
     var bufferEqual;
-    var timingSafeEqual2 = "timingSafeEqual" in crypto3 ? function timingSafeEqual3(a, b) {
+    var timingSafeEqual = "timingSafeEqual" in crypto3 ? function timingSafeEqual2(a, b) {
       if (a.byteLength !== b.byteLength) {
         return false;
       }
       return crypto3.timingSafeEqual(a, b);
-    } : function timingSafeEqual3(a, b) {
+    } : function timingSafeEqual2(a, b) {
       if (!bufferEqual) {
         bufferEqual = require_buffer_equal_constant_time();
       }
@@ -38764,7 +38764,7 @@ var require_jwa = __commonJS({
     function createHmacVerifier(bits) {
       return function verify(thing, signature, secret) {
         var computedSig = createHmacSigner(bits)(thing, secret);
-        return timingSafeEqual2(Buffer2.from(signature), Buffer2.from(computedSig));
+        return timingSafeEqual(Buffer2.from(signature), Buffer2.from(computedSig));
       };
     }
     function createKeySigner(bits) {
@@ -44945,85 +44945,68 @@ var ConfirmVipPurchaseResponse = objectType({
   "success": booleanType(),
   "message": stringType().optional()
 });
-var GetSendavapayCountriesResponse = objectType({
-  "countries": arrayType(objectType({
-    "code": stringType(),
-    "name": stringType(),
-    "currency": stringType(),
-    "operators": numberType().optional()
-  }))
-});
-var GetSendavapayOperatorsParams = objectType({
-  "countryCode": coerce.string()
-});
-var GetSendavapayOperatorsResponse = objectType({
+var GetAshtechPayCountriesResponseItem = objectType({
+  "code": stringType(),
+  "name": stringType(),
+  "currency": stringType(),
+  "callingCode": stringType(),
+  "nationalNumberLength": numberType(),
   "operators": arrayType(objectType({
-    "id": stringType(),
-    "name": stringType(),
-    "requiresOtp": booleanType().optional(),
-    "status": stringType().optional()
+    "code": stringType(),
+    "label": stringType()
   }))
 });
-var CreateDepositPaymentBody = objectType({
+var GetAshtechPayCountriesResponse = arrayType(GetAshtechPayCountriesResponseItem);
+var CollectAshtechPayDepositBody = objectType({
+  "requestId": stringType(),
   "amount": numberType(),
-  "currency": stringType(),
-  "payerCountry": stringType(),
-  "oneXbetAccountId": stringType()
+  "phone": stringType(),
+  "operator": stringType(),
+  "countryCode": stringType(),
+  "oneXbetAccountId": stringType().nullish(),
+  "otp": stringType().nullish(),
+  "confirmedNoCharge": booleanType().nullish()
 });
-var CreateDepositPaymentResponse = objectType({
-  "paymentToken": stringType(),
-  "reference": stringType(),
-  "depositId": numberType().nullish(),
-  "amount": stringType(),
-  "currency": stringType(),
-  "expiresAt": coerce.date()
+var CollectAshtechPayDepositResponse = objectType({
+  "status": enumType(["pending", "success", "failed", "otp_required", "confirmation_required"]),
+  "transactionId": stringType().nullish(),
+  "requestId": stringType().nullish(),
+  "type": stringType().nullish(),
+  "paymentUrl": stringType().nullish(),
+  "ussdCode": stringType().nullish(),
+  "otpBySms": booleanType().optional(),
+  "requiresNoChargeConfirmation": booleanType().optional(),
+  "diagnosticId": stringType().nullish()
 });
-var CreateVipPaymentBody = objectType({
-  "currency": stringType(),
-  "payerCountry": stringType()
+var CollectAshtechPayVipBody = objectType({
+  "requestId": stringType(),
+  "amount": numberType(),
+  "phone": stringType(),
+  "operator": stringType(),
+  "countryCode": stringType(),
+  "oneXbetAccountId": stringType().nullish(),
+  "otp": stringType().nullish(),
+  "confirmedNoCharge": booleanType().nullish()
 });
-var CreateVipPaymentResponse = objectType({
-  "paymentToken": stringType(),
-  "reference": stringType(),
-  "depositId": numberType().nullish(),
-  "amount": stringType(),
-  "currency": stringType(),
-  "expiresAt": coerce.date()
+var CollectAshtechPayVipResponse = objectType({
+  "status": enumType(["pending", "success", "failed", "otp_required", "confirmation_required"]),
+  "transactionId": stringType().nullish(),
+  "requestId": stringType().nullish(),
+  "type": stringType().nullish(),
+  "paymentUrl": stringType().nullish(),
+  "ussdCode": stringType().nullish(),
+  "otpBySms": booleanType().optional(),
+  "requiresNoChargeConfirmation": booleanType().optional(),
+  "diagnosticId": stringType().nullish()
 });
-var InitiateSendavapayPaymentBody = objectType({
-  "paymentToken": stringType(),
-  "payerName": stringType(),
-  "payerPhone": stringType(),
-  "payerEmail": stringType().optional(),
-  "payerCountry": stringType(),
-  "operatorId": stringType()
-});
-var InitiateSendavapayPaymentResponse = objectType({
-  "success": booleanType(),
-  "reference": stringType().nullish(),
-  "requiresOtp": booleanType().optional(),
-  "otpToken": stringType().nullish(),
-  "requiresRedirect": booleanType().optional(),
-  "redirectUrl": stringType().nullish(),
-  "message": stringType().nullish()
-});
-var SubmitPaymentOtpBody = objectType({
-  "otpToken": stringType(),
-  "otp": stringType()
-});
-var SubmitPaymentOtpResponse = objectType({
-  "success": booleanType(),
-  "message": stringType().optional()
-});
-var GetSendavapayPaymentStatusParams = objectType({
+var GetAshtechPayPaymentStatusParams = objectType({
   "reference": coerce.string()
 });
-var GetSendavapayPaymentStatusResponse = objectType({
-  "reference": stringType(),
-  "status": stringType(),
-  "amount": stringType(),
-  "currency": stringType(),
-  "completedAt": stringType().nullish()
+var GetAshtechPayPaymentStatusResponse = objectType({
+  "status": enumType(["pending", "success", "failed", "otp_required", "confirmation_required"]),
+  "transactionId": stringType(),
+  "requestId": stringType().nullish(),
+  "ussdCode": stringType().nullish()
 });
 var GetPromotionsResponse = objectType({
   "promotions": arrayType(objectType({
@@ -45302,31 +45285,19 @@ var GetPaymentConfigResponse = objectType({
   "tmoneyEnabled": booleanType(),
   "moovMoneyEnabled": booleanType(),
   "moovMoneyNumber": stringType().nullish(),
-  "moovMoneyUssdCode": stringType().nullish(),
-  "internationalPaymentApiUrl": stringType().nullish(),
-  "internationalPaymentApiKey": stringType().nullish(),
-  "sendavapayApiKey": stringType().nullish(),
-  "sendavapayWebhookSecret": stringType().nullish()
+  "moovMoneyUssdCode": stringType().nullish()
 });
 var UpdatePaymentConfigBody = objectType({
   "tmoneyEnabled": booleanType(),
   "moovMoneyEnabled": booleanType(),
   "moovMoneyNumber": stringType().nullish(),
-  "moovMoneyUssdCode": stringType().nullish(),
-  "internationalPaymentApiUrl": stringType().nullish(),
-  "internationalPaymentApiKey": stringType().nullish(),
-  "sendavapayApiKey": stringType().nullish(),
-  "sendavapayWebhookSecret": stringType().nullish()
+  "moovMoneyUssdCode": stringType().nullish()
 });
 var UpdatePaymentConfigResponse = objectType({
   "tmoneyEnabled": booleanType(),
   "moovMoneyEnabled": booleanType(),
   "moovMoneyNumber": stringType().nullish(),
-  "moovMoneyUssdCode": stringType().nullish(),
-  "internationalPaymentApiUrl": stringType().nullish(),
-  "internationalPaymentApiKey": stringType().nullish(),
-  "sendavapayApiKey": stringType().nullish(),
-  "sendavapayWebhookSecret": stringType().nullish()
+  "moovMoneyUssdCode": stringType().nullish()
 });
 var GetAppSettingsResponse = objectType({
   "maintenanceMode": booleanType(),
@@ -45359,7 +45330,7 @@ var HealthCheckResponse = objectType({
   "status": enumType(["ok"]),
   "database": enumType(["ready"]),
   "schema": enumType(["vip-expiry-v1"]),
-  "paymentSchema": enumType(["drimpay-v1"])
+  "paymentSchema": enumType(["ashtechpay-v1"])
 });
 
 // ../../node_modules/.pnpm/pg@8.22.0/node_modules/pg/esm/index.mjs
@@ -63901,6 +63872,7 @@ var depositsTable = pgTable(
   {
     id: serial("id").primaryKey(),
     userId: integer("user_id").notNull(),
+    paymentProvider: text("payment_provider").notNull().default("legacy"),
     type: text("type").notNull(),
     // 'national' | 'international'
     operator: text("operator").notNull(),
@@ -63914,9 +63886,7 @@ var depositsTable = pgTable(
     // unique enforced via DB index below
     screenshotUrl: text("screenshot_url"),
     country: text("country"),
-    // Keep the legacy SQL column name so this provider switch does not rename
-    // or discard historical payment references.
-    drimpayReference: text("sendavapay_reference"),
+    providerReference: text("provider_reference"),
     status: text("status").notNull().default("pending"),
     // 'pending' | 'validated' | 'rejected'
     rejectionReason: text("rejection_reason"),
@@ -64038,13 +64008,11 @@ var paymentConfigTable = pgTable("payment_config", {
   moovMoneyEnabled: boolean("moov_money_enabled").notNull().default(false),
   moovMoneyNumber: text("moov_money_number"),
   moovMoneyUssdCode: text("moov_money_ussd_code"),
-  // Legacy provider settings retained only to preserve existing databases.
-  // The current payment API no longer reads or returns these credentials.
+  // Retained only so existing database columns and stored history are not dropped.
   internationalPaymentApiUrl: text("international_payment_api_url"),
   internationalPaymentApiKey: text("international_payment_api_key"),
-  ashtechpayApiKey: text("sendavapay_api_key"),
-  // Kept for schema compatibility (column exists in DB, no longer used)
-  sendavapayWebhookSecret: text("sendavapay_webhook_secret"),
+  legacyPaymentApiKey: text("sendavapay_api_key"),
+  legacyWebhookSecret: text("sendavapay_webhook_secret"),
   // Adresse du point de retrait 1xBet (affiché sur la page retrait)
   withdrawCity: text("withdraw_city").default("Tsevie"),
   withdrawStreet: text("withdraw_street").default("Kpali24"),
@@ -64090,23 +64058,30 @@ var insertSessionSchema = createInsertSchema(sessionsTable).omit({
 var vipPaymentsTable = pgTable("vip_payments", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
-  // Keep the legacy SQL column name for existing payment references.
-  drimpayReference: text("sendavapay_reference"),
-  drimpayOrderId: text("drimpay_order_id"),
+  paymentProvider: text("payment_provider").notNull().default("ashtechpay"),
+  providerReference: text("provider_reference"),
+  providerTransactionId: text("provider_transaction_id"),
+  externalReference: text("external_reference"),
+  otpUssdCode: text("otp_ussd_code"),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   currency: text("currency").notNull().default("XAF"),
   status: text("status").notNull().default("pending"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow()
-}, (table) => [uniqueIndex("vip_payments_drimpay_order_id_unique").on(table.drimpayOrderId)]);
+}, (table) => [
+  uniqueIndex("vip_payments_external_reference_unique").on(table.externalReference),
+  uniqueIndex("vip_payments_provider_transaction_id_unique").on(table.providerTransactionId)
+]);
 
 // ../../lib/db/src/schema/pending_sp_deposits.ts
 var pendingSpDepositsTable = pgTable("pending_sp_deposits", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull(),
-  // Keep the legacy SQL column name for existing Plesk databases.
-  drimpayReference: text("sendavapay_reference").notNull().unique(),
-  externalReference: text("external_reference").notNull(),
+  paymentProvider: text("payment_provider").notNull().default("ashtechpay"),
+  providerReference: text("provider_reference").unique(),
+  providerTransactionId: text("provider_transaction_id").unique(),
+  otpUssdCode: text("otp_ussd_code"),
+  externalReference: text("external_reference").notNull().unique(),
   amount: numeric("amount", { precision: 12, scale: 2 }).notNull(),
   currency: text("currency").notNull(),
   payerCountry: text("payer_country").notNull(),
@@ -64220,9 +64195,25 @@ router.get("/healthz", async (_req, res) => {
     const checks = [
       ["accounts", () => db.select({ id: usersTable.id, vipExpiresAt: usersTable.vipExpiresAt }).from(usersTable).limit(0)],
       ["app_settings", () => db.select({ id: appSettingsTable.id, vipPrice: appSettingsTable.vipPriceFcfa }).from(appSettingsTable).limit(0)],
-      ["vip_payments", () => db.select({ id: vipPaymentsTable.id, orderId: vipPaymentsTable.drimpayOrderId }).from(vipPaymentsTable).limit(0)],
-      ["international_deposits", () => db.select({ id: pendingSpDepositsTable.id, orderId: pendingSpDepositsTable.externalReference }).from(pendingSpDepositsTable).limit(0)],
-      ["deposits", () => db.select({ id: depositsTable.id, reference: depositsTable.drimpayReference }).from(depositsTable).limit(0)]
+      ["vip_payments", () => db.select({
+        id: vipPaymentsTable.id,
+        orderId: vipPaymentsTable.externalReference,
+        transactionId: vipPaymentsTable.providerTransactionId,
+        provider: vipPaymentsTable.paymentProvider,
+        otpUssdCode: vipPaymentsTable.otpUssdCode
+      }).from(vipPaymentsTable).limit(0)],
+      ["international_deposits", () => db.select({
+        id: pendingSpDepositsTable.id,
+        orderId: pendingSpDepositsTable.externalReference,
+        transactionId: pendingSpDepositsTable.providerTransactionId,
+        provider: pendingSpDepositsTable.paymentProvider,
+        otpUssdCode: pendingSpDepositsTable.otpUssdCode
+      }).from(pendingSpDepositsTable).limit(0)],
+      ["deposits", () => db.select({
+        id: depositsTable.id,
+        reference: depositsTable.providerReference,
+        provider: depositsTable.paymentProvider
+      }).from(depositsTable).limit(0)]
     ];
     for (const [check2, run] of checks) {
       try {
@@ -64242,7 +64233,7 @@ router.get("/healthz", async (_req, res) => {
       status: "ok",
       database: "ready",
       schema: "vip-expiry-v1",
-      paymentSchema: "drimpay-v1"
+      paymentSchema: "ashtechpay-v1"
     }));
   } catch (error40) {
     const issue2 = getDatabaseIssue(error40);
@@ -66083,10 +66074,10 @@ var tg = {
 \u{1F3E6} Compte 1xBet : <code>${opts.oneXbetAccountId}</code>`
     );
   },
-  depositDrimPay(opts) {
+  depositMobileMoney(opts) {
     const flag = countryFlag(opts.country);
     return sendAlert(
-      `\u{1F4B0} <b>D\xE9p\xF4t DrimPay confirm\xE9</b>
+      `\u{1F4B0} <b>D\xE9p\xF4t Mobile Money confirm\xE9</b>
 \u{1F464} ${opts.username} (${opts.userId})
 \u{1F4B5} ${fmt(opts.amount)} FCFA${flag ? ` \u2022 ${flag}` : ""}
 \u{1F516} TX : <code>${opts.transactionId}</code>`
@@ -67520,11 +67511,6 @@ router12.get("/admin/payment-config", requireAuth, async (req, res) => {
     moovMoneyEnabled: config2.moovMoneyEnabled,
     moovMoneyNumber: config2.moovMoneyNumber ?? null,
     moovMoneyUssdCode: config2.moovMoneyUssdCode ?? null,
-    // Payment credentials are configured only as server environment variables.
-    internationalPaymentApiUrl: null,
-    internationalPaymentApiKey: null,
-    sendavapayApiKey: null,
-    sendavapayWebhookSecret: null,
     withdrawCity: config2.withdrawCity ?? "Tsevie",
     withdrawStreet: config2.withdrawStreet ?? "Kpali24"
   });
@@ -67556,10 +67542,6 @@ router12.put("/admin/payment-config", requireAuth, async (req, res) => {
     moovMoneyEnabled: existing.moovMoneyEnabled,
     moovMoneyNumber: existing.moovMoneyNumber ?? null,
     moovMoneyUssdCode: existing.moovMoneyUssdCode ?? null,
-    internationalPaymentApiUrl: null,
-    internationalPaymentApiKey: null,
-    sendavapayApiKey: null,
-    sendavapayWebhookSecret: null,
     withdrawCity: existing.withdrawCity ?? "Tsevie",
     withdrawStreet: existing.withdrawStreet ?? "Kpali24"
   });
@@ -67760,91 +67742,89 @@ router15.get("/transactions", requireAuth, async (req, res) => {
 });
 var transactions_default = router15;
 
-// src/routes/drimpay.ts
+// src/routes/ashtechpay.ts
 var import_express16 = __toESM(require_express2(), 1);
-var import_node_crypto3 = require("node:crypto");
-
-// src/lib/drimpay.ts
 var import_node_crypto2 = require("node:crypto");
-var DRIMPAY_LIVE_API_BASE = "https://drimpay.com/api/v2";
-var DRIMPAY_COUNTRIES = [
-  { code: "TG", name: "Togo", currency: "XOF", callingCode: "228", nationalNumberLength: 8, operators: [
-    { code: "tmoney", label: "T-Money" },
-    { code: "moov", label: "Moov Money" }
-  ] },
-  { code: "BJ", name: "B\xE9nin", currency: "XOF", callingCode: "229", nationalNumberLength: 10, operators: [
-    { code: "moov", label: "Moov Money" },
-    { code: "mtn", label: "MTN Mobile Money" }
-  ] },
-  { code: "CM", name: "Cameroun", currency: "XAF", callingCode: "237", nationalNumberLength: 9, operators: [
-    { code: "mtn", label: "MTN MoMo" },
-    { code: "orange", label: "Orange Money" }
-  ] },
-  { code: "BF", name: "Burkina Faso", currency: "XOF", callingCode: "226", nationalNumberLength: 8, operators: [
-    { code: "wave", label: "Wave" },
-    { code: "moov", label: "Moov Money" },
-    { code: "orange", label: "Orange Money", requiresOtp: true }
-  ] },
-  { code: "ML", name: "Mali", currency: "XOF", callingCode: "223", nationalNumberLength: 8, operators: [
-    { code: "moov", label: "Moov Money" },
-    { code: "orange", label: "Orange Money", requiresOtp: true }
-  ] },
-  { code: "SN", name: "S\xE9n\xE9gal", currency: "XOF", callingCode: "221", nationalNumberLength: 9, operators: [
-    { code: "orange", label: "Orange Money", requiresOtp: true },
-    { code: "wave", label: "Wave" }
-  ] },
-  { code: "CI", name: "C\xF4te d'Ivoire", currency: "XOF", callingCode: "225", nationalNumberLength: 10, operators: [
-    { code: "moov", label: "Moov Money" },
-    { code: "mtn", label: "MTN Mobile Money" },
-    { code: "wave", label: "Wave" },
-    { code: "orange", label: "Orange Money", requiresOtp: true }
-  ] },
-  { code: "CG", name: "Congo-Brazzaville", currency: "XAF", callingCode: "242", nationalNumberLength: 9, operators: [
-    { code: "mtn", label: "MTN Mobile Money" }
-  ] }
-];
-var DrimPayError = class extends Error {
+
+// src/lib/ashtechpay.ts
+var ASHTECHPAY_API_BASE = "https://ashtechpay.top";
+var PHONE_METADATA = {
+  BJ: { callingCode: "229", nationalNumberLength: 8 },
+  BF: { callingCode: "226", nationalNumberLength: 8 },
+  CM: { callingCode: "237", nationalNumberLength: 9 },
+  CI: { callingCode: "225", nationalNumberLength: 10 },
+  GA: { callingCode: "241", nationalNumberLength: 8 },
+  ML: { callingCode: "223", nationalNumberLength: 8 },
+  NE: { callingCode: "227", nationalNumberLength: 8 },
+  CD: { callingCode: "243", nationalNumberLength: 9 },
+  SN: { callingCode: "221", nationalNumberLength: 9 },
+  TG: { callingCode: "228", nationalNumberLength: 8 }
+};
+var AshtechPayError = class extends Error {
   constructor(message, statusCode, outcomeUnknown = false) {
     super(message);
     this.statusCode = statusCode;
     this.outcomeUnknown = outcomeUnknown;
-    this.name = "DrimPayError";
+    this.name = "AshtechPayError";
   }
 };
-function getDrimPayApiKey() {
-  const apiKey = process.env.DRIMPAY_API_KEY?.trim();
+function getAshtechPayApiKey() {
+  const apiKey = process.env.ASHTECHPAY_API_KEY?.trim();
   if (!apiKey) {
-    throw new DrimPayError("Le service de paiement n'est pas configur\xE9.", 503);
-  }
-  if (!apiKey.startsWith("dp_live_sk_")) {
-    throw new DrimPayError("La cl\xE9 DrimPay configur\xE9e n'est pas une cl\xE9 live valide.", 503);
+    throw new AshtechPayError("Le service de paiement n'est pas configur\xE9.", 503);
   }
   return apiKey;
 }
-function getDrimPayWebhookSecret() {
-  const secret = process.env.DRIMPAY_WEBHOOK_SECRET?.trim();
-  if (!secret) {
-    throw new DrimPayError("Le webhook de paiement n'est pas configur\xE9.", 503);
-  }
-  return secret;
-}
-function getDrimPayWebhookUrl() {
+function getAshtechPayWebhookUrl() {
   const configuredBase = process.env.WEBHOOK_BASE_URL?.trim();
-  if (!configuredBase) {
-    throw new DrimPayError("L'adresse publique du webhook n'est pas configur\xE9e.", 503);
-  }
+  if (!configuredBase) return void 0;
   try {
     const base = new URL(configuredBase);
     if (base.protocol !== "https:") throw new Error("HTTPS required");
-    return new URL("/webhooks/drimpay", base.origin).toString();
+    return new URL("/webhooks/ashtechpay", base.origin).toString();
   } catch {
-    throw new DrimPayError("WEBHOOK_BASE_URL doit \xEAtre une adresse HTTPS valide.", 503);
+    throw new AshtechPayError("WEBHOOK_BASE_URL doit \xEAtre une adresse HTTPS valide.", 503);
   }
 }
-async function drimPayRequest(path, apiKey, init2 = {}) {
+function normalizeAshtechPhone(value, country) {
+  if (typeof value !== "string") return null;
+  const nationalNumber = value.trim().replace(/[ .()-]/g, "");
+  if (!/^\d+$/.test(nationalNumber) || nationalNumber.length !== country.nationalNumberLength) {
+    return null;
+  }
+  return nationalNumber;
+}
+function normalizeAshtechCountries(payload) {
+  if (!Array.isArray(payload)) {
+    throw new AshtechPayError("Le catalogue de pays Ashtechpay est invalide.", 502);
+  }
+  const countries = [];
+  for (const value of payload) {
+    if (!value || typeof value !== "object") continue;
+    const country = value;
+    const code = typeof country.code === "string" ? country.code.toUpperCase() : "";
+    const metadata = PHONE_METADATA[code];
+    const operators = Array.isArray(country.operators) ? country.operators.filter((operator) => typeof operator === "string" && operator.trim().length > 0) : [];
+    if (!metadata || typeof country.name !== "string" || typeof country.currency !== "string" || operators.length === 0) continue;
+    countries.push({
+      code,
+      name: country.name,
+      currency: country.currency,
+      ...metadata,
+      operators: [...new Set(operators)].map((operator) => ({ code: operator, label: operator }))
+    });
+  }
+  return countries;
+}
+function normalizeAshtechStatus(status) {
+  if (status === "success" || status === "completed") return "success";
+  if (status === "failed") return "failed";
+  return "pending";
+}
+async function ashtechPayRequest(path, apiKey = getAshtechPayApiKey(), init2 = {}) {
   let response;
   try {
-    response = await fetch(`${DRIMPAY_LIVE_API_BASE}${path}`, {
+    response = await fetch(`${ASHTECHPAY_API_BASE}${path}`, {
       method: init2.method ?? "GET",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -67854,108 +67834,102 @@ async function drimPayRequest(path, apiKey, init2 = {}) {
       signal: AbortSignal.timeout(15e3)
     });
   } catch {
-    throw new DrimPayError(
-      "La confirmation DrimPay tarde. V\xE9rifiez le statut avant de r\xE9essayer.",
+    throw new AshtechPayError(
+      "Le service de paiement ne r\xE9pond pas. V\xE9rifiez son statut avant de recommencer.",
       502,
-      true
+      init2.method === "POST"
     );
   }
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    const message = response.status >= 500 ? "DrimPay rencontre un probl\xE8me temporaire." : payload.message ?? payload.error ?? "La demande de paiement a \xE9t\xE9 refus\xE9e.";
-    throw new DrimPayError(message, response.status >= 500 ? 502 : response.status, response.status >= 500);
+  const data = await response.json().catch(() => ({}));
+  if (response.ok || response.status === 400 && data.error === "otp_required") {
+    return { status: response.status, data };
   }
-  return payload;
-}
-function verifyDrimPayWebhookSignature(rawBody, signatureHeader, timestampHeader, secret, nowMs = Date.now()) {
-  if (!signatureHeader || !timestampHeader) return false;
-  const match = /^t=(\d+),v1=([a-f0-9]{64})$/i.exec(signatureHeader.trim());
-  if (!match || match[1] !== timestampHeader.trim()) return false;
-  const timestamp2 = Number(match[1]);
-  if (!Number.isSafeInteger(timestamp2) || Math.abs(Math.floor(nowMs / 1e3) - timestamp2) > 300) {
-    return false;
+  if (response.status === 401 || response.status === 403) {
+    throw new AshtechPayError("La cl\xE9 Ashtechpay est invalide ou n'a pas acc\xE8s \xE0 cette API.", 503);
   }
-  const expected = (0, import_node_crypto2.createHmac)("sha256", secret).update(`${match[1]}.`).update(rawBody).digest();
-  const received = Buffer.from(match[2], "hex");
-  return received.length === expected.length && (0, import_node_crypto2.timingSafeEqual)(received, expected);
-}
-function findDrimPayOperator(countryCode, operatorCode) {
-  return DRIMPAY_COUNTRIES.find((country) => country.code === countryCode.toUpperCase())?.operators.find((operator) => operator.code === operatorCode);
-}
-function normalizeDrimPayPhone(value, country) {
-  if (typeof value !== "string") return null;
-  const nationalNumber = value.trim().replace(/[ .()-]/g, "");
-  if (!/^\d+$/.test(nationalNumber) || nationalNumber.length !== country.nationalNumberLength) {
-    return null;
-  }
-  return `+${country.callingCode}${nationalNumber}`;
-}
-function normalizeDrimPayStatus(status) {
-  if (status === "success") return "success";
-  if (status === "reversed") return "reversed";
-  if (["failed", "expired", "cancelled"].includes(status)) return "failed";
-  return "pending";
+  const message = response.status >= 500 ? "Ashtechpay rencontre un probl\xE8me temporaire." : data.message ?? data.error ?? "La demande de paiement a \xE9t\xE9 refus\xE9e.";
+  throw new AshtechPayError(
+    message,
+    response.status === 401 || response.status === 403 ? 503 : response.status,
+    response.status >= 500
+  );
 }
 
-// src/lib/drimpay-settlement.ts
+// src/lib/ashtechpay-settlement.ts
 function amountMatches(expected, received) {
   const amount = Number(received);
   return Number.isFinite(amount) && amount === Number(expected);
 }
-async function settleDrimPayPayment(payment) {
-  const reference = payment.reference;
-  const orderId = payment.order_id;
-  if (!reference || !orderId) {
-    throw new Error("DrimPay event is missing reference or order_id");
+function findPaymentCondition(reference, transactionId) {
+  const conditions = [];
+  if (reference) {
+    conditions.push(
+      eq(pendingSpDepositsTable.providerReference, reference),
+      eq(pendingSpDepositsTable.externalReference, reference)
+    );
   }
-  const [pendingDeposit] = await db.select().from(pendingSpDepositsTable).where(or(
-    eq(pendingSpDepositsTable.drimpayReference, reference),
-    eq(pendingSpDepositsTable.externalReference, orderId)
-  )).limit(1);
-  const [vipPayment] = await db.select().from(vipPaymentsTable).where(or(
-    eq(vipPaymentsTable.drimpayReference, reference),
-    eq(vipPaymentsTable.drimpayOrderId, orderId)
-  )).limit(1);
+  if (transactionId) conditions.push(eq(pendingSpDepositsTable.providerTransactionId, transactionId));
+  return conditions.length ? or(...conditions) : void 0;
+}
+async function settleAshtechPayPayment(payment) {
+  const { reference, transaction_id: transactionId } = payment;
+  if (!reference && !transactionId) throw new Error("Payment event is missing provider identifiers");
+  const depositCondition = findPaymentCondition(reference, transactionId);
+  const vipConditions = [];
+  if (reference) {
+    vipConditions.push(
+      eq(vipPaymentsTable.providerReference, reference),
+      eq(vipPaymentsTable.externalReference, reference)
+    );
+  }
+  if (transactionId) vipConditions.push(eq(vipPaymentsTable.providerTransactionId, transactionId));
+  const [pendingDeposit] = depositCondition ? await db.select().from(pendingSpDepositsTable).where(and(
+    eq(pendingSpDepositsTable.paymentProvider, "ashtechpay"),
+    depositCondition
+  )).limit(1) : [];
+  const [vipPayment] = vipConditions.length ? await db.select().from(vipPaymentsTable).where(and(
+    eq(vipPaymentsTable.paymentProvider, "ashtechpay"),
+    or(...vipConditions)
+  )).limit(1) : [];
   if (!pendingDeposit && !vipPayment) {
-    logger.warn({ reference, orderId }, "DrimPay payment has no matching local order");
+    logger.warn({ transactionId, reference }, "Ashtechpay payment has no matching local order");
     return;
   }
-  if (pendingDeposit) {
-    if (pendingDeposit.externalReference !== orderId || !amountMatches(pendingDeposit.amount, payment.amount) || pendingDeposit.currency !== payment.currency || pendingDeposit.payerCountry !== payment.country_code) {
-      throw new Error("DrimPay deposit payload does not match the pending order");
-    }
+  const grossAmount = payment.total_amount ?? payment.amount;
+  if (pendingDeposit && (grossAmount !== void 0 && !amountMatches(pendingDeposit.amount, grossAmount) || payment.currency && pendingDeposit.currency !== payment.currency || payment.country_code && pendingDeposit.payerCountry !== payment.country_code)) {
+    throw new Error("Ashtechpay deposit does not match the pending order");
   }
-  if (vipPayment) {
-    if (vipPayment.drimpayOrderId !== orderId || !amountMatches(vipPayment.amount, payment.amount) || vipPayment.currency !== payment.currency) {
-      throw new Error("DrimPay VIP payload does not match the pending order");
-    }
+  if (vipPayment && (grossAmount !== void 0 && !amountMatches(vipPayment.amount, grossAmount) || payment.currency && vipPayment.currency !== payment.currency)) {
+    throw new Error("Ashtechpay VIP payment does not match the pending order");
   }
-  const status = payment.status ?? payment.event?.replace(/^payin\./, "");
-  if (status === "success") {
+  const status = payment.status;
+  if (status === "success" || status === "completed") {
+    if (!transactionId) throw new Error("Completed Ashtechpay payment is missing transaction_id");
     if (pendingDeposit) {
       const [existingDeposit] = await db.select().from(depositsTable).where(or(
-        eq(depositsTable.drimpayReference, reference),
-        eq(depositsTable.referenceId, orderId)
+        eq(depositsTable.providerReference, reference ?? transactionId),
+        eq(depositsTable.referenceId, pendingDeposit.externalReference)
       )).limit(1);
       if (!existingDeposit) {
         await db.insert(depositsTable).values({
           userId: pendingDeposit.userId,
+          paymentProvider: "ashtechpay",
           type: "international",
           operator: "other",
           internationalOperator: payment.operator ?? null,
           oneXbetAccountId: pendingDeposit.oneXbetAccountId,
           amount: pendingDeposit.amount,
-          referenceId: orderId,
-          drimpayReference: reference,
+          referenceId: pendingDeposit.externalReference,
+          providerReference: reference ?? transactionId,
           country: pendingDeposit.payerCountry,
           status: "pending"
         });
         const [depositUser] = await db.select({ username: usersTable.username, userId: usersTable.userId }).from(usersTable).where(eq(usersTable.id, pendingDeposit.userId));
-        await tg.depositDrimPay({
+        await tg.depositMobileMoney({
           username: depositUser?.username ?? String(pendingDeposit.userId),
           userId: depositUser?.userId ?? String(pendingDeposit.userId),
           amount: Number(pendingDeposit.amount),
-          transactionId: reference,
+          transactionId,
           country: pendingDeposit.payerCountry
         });
       }
@@ -67974,7 +67948,12 @@ async function settleDrimPayPayment(payment) {
           vipExpiresAt: nextVipExpiration(vipUser.vipExpiresAt, activatedAt),
           updatedAt: activatedAt
         }).where(eq(usersTable.id, lockedPayment.userId));
-        await tx.update(vipPaymentsTable).set({ drimpayReference: reference, status: "completed", updatedAt: activatedAt }).where(eq(vipPaymentsTable.id, lockedPayment.id));
+        await tx.update(vipPaymentsTable).set({
+          providerReference: reference ?? lockedPayment.providerReference,
+          providerTransactionId: transactionId,
+          status: "completed",
+          updatedAt: activatedAt
+        }).where(eq(vipPaymentsTable.id, lockedPayment.id));
         activated = true;
       });
       if (activated) {
@@ -67988,87 +67967,68 @@ async function settleDrimPayPayment(payment) {
     }
     return;
   }
-  if (status === "failed" || status === "expired" || status === "cancelled") {
+  if (status === "failed") {
     if (pendingDeposit) {
       await db.delete(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.id, pendingDeposit.id));
     }
     if (vipPayment?.status === "pending") {
-      await db.update(vipPaymentsTable).set({ drimpayReference: reference, status: "failed", updatedAt: /* @__PURE__ */ new Date() }).where(eq(vipPaymentsTable.id, vipPayment.id));
-    }
-    return;
-  }
-  if (status === "reversed") {
-    if (pendingDeposit) {
-      await db.delete(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.id, pendingDeposit.id));
-    }
-    const [deposit] = await db.select().from(depositsTable).where(or(
-      eq(depositsTable.drimpayReference, reference),
-      eq(depositsTable.referenceId, orderId)
-    )).limit(1);
-    if (deposit?.status === "pending") {
-      await db.update(depositsTable).set({
-        status: "rejected",
-        rejectionReason: "Paiement DrimPay annul\xE9 apr\xE8s confirmation.",
+      await db.update(vipPaymentsTable).set({
+        providerReference: reference ?? vipPayment.providerReference,
+        providerTransactionId: transactionId ?? vipPayment.providerTransactionId,
+        status: "failed",
         updatedAt: /* @__PURE__ */ new Date()
-      }).where(eq(depositsTable.id, deposit.id));
-    } else if (deposit?.status === "validated") {
-      logger.error({ reference, depositId: deposit.id }, "Validated deposit was reversed by DrimPay");
-    }
-    if (vipPayment?.status === "completed") {
-      await db.update(vipPaymentsTable).set({ status: "reversed", updatedAt: /* @__PURE__ */ new Date() }).where(eq(vipPaymentsTable.id, vipPayment.id));
-      logger.error({ reference, userId: vipPayment.userId }, "Completed DrimPay VIP payment was reversed");
+      }).where(and(eq(vipPaymentsTable.id, vipPayment.id), eq(vipPaymentsTable.status, "pending")));
     }
     return;
   }
-  if (pendingDeposit && pendingDeposit.drimpayReference !== reference) {
-    await db.update(pendingSpDepositsTable).set({ drimpayReference: reference }).where(eq(pendingSpDepositsTable.id, pendingDeposit.id));
+  if (pendingDeposit && transactionId && pendingDeposit.providerTransactionId !== transactionId) {
+    await db.update(pendingSpDepositsTable).set({ providerTransactionId: transactionId }).where(eq(pendingSpDepositsTable.id, pendingDeposit.id));
   }
-  if (vipPayment && vipPayment.drimpayReference !== reference) {
-    await db.update(vipPaymentsTable).set({ drimpayReference: reference, updatedAt: /* @__PURE__ */ new Date() }).where(and(
+  if (vipPayment && transactionId && vipPayment.providerTransactionId !== transactionId) {
+    await db.update(vipPaymentsTable).set({
+      providerReference: reference ?? vipPayment.providerReference,
+      providerTransactionId: transactionId,
+      updatedAt: /* @__PURE__ */ new Date()
+    }).where(and(
       eq(vipPaymentsTable.id, vipPayment.id),
       eq(vipPaymentsTable.status, "pending")
     ));
   }
 }
 
-// src/lib/payment-retry.ts
-function isUnresolvedDrimPayAttempt(providerReference, orderId) {
-  return !providerReference || orderId !== null && orderId !== void 0 && providerReference === orderId;
-}
-
-// src/routes/drimpay.ts
+// src/routes/ashtechpay.ts
 var router16 = (0, import_express16.Router)();
 var REQUEST_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 var MIN_AMOUNT = 50;
 var MAX_AMOUNT = 1e6;
-function getRequestId(value) {
-  return typeof value === "string" && REQUEST_ID_PATTERN.test(value) ? value : null;
+var COUNTRY_CACHE_MS = 5 * 6e4;
+var UNKNOWN_OUTCOME_PREFIX = "unknown:";
+var IN_FLIGHT_PREFIX = "inflight:";
+var countryCache;
+function uncertainReference(prefix, providerReference) {
+  return `${prefix}${encodeURIComponent(providerReference)}`;
 }
-function validatePaymentInput(body) {
-  const countryCode = typeof body.countryCode === "string" ? body.countryCode.toUpperCase() : "";
-  const country = DRIMPAY_COUNTRIES.find((item) => item.code === countryCode);
-  if (!country) return { error: "Pays non disponible avec DrimPay." };
-  const operatorCode = typeof body.operator === "string" ? body.operator : "";
-  const operator = findDrimPayOperator(country.code, operatorCode);
-  if (!operator) return { error: "Op\xE9rateur non disponible pour ce pays." };
-  const phone = normalizeDrimPayPhone(body.phone, country);
-  if (!phone) {
-    return {
-      error: `Entrez les ${country.nationalNumberLength} chiffres du num\xE9ro local, sans +${country.callingCode}.`
-    };
+function getUncertainReference(value) {
+  if (!value) return void 0;
+  const prefix = [UNKNOWN_OUTCOME_PREFIX, IN_FLIGHT_PREFIX].find((candidate) => value.startsWith(candidate));
+  if (!prefix) return void 0;
+  try {
+    return decodeURIComponent(value.slice(prefix.length));
+  } catch {
+    return void 0;
   }
-  const amount = Number(body.amount);
-  if (!Number.isSafeInteger(amount) || amount < MIN_AMOUNT || amount > MAX_AMOUNT) {
-    return { error: `Le montant doit \xEAtre compris entre ${MIN_AMOUNT} et ${MAX_AMOUNT} FCFA.` };
-  }
-  const operatorOtp = typeof body.operatorOtp === "string" ? body.operatorOtp.trim() : "";
-  if (operator.requiresOtp && !operatorOtp) {
-    return { error: "Le code OTP Orange Money est requis pour cet op\xE9rateur." };
-  }
-  if (operatorOtp && !/^\d{4,8}$/.test(operatorOtp)) {
-    return { error: "Le code OTP doit contenir entre 4 et 8 chiffres." };
-  }
-  return { country, operator, phone, amount, ...operatorOtp ? { operatorOtp } : {} };
+}
+function responseRequestId(orderId, prefix, userId) {
+  const match = new RegExp(`^${prefix}_${userId}_(${REQUEST_ID_PATTERN.source.slice(1, -1)})$`, "i").exec(orderId);
+  return match?.[1];
+}
+async function getCountries() {
+  if (countryCache && countryCache.expiresAt > Date.now()) return countryCache.countries;
+  const { data } = await ashtechPayRequest("/v1/countries");
+  const countries = normalizeAshtechCountries(data);
+  if (!countries.length) throw new AshtechPayError("Aucun corridor Mobile Money compatible n'est actif.", 503);
+  countryCache = { countries, expiresAt: Date.now() + COUNTRY_CACHE_MS };
+  return countries;
 }
 function safePaymentErrorMetadata(error40) {
   const candidate = error40 && typeof error40 === "object" ? error40 : void 0;
@@ -68076,48 +68036,16 @@ function safePaymentErrorMetadata(error40) {
   return {
     errorType: error40 instanceof Error ? error40.name : typeof error40,
     ...code ? { errorCode: code } : {},
-    ...error40 instanceof DrimPayError ? { upstreamStatus: error40.statusCode, outcomeUnknown: error40.outcomeUnknown } : {}
+    ...error40 instanceof AshtechPayError ? { upstreamStatus: error40.statusCode, outcomeUnknown: error40.outcomeUnknown } : {}
   };
 }
-function logPaymentFailure(flow, error40, diagnosticId) {
-  const metadata = { diagnosticId, flow, ...safePaymentErrorMetadata(error40) };
-  if (error40 instanceof DrimPayError && error40.statusCode < 500) {
-    logger.warn(metadata, "DrimPay payment request was rejected");
-  } else {
-    logger.error(metadata, "DrimPay payment request failed");
-  }
-}
-function isPaymentOutcomeUnknown(error40, providerRequestStarted) {
-  return error40 instanceof DrimPayError ? error40.outcomeUnknown : providerRequestStarted;
-}
-function respondWithPendingPayment(res, flow, orderId, error40) {
-  const diagnosticId = (0, import_node_crypto3.randomUUID)();
-  logger.warn(
-    { diagnosticId, flow, ...safePaymentErrorMetadata(error40) },
-    "DrimPay outcome is uncertain; payment remains pending"
-  );
-  res.json({
-    type: "ussd_push",
-    transactionId: orderId,
-    status: "pending",
-    confirmationPending: true,
-    diagnosticId
-  });
-}
-function respondWithNoChargeConfirmation(res) {
-  res.json({
-    type: "ussd_push",
-    status: "confirmation_required",
-    requiresNoChargeConfirmation: true
-  });
-}
 function sendPaymentError(res, error40, flow) {
-  const diagnosticId = (0, import_node_crypto3.randomUUID)();
-  logPaymentFailure(flow, error40, diagnosticId);
-  if (error40 instanceof DrimPayError) {
-    const drimPayError = error40;
-    const status = drimPayError.statusCode === 401 || drimPayError.statusCode === 403 ? 503 : drimPayError.statusCode;
-    res.status(status).json({ error: status === 503 && drimPayError.statusCode !== 503 ? "La cl\xE9 DrimPay est refus\xE9e ou indisponible." : drimPayError.message, diagnosticId });
+  const diagnosticId = (0, import_node_crypto2.randomUUID)();
+  logger.error({ diagnosticId, flow, ...safePaymentErrorMetadata(error40) }, "Ashtechpay payment request failed");
+  if (error40 instanceof AshtechPayError) {
+    const status = error40.statusCode === 401 || error40.statusCode === 403 ? 503 : error40.statusCode;
+    const message = error40.message;
+    res.status(status).json({ error: message, diagnosticId });
     return;
   }
   const databaseIssue = getDatabaseIssue(error40);
@@ -68140,414 +68068,536 @@ function safeWavePaymentUrl(value) {
     return null;
   }
 }
-async function initiatePayment(payload, apiKey) {
-  return drimPayRequest("/payin/initiate", apiKey, {
-    method: "POST",
-    body: payload
-  });
+async function fetchVerifiedTransaction(transactionId) {
+  const { data } = await ashtechPayRequest(
+    `/v1/transaction/${encodeURIComponent(transactionId)}`
+  );
+  if (data.transaction_id !== transactionId) {
+    throw new AshtechPayError("La r\xE9ponse de paiement ne correspond pas \xE0 la transaction.", 502);
+  }
+  return data;
 }
-router16.get("/drimpay/countries", (_req, res) => {
-  res.json(DRIMPAY_COUNTRIES.map((country) => ({
-    ...country,
-    operators: country.operators.map((operator) => ({
-      ...operator,
-      ...operator.requiresOtp ? {
-        otpInstructions: country.code === "BF" ? "Composez *144*4*6*montant# pour recevoir votre code OTP." : country.code === "ML" ? "Composez #144#, choisissez Paiement marchand (option 2), puis validez." : "Composez #144*82# pour g\xE9n\xE9rer votre code OTP."
-      } : {}
-    }))
-  })));
-});
-router16.post("/drimpay/collect", requireAuth, async (req, res) => {
+async function validatePaymentInput(body) {
+  const requestId = typeof body.requestId === "string" && REQUEST_ID_PATTERN.test(body.requestId) ? body.requestId : "";
+  if (!requestId) return { error: "Identifiant de demande invalide." };
+  const countries = await getCountries();
+  const countryCode = typeof body.countryCode === "string" ? body.countryCode.toUpperCase() : "";
+  const country = countries.find((item) => item.code === countryCode);
+  if (!country) return { error: "Pays non disponible avec Ashtechpay." };
+  const operator = typeof body.operator === "string" ? country.operators.find((item) => item.code === body.operator) : void 0;
+  if (!operator) return { error: "Op\xE9rateur non disponible pour ce pays." };
+  const phone = normalizeAshtechPhone(body.phone, country);
+  if (!phone) {
+    return {
+      error: `Entrez les ${country.nationalNumberLength} chiffres du num\xE9ro local, sans +${country.callingCode}.`
+    };
+  }
+  const amount = Number(body.amount);
+  if (!Number.isSafeInteger(amount) || amount < MIN_AMOUNT || amount > MAX_AMOUNT) {
+    return { error: `Le montant doit \xEAtre compris entre ${MIN_AMOUNT} et ${MAX_AMOUNT}.` };
+  }
+  const otp = typeof body.otp === "string" ? body.otp.trim() : "";
+  if (otp && !/^\d{4,8}$/.test(otp)) return { error: "Le code OTP doit contenir entre 4 et 8 chiffres." };
+  const oneXbetAccountId = typeof body.oneXbetAccountId === "string" ? body.oneXbetAccountId.trim() : void 0;
+  if (oneXbetAccountId !== void 0 && (!oneXbetAccountId || oneXbetAccountId.length > 100)) {
+    return { error: "Entrez un identifiant de compte 1xBet valide." };
+  }
+  return {
+    requestId,
+    amount,
+    country,
+    operator: operator.code,
+    phone,
+    ...oneXbetAccountId ? { oneXbetAccountId } : {},
+    ...otp ? { otp } : {},
+    confirmedNoCharge: body.confirmedNoCharge === true
+  };
+}
+function getExistingPaymentResponse(orderId, userId, prefix, providerReference, providerTransactionId, otpUssdCode) {
+  const requestId = responseRequestId(orderId, prefix, userId);
+  if (getUncertainReference(providerReference)) {
+    return {
+      status: "confirmation_required",
+      transactionId: orderId,
+      requestId,
+      requiresNoChargeConfirmation: true
+    };
+  }
+  if (providerReference && !providerTransactionId) {
+    return {
+      status: "otp_required",
+      transactionId: orderId,
+      requestId,
+      ussdCode: otpUssdCode ?? null,
+      otpBySms: !otpUssdCode
+    };
+  }
+  if (providerTransactionId) {
+    return { status: "pending", transactionId: orderId, requestId };
+  }
+  return null;
+}
+async function collectPayment(req, res, flow) {
   const body = req.body;
-  const requestId = getRequestId(body.requestId);
-  if (!requestId) {
-    res.status(400).json({ error: "Identifiant de demande invalide." });
+  let input;
+  try {
+    input = await validatePaymentInput(body);
+  } catch (error40) {
+    sendPaymentError(res, error40, flow);
     return;
   }
-  const input = validatePaymentInput(body);
   if ("error" in input) {
     res.status(400).json({ error: input.error });
     return;
   }
-  const oneXbetAccountId = typeof body.oneXbetAccountId === "string" ? body.oneXbetAccountId.trim() : "";
-  if (!oneXbetAccountId || oneXbetAccountId.length > 100) {
+  const userId = req.userId;
+  let orderId = `${flow === "vip" ? "vip" : "dep"}_${userId}_${input.requestId}`;
+  let activeRequestId = input.requestId;
+  if (flow === "international" && !input.oneXbetAccountId) {
     res.status(400).json({ error: "Entrez un identifiant de compte 1xBet valide." });
     return;
   }
-  const orderId = `dep_${req.userId}_${requestId}`;
-  let pendingId;
-  let shouldInitiate = false;
+  let pendingDepositId;
+  let vipPaymentId;
+  let pendingDeposit;
+  let vipPayment;
+  let providerReferenceForAttempt = orderId;
   let providerRequestStarted = false;
   try {
-    const [completedDeposit] = await db.select().from(depositsTable).where(and(eq(depositsTable.userId, req.userId), eq(depositsTable.referenceId, orderId))).limit(1);
-    if (completedDeposit) {
-      res.json({ type: "ussd_push", transactionId: completedDeposit.drimpayReference, status: "success" });
-      return;
-    }
-    const activePendingDeposits = await db.select().from(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.userId, req.userId)).orderBy(desc(pendingSpDepositsTable.createdAt));
-    const referencedPendingDeposit = activePendingDeposits.find(
-      (candidate) => !isUnresolvedDrimPayAttempt(candidate.drimpayReference, candidate.externalReference)
-    );
-    if (referencedPendingDeposit && referencedPendingDeposit.externalReference !== orderId) {
-      res.json({
-        type: "ussd_push",
-        transactionId: referencedPendingDeposit.drimpayReference,
-        status: "pending"
-      });
-      return;
-    }
-    const unresolvedPendingDeposit = activePendingDeposits.find(
-      (candidate) => isUnresolvedDrimPayAttempt(candidate.drimpayReference, candidate.externalReference)
-    );
-    if (unresolvedPendingDeposit && unresolvedPendingDeposit.externalReference !== orderId && body.confirmedNoCharge !== true) {
-      respondWithNoChargeConfirmation(res);
-      return;
-    }
-    let [pending] = await db.select().from(pendingSpDepositsTable).where(and(
-      eq(pendingSpDepositsTable.userId, req.userId),
-      eq(pendingSpDepositsTable.externalReference, orderId)
-    )).limit(1);
-    if (pending && (Number(pending.amount) !== input.amount || pending.currency !== input.country.currency || pending.payerCountry !== input.country.code || pending.oneXbetAccountId !== oneXbetAccountId)) {
-      res.status(409).json({ error: "Cette demande de paiement existe d\xE9j\xE0 avec d'autres informations." });
-      return;
-    }
-    if (!pending) {
-      [pending] = await db.insert(pendingSpDepositsTable).values({
-        userId: req.userId,
-        drimpayReference: orderId,
-        externalReference: orderId,
-        amount: String(input.amount),
-        currency: input.country.currency,
-        payerCountry: input.country.code,
-        oneXbetAccountId
-      }).onConflictDoNothing().returning();
-      if (pending) shouldInitiate = true;
-      if (!pending) {
-        [pending] = await db.select().from(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.drimpayReference, orderId)).limit(1);
-      }
-    }
-    if (!pending) {
-      res.status(409).json({ error: "Cette demande de paiement est d\xE9j\xE0 en cours." });
-      return;
-    }
-    pendingId = pending.id;
-    if (!shouldInitiate) {
-      if (isUnresolvedDrimPayAttempt(pending.drimpayReference, orderId)) {
-        if (body.confirmedNoCharge === true) {
-          res.status(409).json({ error: "Confirmez une nouvelle tentative apr\xE8s avoir v\xE9rifi\xE9 qu'aucun d\xE9bit n'a eu lieu." });
-          return;
-        }
-        respondWithNoChargeConfirmation(res);
+    if (flow === "vip") {
+      const [settings] = await db.select().from(appSettingsTable).limit(1);
+      const vipPrice = settings ? Number(settings.vipPriceFcfa) : 5e3;
+      if (!Number.isSafeInteger(vipPrice) || vipPrice < MIN_AMOUNT || vipPrice > MAX_AMOUNT) {
+        res.status(503).json({ error: "Le prix VIP n'est pas configur\xE9 correctement." });
         return;
       }
+      if (input.amount !== vipPrice) {
+        res.status(409).json({ error: "Le prix VIP a chang\xE9. Actualisez la page avant de r\xE9essayer." });
+        return;
+      }
+    }
+    if (flow === "international") {
+      [pendingDeposit] = await db.select().from(pendingSpDepositsTable).where(and(
+        eq(pendingSpDepositsTable.userId, userId),
+        eq(pendingSpDepositsTable.paymentProvider, "ashtechpay"),
+        eq(pendingSpDepositsTable.externalReference, orderId)
+      )).limit(1);
+      if (pendingDeposit && (Number(pendingDeposit.amount) !== input.amount || pendingDeposit.currency !== input.country.currency || pendingDeposit.payerCountry !== input.country.code || pendingDeposit.oneXbetAccountId !== input.oneXbetAccountId)) {
+        res.status(409).json({ error: "Cette demande existe d\xE9j\xE0 avec d'autres informations." });
+        return;
+      }
+      const [otherPending] = await db.select().from(pendingSpDepositsTable).where(and(
+        eq(pendingSpDepositsTable.userId, userId),
+        eq(pendingSpDepositsTable.paymentProvider, "ashtechpay")
+      )).orderBy(desc(pendingSpDepositsTable.createdAt)).limit(1);
+      if (!pendingDeposit && otherPending) {
+        const existingResponse = getExistingPaymentResponse(
+          otherPending.externalReference,
+          userId,
+          "dep",
+          otherPending.providerReference,
+          otherPending.providerTransactionId,
+          otherPending.otpUssdCode
+        );
+        if (existingResponse?.status === "confirmation_required" && input.confirmedNoCharge) {
+          pendingDeposit = otherPending;
+        } else if (existingResponse) {
+          res.json(existingResponse);
+          return;
+        }
+        if (!pendingDeposit && input.confirmedNoCharge) pendingDeposit = otherPending;
+        if (pendingDeposit === otherPending && otherPending) {
+          if (Number(otherPending.amount) !== input.amount || otherPending.currency !== input.country.currency || otherPending.payerCountry !== input.country.code || otherPending.oneXbetAccountId !== input.oneXbetAccountId) {
+            res.status(409).json({ error: "V\xE9rifiez d'abord l'ancienne demande avant d'en lancer une nouvelle." });
+            return;
+          }
+          orderId = otherPending.externalReference;
+          activeRequestId = responseRequestId(orderId, "dep", userId) ?? activeRequestId;
+        }
+        if (!pendingDeposit && !input.confirmedNoCharge) {
+          res.json({ status: "confirmation_required", requiresNoChargeConfirmation: true });
+          return;
+        }
+      }
+      if (!pendingDeposit) {
+        [pendingDeposit] = await db.insert(pendingSpDepositsTable).values({
+          userId,
+          paymentProvider: "ashtechpay",
+          externalReference: orderId,
+          amount: String(input.amount),
+          currency: input.country.currency,
+          payerCountry: input.country.code,
+          oneXbetAccountId: input.oneXbetAccountId
+        }).returning();
+      }
+      if (!pendingDeposit) {
+        res.status(409).json({ error: "Cette demande de paiement est d\xE9j\xE0 en cours." });
+        return;
+      }
+      pendingDepositId = pendingDeposit.id;
+    } else {
+      [vipPayment] = await db.select().from(vipPaymentsTable).where(and(
+        eq(vipPaymentsTable.userId, userId),
+        eq(vipPaymentsTable.paymentProvider, "ashtechpay"),
+        eq(vipPaymentsTable.externalReference, orderId)
+      )).limit(1);
+      if (vipPayment && (Number(vipPayment.amount) !== input.amount || vipPayment.currency !== input.country.currency)) {
+        res.status(409).json({ error: "Cette demande VIP existe d\xE9j\xE0 avec d'autres informations." });
+        return;
+      }
+      const [otherPending] = await db.select().from(vipPaymentsTable).where(and(
+        eq(vipPaymentsTable.userId, userId),
+        eq(vipPaymentsTable.paymentProvider, "ashtechpay"),
+        eq(vipPaymentsTable.status, "pending")
+      )).orderBy(desc(vipPaymentsTable.createdAt)).limit(1);
+      if (!vipPayment && otherPending) {
+        const existingResponse = getExistingPaymentResponse(
+          otherPending.externalReference ?? "",
+          userId,
+          "vip",
+          otherPending.providerReference,
+          otherPending.providerTransactionId,
+          otherPending.otpUssdCode
+        );
+        if (existingResponse?.status === "confirmation_required" && input.confirmedNoCharge) {
+          vipPayment = otherPending;
+        } else if (existingResponse) {
+          res.json(existingResponse);
+          return;
+        }
+        if (!vipPayment && input.confirmedNoCharge) vipPayment = otherPending;
+        if (vipPayment === otherPending && otherPending) {
+          if (Number(otherPending.amount) !== input.amount || otherPending.currency !== input.country.currency) {
+            res.status(409).json({ error: "V\xE9rifiez d'abord l'ancienne demande VIP avant d'en lancer une nouvelle." });
+            return;
+          }
+          orderId = otherPending.externalReference ?? orderId;
+          activeRequestId = responseRequestId(orderId, "vip", userId) ?? activeRequestId;
+        }
+        if (!vipPayment && !input.confirmedNoCharge) {
+          res.json({ status: "confirmation_required", requiresNoChargeConfirmation: true });
+          return;
+        }
+      }
+      if (!vipPayment) {
+        [vipPayment] = await db.insert(vipPaymentsTable).values({
+          userId,
+          paymentProvider: "ashtechpay",
+          externalReference: orderId,
+          amount: String(input.amount),
+          currency: input.country.currency,
+          status: "pending"
+        }).returning();
+      }
+      if (!vipPayment) {
+        res.status(409).json({ error: "Cette demande VIP est d\xE9j\xE0 en cours." });
+        return;
+      }
+      vipPaymentId = vipPayment.id;
+      if (vipPayment.status === "completed") {
+        res.json({ status: "success", transactionId: orderId });
+        return;
+      }
+      if (vipPayment.status !== "pending") {
+        res.status(409).json({ error: "Cette demande VIP n'est plus en attente. Recommencez le paiement." });
+        return;
+      }
+    }
+    const savedProviderReference = flow === "vip" ? vipPayment?.providerReference : pendingDeposit?.providerReference;
+    const retryingUnknownOutcome = getUncertainReference(savedProviderReference) !== void 0;
+    providerReferenceForAttempt = getUncertainReference(savedProviderReference) ?? savedProviderReference ?? orderId;
+    const savedTransactionId = flow === "vip" ? vipPayment?.providerTransactionId : pendingDeposit?.providerTransactionId;
+    const savedUssdCode = flow === "vip" ? vipPayment?.otpUssdCode : pendingDeposit?.otpUssdCode;
+    if (savedTransactionId) {
+      const response2 = getExistingPaymentResponse(
+        orderId,
+        userId,
+        flow === "vip" ? "vip" : "dep",
+        savedProviderReference ?? null,
+        savedTransactionId,
+        savedUssdCode ?? null
+      );
+      res.json(response2 ?? { status: "pending", transactionId: orderId });
+      return;
+    }
+    if (retryingUnknownOutcome && !input.confirmedNoCharge) {
       res.json({
-        type: "ussd_push",
-        transactionId: pending.drimpayReference,
-        status: "pending"
+        status: "confirmation_required",
+        transactionId: orderId,
+        requestId: activeRequestId,
+        requiresNoChargeConfirmation: true
       });
       return;
     }
-    const apiKey = getDrimPayApiKey();
-    const webhookUrl = getDrimPayWebhookUrl();
-    providerRequestStarted = true;
-    const response = await initiatePayment({
+    if (savedProviderReference && !retryingUnknownOutcome && !input.otp) {
+      res.json({
+        status: "otp_required",
+        transactionId: orderId,
+        requestId: activeRequestId,
+        ussdCode: savedUssdCode ?? null,
+        otpBySms: !savedUssdCode
+      });
+      return;
+    }
+    const apiKey = getAshtechPayApiKey();
+    const notifyUrl = getAshtechPayWebhookUrl();
+    const inFlightReference = uncertainReference(IN_FLIGHT_PREFIX, providerReferenceForAttempt);
+    if (flow === "vip" && vipPayment) {
+      await db.update(vipPaymentsTable).set({ providerReference: inFlightReference, updatedAt: /* @__PURE__ */ new Date() }).where(eq(vipPaymentsTable.id, vipPayment.id));
+    } else if (pendingDeposit) {
+      await db.update(pendingSpDepositsTable).set({ providerReference: inFlightReference }).where(eq(pendingSpDepositsTable.id, pendingDeposit.id));
+    }
+    const payload = {
       amount: input.amount,
       currency: input.country.currency,
-      country_code: input.country.code,
-      operator: input.operator.code,
       phone: input.phone,
-      order_id: orderId,
-      webhook_url: webhookUrl,
-      description: "D\xE9p\xF4t international Muzan",
-      expires_in_minutes: 5,
-      metadata: { flow: "international_deposit" },
-      ...input.operatorOtp ? { operator_otp: input.operatorOtp } : {}
-    }, apiKey);
-    if (!response.reference || response.order_id !== orderId) {
-      logger.error({ flow: "international_deposit", issue: "response_mismatch" }, "DrimPay returned an unmatchable payment response");
-      respondWithPendingPayment(res, "international_deposit", orderId, new Error("DrimPay response mismatch"));
-      return;
-    }
-    const paymentEvent = {
-      ...response,
-      status: response.status,
-      country_code: response.country_code ?? input.country.code,
-      currency: response.currency ?? input.country.currency,
-      amount: response.amount ?? input.amount,
-      operator: response.operator ?? input.operator.code
+      operator: input.operator,
+      country_code: input.country.code,
+      reference: providerReferenceForAttempt,
+      ...notifyUrl ? { notify_url: notifyUrl } : {},
+      ...input.otp ? { otp: input.otp } : {}
     };
-    await db.update(pendingSpDepositsTable).set({ drimpayReference: response.reference }).where(eq(pendingSpDepositsTable.id, pending.id));
-    if (normalizeDrimPayStatus(response.status ?? "pending") === "success") {
-      await settleDrimPayPayment(paymentEvent);
-    }
-    const paymentUrl = safeWavePaymentUrl(response.payment_url);
-    res.json({
-      type: paymentUrl ? "wave" : "ussd_push",
-      transactionId: response.reference,
-      status: normalizeDrimPayStatus(response.status ?? "pending"),
-      ...paymentUrl ? { paymentUrl } : {},
-      ...response.expires_at ? { expiresAt: response.expires_at } : {}
-    });
-  } catch (error40) {
-    const outcomeUnknown = isPaymentOutcomeUnknown(error40, providerRequestStarted);
-    if (pendingId && !outcomeUnknown) {
-      await db.delete(pendingSpDepositsTable).where(eq(pendingSpDepositsTable.id, pendingId)).catch(() => void 0);
-    }
-    if (outcomeUnknown) {
-      respondWithPendingPayment(res, "international_deposit", orderId, error40);
-      return;
-    }
-    sendPaymentError(res, error40, "international_deposit");
-  }
-});
-router16.post("/drimpay/collect-vip", requireAuth, async (req, res) => {
-  const body = req.body;
-  const requestId = getRequestId(body.requestId);
-  if (!requestId) {
-    res.status(400).json({ error: "Identifiant de demande invalide." });
-    return;
-  }
-  const input = validatePaymentInput(body);
-  if ("error" in input) {
-    res.status(400).json({ error: input.error });
-    return;
-  }
-  const orderId = `vip_${req.userId}_${requestId}`;
-  let vipPaymentId;
-  let shouldInitiate = false;
-  let providerRequestStarted = false;
-  let pendingReference = orderId;
-  try {
-    const [settings] = await db.select().from(appSettingsTable).limit(1);
-    const vipPrice = settings ? Number(settings.vipPriceFcfa) : 5e3;
-    if (!Number.isSafeInteger(vipPrice) || vipPrice < MIN_AMOUNT || vipPrice > MAX_AMOUNT) {
-      res.status(503).json({ error: "Le prix VIP n'est pas configur\xE9 correctement pour DrimPay." });
-      return;
-    }
-    if (input.amount !== vipPrice) {
-      res.status(409).json({ error: "Le prix VIP a chang\xE9. Actualisez la page avant de r\xE9essayer." });
-      return;
-    }
-    const activeVipPayments = await db.select().from(vipPaymentsTable).where(and(
-      eq(vipPaymentsTable.userId, req.userId),
-      eq(vipPaymentsTable.status, "pending")
-    )).orderBy(desc(vipPaymentsTable.createdAt));
-    const referencedVipPayment = activeVipPayments.find(
-      (candidate) => !isUnresolvedDrimPayAttempt(candidate.drimpayReference, candidate.drimpayOrderId)
-    );
-    const referencedVipOrderId = referencedVipPayment?.drimpayOrderId ?? referencedVipPayment?.drimpayReference;
-    if (referencedVipPayment && referencedVipOrderId !== orderId) {
-      res.json({
-        type: "ussd_push",
-        transactionId: referencedVipPayment.drimpayReference ?? referencedVipOrderId,
-        status: "pending"
-      });
-      return;
-    }
-    const unresolvedVipPayment = activeVipPayments.find(
-      (candidate) => isUnresolvedDrimPayAttempt(candidate.drimpayReference, candidate.drimpayOrderId)
-    );
-    const unresolvedVipOrderId = unresolvedVipPayment?.drimpayOrderId ?? unresolvedVipPayment?.drimpayReference;
-    if (unresolvedVipPayment && unresolvedVipOrderId !== orderId && body.confirmedNoCharge !== true) {
-      respondWithNoChargeConfirmation(res);
-      return;
-    }
-    let [vipPayment] = await db.select().from(vipPaymentsTable).where(eq(vipPaymentsTable.drimpayOrderId, orderId)).limit(1);
-    if (vipPayment && (Number(vipPayment.amount) !== vipPrice || vipPayment.currency !== input.country.currency || vipPayment.userId !== req.userId)) {
-      res.status(409).json({ error: "Cette demande de paiement VIP existe d\xE9j\xE0 avec d'autres informations." });
-      return;
-    }
-    if (!vipPayment) {
-      [vipPayment] = await db.insert(vipPaymentsTable).values({
-        userId: req.userId,
-        drimpayReference: orderId,
-        drimpayOrderId: orderId,
-        amount: String(vipPrice),
-        currency: input.country.currency,
-        status: "pending"
-      }).onConflictDoNothing().returning();
-      if (vipPayment) shouldInitiate = true;
-      if (!vipPayment) {
-        [vipPayment] = await db.select().from(vipPaymentsTable).where(eq(vipPaymentsTable.drimpayOrderId, orderId)).limit(1);
-      }
-    }
-    if (!vipPayment) {
-      res.status(409).json({ error: "Cette demande de paiement VIP est d\xE9j\xE0 en cours." });
-      return;
-    }
-    vipPaymentId = vipPayment.id;
-    if (vipPayment.status === "completed") {
-      res.json({ type: "ussd_push", transactionId: vipPayment.drimpayReference, status: "success" });
-      return;
-    }
-    if (vipPayment.status !== "pending") {
-      res.status(409).json({ error: "Cette demande VIP n'est plus en attente. Recommencez le paiement." });
-      return;
-    }
-    if (!shouldInitiate) {
-      const hasProviderReference = !isUnresolvedDrimPayAttempt(
-        vipPayment.drimpayReference,
-        vipPayment.drimpayOrderId
-      );
-      if (!hasProviderReference) {
-        if (body.confirmedNoCharge === true) {
-          res.status(409).json({ error: "Confirmez une nouvelle tentative apr\xE8s avoir v\xE9rifi\xE9 qu'aucun d\xE9bit n'a eu lieu." });
-          return;
-        }
-        respondWithNoChargeConfirmation(res);
-        return;
-      }
-      res.json({
-        type: "ussd_push",
-        transactionId: vipPayment.drimpayReference ?? orderId,
-        status: "pending"
-      });
-      return;
-    }
-    const apiKey = getDrimPayApiKey();
-    const webhookUrl = getDrimPayWebhookUrl();
     providerRequestStarted = true;
-    const response = await initiatePayment({
-      amount: vipPrice,
-      currency: input.country.currency,
-      country_code: input.country.code,
-      operator: input.operator.code,
-      phone: input.phone,
-      order_id: orderId,
-      webhook_url: webhookUrl,
-      description: "Paiement de l'acc\xE8s VIP Muzan",
-      expires_in_minutes: 5,
-      metadata: { flow: "vip" },
-      ...input.operatorOtp ? { operator_otp: input.operatorOtp } : {}
-    }, apiKey);
-    if (!response.reference || response.order_id !== orderId) {
-      logger.error({ flow: "vip", issue: "response_mismatch" }, "DrimPay returned an unmatchable payment response");
-      respondWithPendingPayment(res, "vip", orderId, new Error("DrimPay response mismatch"));
+    const result = await ashtechPayRequest("/v1/collect", apiKey, {
+      method: "POST",
+      body: payload
+    });
+    const response = result.data;
+    if (result.status === 400 && response.error === "otp_required") {
+      if (!response.reference) {
+        throw new AshtechPayError("La r\xE9ponse OTP est incompl\xE8te; aucun nouvel essai automatique n'a \xE9t\xE9 lanc\xE9.", 502, true);
+      }
+      const ussdCode = typeof response.ussd_code === "string" ? response.ussd_code : null;
+      if (flow === "vip" && vipPayment) {
+        await db.update(vipPaymentsTable).set({ providerReference: response.reference, otpUssdCode: ussdCode, updatedAt: /* @__PURE__ */ new Date() }).where(eq(vipPaymentsTable.id, vipPayment.id));
+      } else if (pendingDeposit) {
+        await db.update(pendingSpDepositsTable).set({ providerReference: response.reference, otpUssdCode: ussdCode }).where(eq(pendingSpDepositsTable.id, pendingDeposit.id));
+      }
+      res.json({
+        status: "otp_required",
+        transactionId: orderId,
+        requestId: activeRequestId,
+        ussdCode,
+        otpBySms: !ussdCode
+      });
       return;
     }
-    pendingReference = response.reference;
-    await db.update(vipPaymentsTable).set({ drimpayReference: response.reference, updatedAt: /* @__PURE__ */ new Date() }).where(eq(vipPaymentsTable.id, vipPayment.id));
-    const paymentEvent = {
-      ...response,
-      status: response.status,
-      country_code: response.country_code ?? input.country.code,
-      currency: response.currency ?? input.country.currency,
-      amount: response.amount ?? vipPrice,
-      operator: response.operator ?? input.operator.code
-    };
-    if (normalizeDrimPayStatus(response.status ?? "pending") === "success") {
-      await settleDrimPayPayment(paymentEvent);
+    const normalizedStatus = normalizeAshtechStatus(response.status ?? "pending");
+    const transactionId = typeof response.transaction_id === "string" ? response.transaction_id : "";
+    const providerReference = typeof response.reference === "string" ? response.reference : providerReferenceForAttempt;
+    if (!transactionId && normalizedStatus !== "success") {
+      throw new AshtechPayError("Ashtechpay n'a pas renvoy\xE9 l'identifiant de transaction.", 502, true);
     }
-    const paymentUrl = safeWavePaymentUrl(response.payment_url);
+    if (flow === "vip" && vipPayment) {
+      await db.update(vipPaymentsTable).set({
+        providerReference,
+        providerTransactionId: transactionId || null,
+        otpUssdCode: null,
+        updatedAt: /* @__PURE__ */ new Date()
+      }).where(eq(vipPaymentsTable.id, vipPayment.id));
+    } else if (pendingDeposit) {
+      await db.update(pendingSpDepositsTable).set({
+        providerReference,
+        providerTransactionId: transactionId || null,
+        otpUssdCode: null
+      }).where(eq(pendingSpDepositsTable.id, pendingDeposit.id));
+    }
+    if (normalizedStatus === "success") {
+      await settleAshtechPayPayment({
+        ...response,
+        reference: providerReference,
+        transaction_id: transactionId,
+        status: response.status,
+        amount: response.total_amount ?? response.amount ?? input.amount,
+        total_amount: response.total_amount,
+        currency: response.currency ?? input.country.currency,
+        country_code: response.country_code ?? input.country.code,
+        operator: response.operator ?? input.operator
+      });
+      res.json({ status: "success", transactionId: orderId });
+      return;
+    }
+    const waveUrl = safeWavePaymentUrl(response.wave_url);
     res.json({
-      type: paymentUrl ? "wave" : "ussd_push",
-      transactionId: response.reference,
-      status: normalizeDrimPayStatus(response.status ?? "pending"),
-      ...paymentUrl ? { paymentUrl } : {},
-      ...response.expires_at ? { expiresAt: response.expires_at } : {}
+      status: "pending",
+      transactionId: orderId,
+      requestId: activeRequestId,
+      type: waveUrl ? "wave" : "ussd_push",
+      ...waveUrl ? { paymentUrl: waveUrl } : {}
     });
   } catch (error40) {
-    const outcomeUnknown = isPaymentOutcomeUnknown(error40, providerRequestStarted);
-    if (vipPaymentId && !outcomeUnknown) {
-      await db.update(vipPaymentsTable).set({ status: "failed", updatedAt: /* @__PURE__ */ new Date() }).where(and(eq(vipPaymentsTable.id, vipPaymentId), eq(vipPaymentsTable.status, "pending"))).catch(() => void 0);
+    const outcomeUnknown = error40 instanceof AshtechPayError && error40.outcomeUnknown || providerRequestStarted && !(error40 instanceof AshtechPayError);
+    if (outcomeUnknown) {
+      const uncertainRef = uncertainReference(UNKNOWN_OUTCOME_PREFIX, providerReferenceForAttempt);
+      if (pendingDepositId) {
+        await db.update(pendingSpDepositsTable).set({ providerReference: uncertainRef }).where(eq(pendingSpDepositsTable.id, pendingDepositId)).catch(() => void 0);
+      }
+      if (vipPaymentId) {
+        await db.update(vipPaymentsTable).set({ providerReference: uncertainRef, updatedAt: /* @__PURE__ */ new Date() }).where(eq(vipPaymentsTable.id, vipPaymentId)).catch(() => void 0);
+      }
+    } else if (pendingDepositId) {
+      const unknownRef = uncertainReference(UNKNOWN_OUTCOME_PREFIX, providerReferenceForAttempt);
+      const inFlightRef = uncertainReference(IN_FLIGHT_PREFIX, providerReferenceForAttempt);
+      await db.update(pendingSpDepositsTable).set({ providerReference: null }).where(and(
+        eq(pendingSpDepositsTable.id, pendingDepositId),
+        or(
+          eq(pendingSpDepositsTable.providerReference, unknownRef),
+          eq(pendingSpDepositsTable.providerReference, inFlightRef)
+        )
+      )).catch(() => void 0);
+      await db.delete(pendingSpDepositsTable).where(and(
+        eq(pendingSpDepositsTable.id, pendingDepositId),
+        isNull(pendingSpDepositsTable.providerReference),
+        isNull(pendingSpDepositsTable.providerTransactionId)
+      )).catch(() => void 0);
+    }
+    if (!outcomeUnknown && vipPaymentId) {
+      const unknownRef = uncertainReference(UNKNOWN_OUTCOME_PREFIX, providerReferenceForAttempt);
+      const inFlightRef = uncertainReference(IN_FLIGHT_PREFIX, providerReferenceForAttempt);
+      await db.update(vipPaymentsTable).set({ providerReference: null }).where(and(
+        eq(vipPaymentsTable.id, vipPaymentId),
+        or(
+          eq(vipPaymentsTable.providerReference, unknownRef),
+          eq(vipPaymentsTable.providerReference, inFlightRef)
+        )
+      )).catch(() => void 0);
+      await db.update(vipPaymentsTable).set({ status: "failed", updatedAt: /* @__PURE__ */ new Date() }).where(and(
+        eq(vipPaymentsTable.id, vipPaymentId),
+        eq(vipPaymentsTable.status, "pending"),
+        isNull(vipPaymentsTable.providerReference),
+        isNull(vipPaymentsTable.providerTransactionId)
+      )).catch(() => void 0);
     }
     if (outcomeUnknown) {
-      if (vipPaymentId && pendingReference !== orderId) {
-        await db.update(vipPaymentsTable).set({ drimpayReference: pendingReference, updatedAt: /* @__PURE__ */ new Date() }).where(eq(vipPaymentsTable.id, vipPaymentId)).catch(() => void 0);
-      }
-      respondWithPendingPayment(res, "vip", orderId, error40);
+      const diagnosticId = (0, import_node_crypto2.randomUUID)();
+      logger.error(
+        { diagnosticId, flow, ...safePaymentErrorMetadata(error40) },
+        "Ashtechpay payment outcome is unknown; waiting for user confirmation before retry"
+      );
+      res.json({
+        status: "confirmation_required",
+        requiresNoChargeConfirmation: true,
+        transactionId: orderId,
+        requestId: activeRequestId,
+        diagnosticId
+      });
       return;
     }
-    sendPaymentError(res, error40, "vip");
+    sendPaymentError(res, error40, flow);
+  }
+}
+router16.get("/ashtechpay/countries", requireAuth, async (_req, res) => {
+  try {
+    res.json(await getCountries());
+  } catch (error40) {
+    sendPaymentError(res, error40, "countries");
   }
 });
-router16.get("/drimpay/status/:reference", requireAuth, async (req, res) => {
+router16.post("/ashtechpay/collect", requireAuth, async (req, res) => {
+  await collectPayment(req, res, "international");
+});
+router16.post("/ashtechpay/collect-vip", requireAuth, async (req, res) => {
+  await collectPayment(req, res, "vip");
+});
+async function resolveOrderStatus(userId, reference) {
+  const [pendingDeposit] = await db.select().from(pendingSpDepositsTable).where(and(
+    eq(pendingSpDepositsTable.userId, userId),
+    eq(pendingSpDepositsTable.paymentProvider, "ashtechpay"),
+    or(
+      eq(pendingSpDepositsTable.externalReference, reference),
+      eq(pendingSpDepositsTable.providerReference, reference),
+      eq(pendingSpDepositsTable.providerTransactionId, reference)
+    )
+  )).limit(1);
+  const [deposit] = await db.select().from(depositsTable).where(and(
+    eq(depositsTable.userId, userId),
+    eq(depositsTable.paymentProvider, "ashtechpay"),
+    or(
+      eq(depositsTable.providerReference, reference),
+      eq(depositsTable.referenceId, reference)
+    )
+  )).limit(1);
+  const [vipPayment] = await db.select().from(vipPaymentsTable).where(and(
+    eq(vipPaymentsTable.userId, userId),
+    eq(vipPaymentsTable.paymentProvider, "ashtechpay"),
+    or(
+      eq(vipPaymentsTable.externalReference, reference),
+      eq(vipPaymentsTable.providerReference, reference),
+      eq(vipPaymentsTable.providerTransactionId, reference)
+    )
+  )).limit(1);
+  if (deposit && !pendingDeposit) {
+    return {
+      status: deposit.status === "validated" || deposit.status === "pending" ? "success" : "failed",
+      transactionId: reference
+    };
+  }
+  if (vipPayment && vipPayment.status !== "pending") {
+    return {
+      status: vipPayment.status === "completed" ? "success" : "failed",
+      transactionId: reference
+    };
+  }
+  const order = pendingDeposit ?? vipPayment;
+  if (!order) return null;
+  const transactionId = pendingDeposit?.providerTransactionId ?? vipPayment?.providerTransactionId;
+  const providerReference = pendingDeposit?.providerReference ?? vipPayment?.providerReference;
+  if (!transactionId) {
+    const orderId = pendingDeposit?.externalReference ?? vipPayment?.externalReference ?? reference;
+    const prefix = pendingDeposit ? "dep" : "vip";
+    const uncertain = getUncertainReference(providerReference) !== void 0;
+    return {
+      status: uncertain ? "confirmation_required" : providerReference ? "otp_required" : "pending",
+      transactionId: orderId,
+      requestId: responseRequestId(orderId, prefix, userId),
+      ...uncertain ? { requiresNoChargeConfirmation: true } : {},
+      ussdCode: pendingDeposit?.otpUssdCode ?? vipPayment?.otpUssdCode ?? null
+    };
+  }
+  const response = await fetchVerifiedTransaction(transactionId);
+  if (providerReference && response.reference && response.reference !== providerReference) {
+    throw new AshtechPayError("La r\xE9f\xE9rence de la transaction ne correspond pas \xE0 la demande.", 502);
+  }
+  await settleAshtechPayPayment({
+    ...response,
+    status: normalizeAshtechStatus(response.status ?? "pending")
+  });
+  return {
+    status: normalizeAshtechStatus(response.status ?? "pending"),
+    transactionId: pendingDeposit?.externalReference ?? vipPayment?.externalReference ?? reference
+  };
+}
+router16.get("/ashtechpay/status/:reference", requireAuth, async (req, res) => {
   const reference = Array.isArray(req.params.reference) ? req.params.reference[0] : req.params.reference;
   if (!reference || reference.length > 128) {
-    res.status(400).json({ error: "R\xE9f\xE9rence DrimPay invalide." });
+    res.status(400).json({ error: "R\xE9f\xE9rence de paiement invalide." });
     return;
   }
   try {
-    const [pendingDeposit] = await db.select().from(pendingSpDepositsTable).where(and(
-      eq(pendingSpDepositsTable.userId, req.userId),
-      or(
-        eq(pendingSpDepositsTable.drimpayReference, reference),
-        eq(pendingSpDepositsTable.externalReference, reference)
-      )
-    )).limit(1);
-    const [deposit] = await db.select().from(depositsTable).where(and(
-      eq(depositsTable.userId, req.userId),
-      or(
-        eq(depositsTable.drimpayReference, reference),
-        eq(depositsTable.referenceId, reference)
-      )
-    )).limit(1);
-    const [vipPayment] = await db.select().from(vipPaymentsTable).where(and(
-      eq(vipPaymentsTable.userId, req.userId),
-      or(
-        eq(vipPaymentsTable.drimpayReference, reference),
-        eq(vipPaymentsTable.drimpayOrderId, reference)
-      )
-    )).limit(1);
-    if (!pendingDeposit && !deposit && !vipPayment) {
+    const status = await resolveOrderStatus(req.userId, reference);
+    if (!status) {
       res.status(404).json({ error: "Paiement introuvable." });
       return;
     }
-    if (deposit && !pendingDeposit) {
-      res.json({
-        status: deposit.status === "rejected" && deposit.rejectionReason?.includes("DrimPay") ? "reversed" : deposit.status === "validated" || deposit.status === "pending" ? "success" : "failed",
-        transactionId: reference
-      });
-      return;
-    }
-    if (vipPayment && vipPayment.status !== "pending") {
-      res.json({
-        status: vipPayment.status === "completed" ? "success" : vipPayment.status === "reversed" ? "reversed" : "failed",
-        transactionId: reference
-      });
-      return;
-    }
-    const storedOrderId = pendingDeposit?.externalReference ?? vipPayment?.drimpayOrderId;
-    const isOrderId = storedOrderId === reference;
-    const providerReference = pendingDeposit?.drimpayReference ?? vipPayment?.drimpayReference ?? reference;
-    if (isOrderId && providerReference === reference) {
-      res.json({ status: "pending", transactionId: reference });
-      return;
-    }
-    const response = await drimPayRequest(
-      `/payin/${encodeURIComponent(providerReference)}`,
-      getDrimPayApiKey()
-    );
-    if (response.reference !== providerReference) {
-      res.status(502).json({ error: "La r\xE9ponse DrimPay ne correspond pas \xE0 cette demande." });
-      return;
-    }
-    if (storedOrderId && response.order_id !== storedOrderId) {
-      res.status(502).json({ error: "La r\xE9ponse DrimPay ne correspond pas \xE0 cette demande." });
-      return;
-    }
-    const paymentEvent = {
-      ...response,
-      event: response.status ? `payin.${response.status}` : void 0
-    };
-    await settleDrimPayPayment(paymentEvent);
-    res.json({
-      status: normalizeDrimPayStatus(response.status ?? "pending"),
-      transactionId: providerReference
-    });
+    res.json(status);
   } catch (error40) {
-    if (isPaymentOutcomeUnknown(error40, true)) {
-      logger.debug(
-        { flow: "status_check", ...safePaymentErrorMetadata(error40) },
-        "DrimPay status is temporarily unavailable; keeping payment pending"
-      );
-      res.json({ status: "pending", transactionId: reference });
-      return;
-    }
     sendPaymentError(res, error40, "status_check");
   }
 });
-var drimpay_default = router16;
+async function reconcileAshtechPayWebhook(payload) {
+  if (payload.event !== "payment.completed" && payload.event !== "payment.failed") return;
+  if (!payload.transaction_id) throw new Error("Webhook is missing transaction_id");
+  const transaction = await fetchVerifiedTransaction(payload.transaction_id);
+  if (payload.reference && transaction.reference !== payload.reference) {
+    throw new Error("Webhook reference does not match the provider status");
+  }
+  await settleAshtechPayPayment(transaction);
+  logger.info(
+    { event: payload.event, transactionId: payload.transaction_id },
+    "Ashtechpay callback reconciled with the live transaction status"
+  );
+}
+var ashtechpay_default = router16;
 
 // src/routes/chat.ts
 var import_express17 = __toESM(require_express2(), 1);
@@ -68780,54 +68830,30 @@ router18.use(admin_default);
 router18.use(upload_default);
 router18.use(app_settings_default);
 router18.use(transactions_default);
-router18.use(drimpay_default);
+router18.use(ashtechpay_default);
 router18.use(chat_default);
 var routes_default = router18;
 
 // src/routes/webhooks.ts
 var import_express19 = __toESM(require_express2(), 1);
 var router19 = (0, import_express19.Router)();
-router19.post("/", async (req, res) => {
-  try {
-    const rawBody = Buffer.isBuffer(req.body) ? req.body : null;
-    if (!rawBody) {
-      res.status(400).json({ error: "Corps de webhook invalide." });
-      return;
-    }
-    const signature = req.header("X-DrimPay-Signature");
-    const timestamp2 = req.header("X-DrimPay-Timestamp");
-    const secret = getDrimPayWebhookSecret();
-    if (!verifyDrimPayWebhookSignature(rawBody, signature, timestamp2, secret)) {
-      res.status(401).json({ error: "Signature de webhook invalide." });
-      return;
-    }
-    const payload = JSON.parse(rawBody.toString("utf8"));
-    if (payload.mode !== "live") {
-      res.status(400).json({ error: "Seuls les \xE9v\xE9nements de paiement live sont accept\xE9s." });
-      return;
-    }
-    const supportedEvents = /* @__PURE__ */ new Set([
-      "payin.success",
-      "payin.failed",
-      "payin.expired",
-      "payin.processing",
-      "payin.reversed"
-    ]);
-    if (!payload.event || !supportedEvents.has(payload.event)) {
-      res.status(200).json({ received: true, ignored: true });
-      return;
-    }
-    await settleDrimPayPayment({ ...payload, status: payload.event.replace(/^payin\./, "") });
-    logger.info({ event: payload.event, reference: payload.reference }, "DrimPay webhook v\xE9rifi\xE9 et trait\xE9");
-    res.status(200).json({ received: true });
-  } catch (error40) {
-    if (error40 instanceof DrimPayError) {
-      res.status(error40.statusCode).json({ error: error40.message });
-      return;
-    }
-    logger.error({ err: error40 }, "\xC9chec de traitement du webhook DrimPay");
-    res.status(500).json({ error: "Webhook DrimPay non trait\xE9." });
+router19.post("/", (req, res) => {
+  const payload = req.body;
+  if (!payload || typeof payload !== "object" || typeof payload.event !== "string" || typeof payload.transaction_id !== "string") {
+    res.status(400).json({ error: "Corps de notification invalide." });
+    return;
   }
+  res.status(200).json({ received: true });
+  void reconcileAshtechPayWebhook({
+    event: payload.event,
+    transaction_id: payload.transaction_id,
+    ...typeof payload.reference === "string" ? { reference: payload.reference } : {}
+  }).catch((error40) => {
+    logger.error(
+      { errorType: error40 instanceof Error ? error40.name : typeof error40 },
+      "Ashtechpay callback reconciliation failed"
+    );
+  });
 });
 var webhooks_default = router19;
 
@@ -68894,7 +68920,7 @@ app.use(
     // allow all in dev / when not configured
   )
 );
-app.use("/webhooks/drimpay", import_express20.default.raw({ type: "application/json" }), webhooks_default);
+app.use("/webhooks/ashtechpay", import_express20.default.json({ limit: "1mb" }), webhooks_default);
 app.use(import_express20.default.json({ limit: "25mb" }));
 app.use(import_express20.default.urlencoded({ extended: true }));
 var uploadsDir = (0, import_node_path3.join)(_dirname, "../uploads");

@@ -10,16 +10,15 @@ import { logger } from "./logger.js";
 import { tg } from "./telegram.js";
 import { nextVipExpiration } from "./vip-entitlement.js";
 
-export type DrimPayPaymentEvent = {
-  event?: string;
+export type AshtechPayPaymentEvent = {
   reference?: string;
-  order_id?: string;
+  transaction_id?: string;
   status?: string;
   amount?: number;
+  total_amount?: number;
   currency?: string;
   country_code?: string;
   operator?: string;
-  mode?: string;
 };
 
 function amountMatches(expected: string, received: unknown): boolean {
@@ -27,75 +26,89 @@ function amountMatches(expected: string, received: unknown): boolean {
   return Number.isFinite(amount) && amount === Number(expected);
 }
 
-export async function settleDrimPayPayment(payment: DrimPayPaymentEvent): Promise<void> {
-  const reference = payment.reference;
-  const orderId = payment.order_id;
-  if (!reference || !orderId) {
-    throw new Error("DrimPay event is missing reference or order_id");
+function findPaymentCondition(reference: string | undefined, transactionId: string | undefined) {
+  const conditions = [];
+  if (reference) {
+    conditions.push(
+      eq(pendingSpDepositsTable.providerReference, reference),
+      eq(pendingSpDepositsTable.externalReference, reference),
+    );
   }
+  if (transactionId) conditions.push(eq(pendingSpDepositsTable.providerTransactionId, transactionId));
+  return conditions.length ? or(...conditions) : undefined;
+}
 
-  const [pendingDeposit] = await db
-    .select()
-    .from(pendingSpDepositsTable)
-    .where(or(
-      eq(pendingSpDepositsTable.drimpayReference, reference),
-      eq(pendingSpDepositsTable.externalReference, orderId),
-    ))
-    .limit(1);
+export async function settleAshtechPayPayment(payment: AshtechPayPaymentEvent): Promise<void> {
+  const { reference, transaction_id: transactionId } = payment;
+  if (!reference && !transactionId) throw new Error("Payment event is missing provider identifiers");
 
-  const [vipPayment] = await db
-    .select()
-    .from(vipPaymentsTable)
-    .where(or(
-      eq(vipPaymentsTable.drimpayReference, reference),
-      eq(vipPaymentsTable.drimpayOrderId, orderId),
-    ))
-    .limit(1);
+  const depositCondition = findPaymentCondition(reference, transactionId);
+  const vipConditions = [];
+  if (reference) {
+    vipConditions.push(
+      eq(vipPaymentsTable.providerReference, reference),
+      eq(vipPaymentsTable.externalReference, reference),
+    );
+  }
+  if (transactionId) vipConditions.push(eq(vipPaymentsTable.providerTransactionId, transactionId));
+
+  const [pendingDeposit] = depositCondition
+    ? await db.select().from(pendingSpDepositsTable).where(and(
+      eq(pendingSpDepositsTable.paymentProvider, "ashtechpay"),
+      depositCondition,
+    )).limit(1)
+    : [];
+  const [vipPayment] = vipConditions.length
+    ? await db.select().from(vipPaymentsTable).where(and(
+      eq(vipPaymentsTable.paymentProvider, "ashtechpay"),
+      or(...vipConditions),
+    )).limit(1)
+    : [];
 
   if (!pendingDeposit && !vipPayment) {
-    logger.warn({ reference, orderId }, "DrimPay payment has no matching local order");
+    logger.warn({ transactionId, reference }, "Ashtechpay payment has no matching local order");
     return;
   }
 
-  if (pendingDeposit) {
-    if (pendingDeposit.externalReference !== orderId ||
-        !amountMatches(pendingDeposit.amount, payment.amount) ||
-        pendingDeposit.currency !== payment.currency ||
-        pendingDeposit.payerCountry !== payment.country_code) {
-      throw new Error("DrimPay deposit payload does not match the pending order");
-    }
+  const grossAmount = payment.total_amount ?? payment.amount;
+  if (pendingDeposit && (
+    (grossAmount !== undefined && !amountMatches(pendingDeposit.amount, grossAmount)) ||
+    (payment.currency && pendingDeposit.currency !== payment.currency) ||
+    (payment.country_code && pendingDeposit.payerCountry !== payment.country_code)
+  )) {
+    throw new Error("Ashtechpay deposit does not match the pending order");
+  }
+  if (vipPayment && (
+    (grossAmount !== undefined && !amountMatches(vipPayment.amount, grossAmount)) ||
+    (payment.currency && vipPayment.currency !== payment.currency)
+  )) {
+    throw new Error("Ashtechpay VIP payment does not match the pending order");
   }
 
-  if (vipPayment) {
-    if (vipPayment.drimpayOrderId !== orderId ||
-        !amountMatches(vipPayment.amount, payment.amount) ||
-        vipPayment.currency !== payment.currency) {
-      throw new Error("DrimPay VIP payload does not match the pending order");
-    }
-  }
+  const status = payment.status;
+  if (status === "success" || status === "completed") {
+    if (!transactionId) throw new Error("Completed Ashtechpay payment is missing transaction_id");
 
-  const status = payment.status ?? payment.event?.replace(/^payin\./, "");
-  if (status === "success") {
     if (pendingDeposit) {
-      const [existingDeposit] = await db
-        .select()
+      const [existingDeposit] = await db.select()
         .from(depositsTable)
         .where(or(
-          eq(depositsTable.drimpayReference, reference),
-          eq(depositsTable.referenceId, orderId),
+          eq(depositsTable.providerReference, reference ?? transactionId),
+          eq(depositsTable.referenceId, pendingDeposit.externalReference),
         ))
         .limit(1);
 
       if (!existingDeposit) {
         await db.insert(depositsTable).values({
           userId: pendingDeposit.userId,
+          paymentProvider: "ashtechpay",
           type: "international",
           operator: "other",
           internationalOperator: payment.operator ?? null,
           oneXbetAccountId: pendingDeposit.oneXbetAccountId,
           amount: pendingDeposit.amount,
-          referenceId: orderId,
-          drimpayReference: reference,
+          referenceId: pendingDeposit.externalReference,
+          providerReference: reference ?? transactionId,
           country: pendingDeposit.payerCountry,
           status: "pending",
         });
@@ -105,11 +118,11 @@ export async function settleDrimPayPayment(payment: DrimPayPaymentEvent): Promis
           .from(usersTable)
           .where(eq(usersTable.id, pendingDeposit.userId));
 
-        await tg.depositDrimPay({
+        await tg.depositMobileMoney({
           username: depositUser?.username ?? String(pendingDeposit.userId),
           userId: depositUser?.userId ?? String(pendingDeposit.userId),
           amount: Number(pendingDeposit.amount),
-          transactionId: reference,
+          transactionId,
           country: pendingDeposit.payerCountry,
         });
       }
@@ -144,7 +157,12 @@ export async function settleDrimPayPayment(payment: DrimPayPaymentEvent): Promis
           })
           .where(eq(usersTable.id, lockedPayment.userId));
         await tx.update(vipPaymentsTable)
-          .set({ drimpayReference: reference, status: "completed", updatedAt: activatedAt })
+          .set({
+            providerReference: reference ?? lockedPayment.providerReference,
+            providerTransactionId: transactionId,
+            status: "completed",
+            updatedAt: activatedAt,
+          })
           .where(eq(vipPaymentsTable.id, lockedPayment.id));
         activated = true;
       });
@@ -165,62 +183,36 @@ export async function settleDrimPayPayment(payment: DrimPayPaymentEvent): Promis
     return;
   }
 
-  if (status === "failed" || status === "expired" || status === "cancelled") {
+  if (status === "failed") {
     if (pendingDeposit) {
       await db.delete(pendingSpDepositsTable)
         .where(eq(pendingSpDepositsTable.id, pendingDeposit.id));
     }
     if (vipPayment?.status === "pending") {
       await db.update(vipPaymentsTable)
-        .set({ drimpayReference: reference, status: "failed", updatedAt: new Date() })
-        .where(eq(vipPaymentsTable.id, vipPayment.id));
-    }
-    return;
-  }
-
-  if (status === "reversed") {
-    if (pendingDeposit) {
-      await db.delete(pendingSpDepositsTable)
-        .where(eq(pendingSpDepositsTable.id, pendingDeposit.id));
-    }
-    const [deposit] = await db
-      .select()
-      .from(depositsTable)
-      .where(or(
-        eq(depositsTable.drimpayReference, reference),
-        eq(depositsTable.referenceId, orderId),
-      ))
-      .limit(1);
-
-    if (deposit?.status === "pending") {
-      await db.update(depositsTable)
         .set({
-          status: "rejected",
-          rejectionReason: "Paiement DrimPay annulé après confirmation.",
+          providerReference: reference ?? vipPayment.providerReference,
+          providerTransactionId: transactionId ?? vipPayment.providerTransactionId,
+          status: "failed",
           updatedAt: new Date(),
         })
-        .where(eq(depositsTable.id, deposit.id));
-    } else if (deposit?.status === "validated") {
-      logger.error({ reference, depositId: deposit.id }, "Validated deposit was reversed by DrimPay");
-    }
-
-    if (vipPayment?.status === "completed") {
-      await db.update(vipPaymentsTable)
-        .set({ status: "reversed", updatedAt: new Date() })
-        .where(eq(vipPaymentsTable.id, vipPayment.id));
-      logger.error({ reference, userId: vipPayment.userId }, "Completed DrimPay VIP payment was reversed");
+        .where(and(eq(vipPaymentsTable.id, vipPayment.id), eq(vipPaymentsTable.status, "pending")));
     }
     return;
   }
 
-  if (pendingDeposit && pendingDeposit.drimpayReference !== reference) {
+  if (pendingDeposit && transactionId && pendingDeposit.providerTransactionId !== transactionId) {
     await db.update(pendingSpDepositsTable)
-      .set({ drimpayReference: reference })
+      .set({ providerTransactionId: transactionId })
       .where(eq(pendingSpDepositsTable.id, pendingDeposit.id));
   }
-  if (vipPayment && vipPayment.drimpayReference !== reference) {
+  if (vipPayment && transactionId && vipPayment.providerTransactionId !== transactionId) {
     await db.update(vipPaymentsTable)
-      .set({ drimpayReference: reference, updatedAt: new Date() })
+      .set({
+        providerReference: reference ?? vipPayment.providerReference,
+        providerTransactionId: transactionId,
+        updatedAt: new Date(),
+      })
       .where(and(
         eq(vipPaymentsTable.id, vipPayment.id),
         eq(vipPaymentsTable.status, "pending"),

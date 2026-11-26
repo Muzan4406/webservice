@@ -9,5 +9,5 @@ export type HealthStatusPaymentSchema = typeof HealthStatusPaymentSchema[keyof t
 
 
 export const HealthStatusPaymentSchema = {
-  'drimpay-v1': 'drimpay-v1',
+  'ashtechpay-v1': 'ashtechpay-v1',
 } as const;

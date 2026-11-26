@@ -382,14 +382,6 @@ export interface PaymentConfig {
   moovMoneyNumber?: string | null;
   /** @nullable */
   moovMoneyUssdCode?: string | null;
-  /** @nullable */
-  internationalPaymentApiUrl?: string | null;
-  /** @nullable */
-  internationalPaymentApiKey?: string | null;
-  /** @nullable */
-  sendavapayApiKey?: string | null;
-  /** @nullable */
-  sendavapayWebhookSecret?: string | null;
 }
 
 export interface AppSettings {
@@ -433,85 +425,81 @@ export interface TransactionListResponse {
   limit: number;
 }
 
-export interface SendavapayCountry {
+export interface AshtechPayOperator {
+  code: string;
+  label: string;
+}
+
+export interface AshtechPayCountry {
   code: string;
   name: string;
   currency: string;
-  operators?: number;
+  callingCode: string;
+  nationalNumberLength: number;
+  operators: AshtechPayOperator[];
 }
 
-export interface SendavapayCountriesResponse {
-  countries: SendavapayCountry[];
-}
-
-export interface SendavapayOperator {
-  id: string;
-  name: string;
-  requiresOtp?: boolean;
-  status?: string;
-}
-
-export interface SendavapayOperatorsResponse {
-  operators: SendavapayOperator[];
-}
-
-export interface CreateDepositPaymentRequest {
+export interface AshtechPayCollectRequest {
+  requestId: string;
   amount: number;
-  currency: string;
-  payerCountry: string;
-  oneXbetAccountId: string;
+  phone: string;
+  operator: string;
+  countryCode: string;
+  /** @nullable */
+  oneXbetAccountId?: string | null;
+  /** @nullable */
+  otp?: string | null;
+  /** @nullable */
+  confirmedNoCharge?: boolean | null;
 }
 
-export interface CreateVipPaymentRequest {
-  currency: string;
-  payerCountry: string;
+export type AshtechPayCollectResponseStatus = typeof AshtechPayCollectResponseStatus[keyof typeof AshtechPayCollectResponseStatus];
+
+
+export const AshtechPayCollectResponseStatus = {
+  pending: 'pending',
+  success: 'success',
+  failed: 'failed',
+  otp_required: 'otp_required',
+  confirmation_required: 'confirmation_required',
+} as const;
+
+export interface AshtechPayCollectResponse {
+  status: AshtechPayCollectResponseStatus;
+  /** @nullable */
+  transactionId?: string | null;
+  /** @nullable */
+  requestId?: string | null;
+  /** @nullable */
+  type?: string | null;
+  /** @nullable */
+  paymentUrl?: string | null;
+  /** @nullable */
+  ussdCode?: string | null;
+  otpBySms?: boolean;
+  requiresNoChargeConfirmation?: boolean;
+  /** @nullable */
+  diagnosticId?: string | null;
 }
 
-export interface SendavapayPaymentResponse {
-  paymentToken: string;
-  reference: string;
-  /** @nullable */
-  depositId?: number | null;
-  amount: string;
-  currency: string;
-  expiresAt: string;
-}
+export type AshtechPayPaymentStatusResponseStatus = typeof AshtechPayPaymentStatusResponseStatus[keyof typeof AshtechPayPaymentStatusResponseStatus];
 
-export interface InitiatePaymentRequest {
-  paymentToken: string;
-  payerName: string;
-  payerPhone: string;
-  payerEmail?: string;
-  payerCountry: string;
-  operatorId: string;
-}
 
-export interface InitiatePaymentResponse {
-  success: boolean;
-  /** @nullable */
-  reference?: string | null;
-  requiresOtp?: boolean;
-  /** @nullable */
-  otpToken?: string | null;
-  requiresRedirect?: boolean;
-  /** @nullable */
-  redirectUrl?: string | null;
-  /** @nullable */
-  message?: string | null;
-}
+export const AshtechPayPaymentStatusResponseStatus = {
+  pending: 'pending',
+  success: 'success',
+  failed: 'failed',
+  otp_required: 'otp_required',
+  confirmation_required: 'confirmation_required',
+} as const;
 
-export interface SubmitOtpRequest {
-  otpToken: string;
-  otp: string;
-}
-
-export interface SendavapayStatusResponse {
-  reference: string;
-  status: string;
-  amount: string;
-  currency: string;
+export interface AshtechPayPaymentStatusResponse {
+  status: AshtechPayPaymentStatusResponseStatus;
+  transactionId: string;
   /** @nullable */
-  completedAt?: string | null;
+  requestId?: string | null;
+  /** @nullable */
+  ussdCode?: string | null;
 }
 
 export interface SuccessResponse {
@@ -555,7 +543,7 @@ export type HealthStatusPaymentSchema = typeof HealthStatusPaymentSchema[keyof t
 
 
 export const HealthStatusPaymentSchema = {
-  'drimpay-v1': 'drimpay-v1',
+  'ashtechpay-v1': 'ashtechpay-v1',
 } as const;
 
 export interface HealthStatus {

@@ -8,13 +8,11 @@ export const paymentConfigTable = pgTable("payment_config", {
   moovMoneyEnabled: boolean("moov_money_enabled").notNull().default(false),
   moovMoneyNumber: text("moov_money_number"),
   moovMoneyUssdCode: text("moov_money_ussd_code"),
-  // Legacy provider settings retained only to preserve existing databases.
-  // The current payment API no longer reads or returns these credentials.
+  // Retained only so existing database columns and stored history are not dropped.
   internationalPaymentApiUrl: text("international_payment_api_url"),
   internationalPaymentApiKey: text("international_payment_api_key"),
-  ashtechpayApiKey: text("sendavapay_api_key"),
-  // Kept for schema compatibility (column exists in DB, no longer used)
-  sendavapayWebhookSecret: text("sendavapay_webhook_secret"),
+  legacyPaymentApiKey: text("sendavapay_api_key"),
+  legacyWebhookSecret: text("sendavapay_webhook_secret"),
   // Adresse du point de retrait 1xBet (affiché sur la page retrait)
   withdrawCity: text("withdraw_city").default("Tsevie"),
   withdrawStreet: text("withdraw_street").default("Kpali24"),

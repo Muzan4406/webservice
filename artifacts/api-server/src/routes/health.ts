@@ -21,13 +21,29 @@ router.get("/healthz", async (_req, res): Promise<void> => {
 
   try {
     // Zero-row queries verify the tables and columns used by login, VIP, and
-    // both DrimPay initiation/status flows without reading customer records.
+    // Ashtechpay initiation/status flows without reading customer records.
     const checks: Array<[string, () => Promise<unknown>]> = [
       ["accounts", () => db.select({ id: usersTable.id, vipExpiresAt: usersTable.vipExpiresAt }).from(usersTable).limit(0)],
       ["app_settings", () => db.select({ id: appSettingsTable.id, vipPrice: appSettingsTable.vipPriceFcfa }).from(appSettingsTable).limit(0)],
-      ["vip_payments", () => db.select({ id: vipPaymentsTable.id, orderId: vipPaymentsTable.drimpayOrderId }).from(vipPaymentsTable).limit(0)],
-      ["international_deposits", () => db.select({ id: pendingSpDepositsTable.id, orderId: pendingSpDepositsTable.externalReference }).from(pendingSpDepositsTable).limit(0)],
-      ["deposits", () => db.select({ id: depositsTable.id, reference: depositsTable.drimpayReference }).from(depositsTable).limit(0)],
+      ["vip_payments", () => db.select({
+        id: vipPaymentsTable.id,
+        orderId: vipPaymentsTable.externalReference,
+        transactionId: vipPaymentsTable.providerTransactionId,
+        provider: vipPaymentsTable.paymentProvider,
+        otpUssdCode: vipPaymentsTable.otpUssdCode,
+      }).from(vipPaymentsTable).limit(0)],
+      ["international_deposits", () => db.select({
+        id: pendingSpDepositsTable.id,
+        orderId: pendingSpDepositsTable.externalReference,
+        transactionId: pendingSpDepositsTable.providerTransactionId,
+        provider: pendingSpDepositsTable.paymentProvider,
+        otpUssdCode: pendingSpDepositsTable.otpUssdCode,
+      }).from(pendingSpDepositsTable).limit(0)],
+      ["deposits", () => db.select({
+        id: depositsTable.id,
+        reference: depositsTable.providerReference,
+        provider: depositsTable.paymentProvider,
+      }).from(depositsTable).limit(0)],
     ];
     for (const [check, run] of checks) {
       try {
@@ -47,7 +63,7 @@ router.get("/healthz", async (_req, res): Promise<void> => {
       status: "ok",
       database: "ready",
       schema: "vip-expiry-v1",
-      paymentSchema: "drimpay-v1",
+      paymentSchema: "ashtechpay-v1",
     }));
   } catch (error) {
     const issue = getDatabaseIssue(error);

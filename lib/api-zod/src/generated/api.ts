@@ -605,123 +605,88 @@ export const ConfirmVipPurchaseResponse = zod.object({
 
 
 /**
- * @summary Get available countries for SendavaPay
+ * @summary Get active Ashtechpay countries and operators
  */
-export const GetSendavapayCountriesResponse = zod.object({
-  "countries": zod.array(zod.object({
+export const GetAshtechPayCountriesResponseItem = zod.object({
   "code": zod.string(),
   "name": zod.string(),
   "currency": zod.string(),
-  "operators": zod.number().optional()
-}))
-})
-
-
-/**
- * @summary Get payment operators for a country
- */
-export const GetSendavapayOperatorsParams = zod.object({
-  "countryCode": zod.coerce.string()
-})
-
-export const GetSendavapayOperatorsResponse = zod.object({
+  "callingCode": zod.string(),
+  "nationalNumberLength": zod.number(),
   "operators": zod.array(zod.object({
-  "id": zod.string(),
-  "name": zod.string(),
-  "requiresOtp": zod.boolean().optional(),
-  "status": zod.string().optional()
+  "code": zod.string(),
+  "label": zod.string()
 }))
 })
+export const GetAshtechPayCountriesResponse = zod.array(GetAshtechPayCountriesResponseItem)
 
 
 /**
- * @summary Create a SendavaPay payment for an international deposit
+ * @summary Collect an international deposit through Ashtechpay
  */
-export const CreateDepositPaymentBody = zod.object({
+export const CollectAshtechPayDepositBody = zod.object({
+  "requestId": zod.string(),
   "amount": zod.number(),
-  "currency": zod.string(),
-  "payerCountry": zod.string(),
-  "oneXbetAccountId": zod.string()
+  "phone": zod.string(),
+  "operator": zod.string(),
+  "countryCode": zod.string(),
+  "oneXbetAccountId": zod.string().nullish(),
+  "otp": zod.string().nullish(),
+  "confirmedNoCharge": zod.boolean().nullish()
 })
 
-export const CreateDepositPaymentResponse = zod.object({
-  "paymentToken": zod.string(),
-  "reference": zod.string(),
-  "depositId": zod.number().nullish(),
-  "amount": zod.string(),
-  "currency": zod.string(),
-  "expiresAt": zod.coerce.date()
-})
-
-
-/**
- * @summary Create a SendavaPay payment for VIP access
- */
-export const CreateVipPaymentBody = zod.object({
-  "currency": zod.string(),
-  "payerCountry": zod.string()
-})
-
-export const CreateVipPaymentResponse = zod.object({
-  "paymentToken": zod.string(),
-  "reference": zod.string(),
-  "depositId": zod.number().nullish(),
-  "amount": zod.string(),
-  "currency": zod.string(),
-  "expiresAt": zod.coerce.date()
+export const CollectAshtechPayDepositResponse = zod.object({
+  "status": zod.enum(['pending', 'success', 'failed', 'otp_required', 'confirmation_required']),
+  "transactionId": zod.string().nullish(),
+  "requestId": zod.string().nullish(),
+  "type": zod.string().nullish(),
+  "paymentUrl": zod.string().nullish(),
+  "ussdCode": zod.string().nullish(),
+  "otpBySms": zod.boolean().optional(),
+  "requiresNoChargeConfirmation": zod.boolean().optional(),
+  "diagnosticId": zod.string().nullish()
 })
 
 
 /**
- * @summary Initiate a SendavaPay payment (send push to payer)
+ * @summary Collect a VIP payment through Ashtechpay
  */
-export const InitiateSendavapayPaymentBody = zod.object({
-  "paymentToken": zod.string(),
-  "payerName": zod.string(),
-  "payerPhone": zod.string(),
-  "payerEmail": zod.string().optional(),
-  "payerCountry": zod.string(),
-  "operatorId": zod.string()
+export const CollectAshtechPayVipBody = zod.object({
+  "requestId": zod.string(),
+  "amount": zod.number(),
+  "phone": zod.string(),
+  "operator": zod.string(),
+  "countryCode": zod.string(),
+  "oneXbetAccountId": zod.string().nullish(),
+  "otp": zod.string().nullish(),
+  "confirmedNoCharge": zod.boolean().nullish()
 })
 
-export const InitiateSendavapayPaymentResponse = zod.object({
-  "success": zod.boolean(),
-  "reference": zod.string().nullish(),
-  "requiresOtp": zod.boolean().optional(),
-  "otpToken": zod.string().nullish(),
-  "requiresRedirect": zod.boolean().optional(),
-  "redirectUrl": zod.string().nullish(),
-  "message": zod.string().nullish()
+export const CollectAshtechPayVipResponse = zod.object({
+  "status": zod.enum(['pending', 'success', 'failed', 'otp_required', 'confirmation_required']),
+  "transactionId": zod.string().nullish(),
+  "requestId": zod.string().nullish(),
+  "type": zod.string().nullish(),
+  "paymentUrl": zod.string().nullish(),
+  "ussdCode": zod.string().nullish(),
+  "otpBySms": zod.boolean().optional(),
+  "requiresNoChargeConfirmation": zod.boolean().optional(),
+  "diagnosticId": zod.string().nullish()
 })
 
 
 /**
- * @summary Submit OTP for payment confirmation
+ * @summary Get Ashtechpay payment status
  */
-export const SubmitPaymentOtpBody = zod.object({
-  "otpToken": zod.string(),
-  "otp": zod.string()
-})
-
-export const SubmitPaymentOtpResponse = zod.object({
-  "success": zod.boolean(),
-  "message": zod.string().optional()
-})
-
-
-/**
- * @summary Get SendavaPay payment status
- */
-export const GetSendavapayPaymentStatusParams = zod.object({
+export const GetAshtechPayPaymentStatusParams = zod.object({
   "reference": zod.coerce.string()
 })
 
-export const GetSendavapayPaymentStatusResponse = zod.object({
-  "reference": zod.string(),
-  "status": zod.string(),
-  "amount": zod.string(),
-  "currency": zod.string(),
-  "completedAt": zod.string().nullish()
+export const GetAshtechPayPaymentStatusResponse = zod.object({
+  "status": zod.enum(['pending', 'success', 'failed', 'otp_required', 'confirmation_required']),
+  "transactionId": zod.string(),
+  "requestId": zod.string().nullish(),
+  "ussdCode": zod.string().nullish()
 })
 
 
@@ -1138,11 +1103,7 @@ export const GetPaymentConfigResponse = zod.object({
   "tmoneyEnabled": zod.boolean(),
   "moovMoneyEnabled": zod.boolean(),
   "moovMoneyNumber": zod.string().nullish(),
-  "moovMoneyUssdCode": zod.string().nullish(),
-  "internationalPaymentApiUrl": zod.string().nullish(),
-  "internationalPaymentApiKey": zod.string().nullish(),
-  "sendavapayApiKey": zod.string().nullish(),
-  "sendavapayWebhookSecret": zod.string().nullish()
+  "moovMoneyUssdCode": zod.string().nullish()
 })
 
 
@@ -1153,22 +1114,14 @@ export const UpdatePaymentConfigBody = zod.object({
   "tmoneyEnabled": zod.boolean(),
   "moovMoneyEnabled": zod.boolean(),
   "moovMoneyNumber": zod.string().nullish(),
-  "moovMoneyUssdCode": zod.string().nullish(),
-  "internationalPaymentApiUrl": zod.string().nullish(),
-  "internationalPaymentApiKey": zod.string().nullish(),
-  "sendavapayApiKey": zod.string().nullish(),
-  "sendavapayWebhookSecret": zod.string().nullish()
+  "moovMoneyUssdCode": zod.string().nullish()
 })
 
 export const UpdatePaymentConfigResponse = zod.object({
   "tmoneyEnabled": zod.boolean(),
   "moovMoneyEnabled": zod.boolean(),
   "moovMoneyNumber": zod.string().nullish(),
-  "moovMoneyUssdCode": zod.string().nullish(),
-  "internationalPaymentApiUrl": zod.string().nullish(),
-  "internationalPaymentApiKey": zod.string().nullish(),
-  "sendavapayApiKey": zod.string().nullish(),
-  "sendavapayWebhookSecret": zod.string().nullish()
+  "moovMoneyUssdCode": zod.string().nullish()
 })
 
 
@@ -1217,7 +1170,7 @@ export const HealthCheckResponse = zod.object({
   "status": zod.enum(['ok']),
   "database": zod.enum(['ready']),
   "schema": zod.enum(['vip-expiry-v1']),
-  "paymentSchema": zod.enum(['drimpay-v1'])
+  "paymentSchema": zod.enum(['ashtechpay-v1'])
 })
 
 

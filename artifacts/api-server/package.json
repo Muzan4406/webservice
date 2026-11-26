@@ -7,7 +7,7 @@
     "dev": "export NODE_ENV=development && tsx src/index.ts",
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.cjs",
-    "test": "tsx --test src/lib/drimpay.test.ts src/lib/vip-entitlement.test.ts src/lib/database-errors.test.ts",
+    "test": "tsx --test src/lib/ashtechpay.test.ts src/lib/vip-entitlement.test.ts src/lib/database-errors.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

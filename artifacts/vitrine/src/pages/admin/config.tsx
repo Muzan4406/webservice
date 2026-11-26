@@ -170,7 +170,7 @@ export default function AdminConfigPage() {
             </div>
             <Separator />
             <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-900">
-              DrimPay Pay-in fonctionne uniquement avec les clés serveur configurées dans Plesk. Ne saisissez pas de clé API sur cette page.
+              Ashtechpay fonctionne avec la clé serveur configurée dans Plesk. Ne saisissez pas de clé API sur cette page.
             </div>
             {[
               { key: 'moovMoneyNumber', label: 'Numéro Moov Money', ph: '9X XX XX XX' },

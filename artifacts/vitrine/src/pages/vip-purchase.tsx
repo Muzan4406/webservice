@@ -14,7 +14,7 @@ import {
 import { useLocation } from 'wouter';
 import { createPaymentRequestId } from '@/lib/payment-request-id';
 import { normalizeNationalPhoneInput } from '@/lib/national-phone';
-import { buildDialableUssdCode, extractUssdCodeFromInstructions } from '@/lib/ussd';
+import { sanitizeDialableUssdCode } from '@/lib/ussd';
 import { UssdDialButton } from '@/components/UssdDialButton';
 
 async function apiFetch(url: string, options?: { method?: string; body?: any }): Promise<any> {
@@ -42,14 +42,14 @@ async function apiFetch(url: string, options?: { method?: string; body?: any }):
   return data;
 }
 
-type DrimPayOperator = { code: string; label: string; requiresOtp?: boolean; otpInstructions?: string };
-type DrimPayCountry = {
+type AshtechPayOperator = { code: string; label: string };
+type AshtechPayCountry = {
   code: string;
   name: string;
   currency: string;
   callingCode: string;
   nationalNumberLength: number;
-  operators: DrimPayOperator[];
+  operators: AshtechPayOperator[];
 };
 
 const VIP_BENEFITS = [
@@ -61,7 +61,7 @@ const VIP_BENEFITS = [
   { icon: '🎧', text: 'Priorité sur le service client' },
 ];
 
-type Step = 'form' | 'wave' | 'waiting' | 'confirmRetry' | 'done' | 'failed';
+type Step = 'form' | 'otp' | 'wave' | 'waiting' | 'confirmRetry' | 'done' | 'failed';
 
 export default function VipPurchasePage() {
   const [, setLocation] = useLocation();
@@ -71,10 +71,11 @@ export default function VipPurchasePage() {
 
   const [step, setStep] = useState<Step>('form');
   const [selectedCountry, setSelectedCountry] = useState('');
-  const [countries, setCountries] = useState<DrimPayCountry[]>([]);
+  const [countries, setCountries] = useState<AshtechPayCountry[]>([]);
   const [countriesLoading, setCountriesLoading] = useState(true);
   const [selectedOperator, setSelectedOperator] = useState('');
   const [otpCode, setOtpCode] = useState('');
+  const [otpUssdCode, setOtpUssdCode] = useState<string | null>(null);
   const [payerPhone, setPayerPhone] = useState('');
   const [transactionId, setTransactionId] = useState('');
   const [paymentDiagnosticId, setPaymentDiagnosticId] = useState('');
@@ -85,8 +86,6 @@ export default function VipPurchasePage() {
   const requestId = useRef('');
   const activeCountry = countries.find(country => country.code === selectedCountry);
   const activeOperator = activeCountry?.operators.find(operator => operator.code === selectedOperator);
-  const otpUssdTemplate = extractUssdCodeFromInstructions(activeOperator?.otpInstructions);
-  const otpDialCode = otpUssdTemplate ? buildDialableUssdCode(otpUssdTemplate, String(vipPrice)) : null;
 
   const refreshVipProfile = useCallback(async () => {
     try {
@@ -98,11 +97,11 @@ export default function VipPurchasePage() {
     }
   }, [updateUser]);
 
-  // La liste est limitée aux opérateurs de production publiés par DrimPay.
+  // Le serveur lit le catalogue actif publié par Ashtechpay.
   useEffect(() => {
-    apiFetch('/api/drimpay/countries')
-      .then((data: DrimPayCountry[]) => setCountries(data))
-      .catch(() => toast.error('Impossible de charger les opérateurs DrimPay.'))
+    apiFetch('/api/ashtechpay/countries')
+      .then((data: AshtechPayCountry[]) => setCountries(data))
+      .catch(() => toast.error('Impossible de charger les opérateurs Mobile Money.'))
       .finally(() => setCountriesLoading(false));
   }, []);
 
@@ -111,11 +110,15 @@ export default function VipPurchasePage() {
     if (!transactionId || step !== 'waiting') return;
     const interval = setInterval(async () => {
       try {
-        const data = await apiFetch(`/api/drimpay/status/${encodeURIComponent(transactionId)}`);
+        const data = await apiFetch(`/api/ashtechpay/status/${encodeURIComponent(transactionId)}`);
+        if (typeof data.requestId === 'string') requestId.current = data.requestId;
         if (data.status === 'success') {
           await refreshVipProfile();
           setStep('done');
-        } else if (['failed', 'expired', 'cancelled', 'reversed'].includes(data.status)) {
+        } else if (data.status === 'otp_required') {
+          setOtpUssdCode(sanitizeDialableUssdCode(data.ussdCode));
+          setStep('otp');
+        } else if (data.status === 'failed') {
           setStep('failed');
         }
       } catch { /* ignorer */ }
@@ -132,17 +135,12 @@ export default function VipPurchasePage() {
       toast.error(`Entrez les ${activeCountry.nationalNumberLength} chiffres du numéro local.`);
       return;
     }
-    if (activeOperator?.requiresOtp && !otpCode.trim()) {
-      toast.error('Entrez le code OTP demandé par Orange Money.');
-      return;
-    }
-
     setSubmitting(true);
     setPaymentStartError(null);
     setPaymentDiagnosticId('');
     try {
       if (!requestId.current) requestId.current = createPaymentRequestId();
-      const res = await apiFetch('/api/drimpay/collect-vip', {
+      const res = await apiFetch('/api/ashtechpay/collect-vip', {
         method: 'POST',
         body: {
           requestId: requestId.current,
@@ -150,29 +148,37 @@ export default function VipPurchasePage() {
           phone: payerPhone.trim(),
           operator: selectedOperator,
           countryCode: activeCountry.code,
-          operatorOtp: otpCode.trim() || undefined,
+          otp: otpCode.trim() || undefined,
           ...(confirmedNoCharge ? { confirmedNoCharge: true } : {}),
         },
       });
-      requestId.current = '';
+      if (typeof res.requestId === 'string') requestId.current = res.requestId;
 
       if (res.requiresNoChargeConfirmation) {
         setStep('confirmRetry');
+      } else if (res.status === 'otp_required') {
+        setTransactionId(res.transactionId);
+        setOtpUssdCode(sanitizeDialableUssdCode(res.ussdCode));
+        setOtpCode('');
+        setStep('otp');
       } else if (res.status === 'success') {
+        requestId.current = '';
         await refreshVipProfile();
         setStep('done');
       } else if (res.type === 'wave') {
+        requestId.current = '';
         setTransactionId(res.transactionId);
         setPaymentDiagnosticId('');
         setWaveUrl(res.paymentUrl);
         setStep('wave');
       } else {
+        requestId.current = '';
         setTransactionId(res.transactionId);
         setPaymentDiagnosticId(res.diagnosticId ?? '');
         setStep('waiting');
       }
     } catch (e: any) {
-      if (e?.status && e.status < 500) requestId.current = '';
+      if (step !== 'otp' && e?.status && e.status < 500) requestId.current = '';
       const message = e?.diagnosticId
         ? `${e.message} (référence ${e.diagnosticId})`
         : e?.message ?? 'Erreur lors du paiement.';
@@ -198,6 +204,7 @@ export default function VipPurchasePage() {
     setSelectedOperator('');
     setPayerPhone('');
     setOtpCode('');
+    setOtpUssdCode(null);
     setTransactionId('');
     setPaymentDiagnosticId('');
     setWaveUrl('');
@@ -262,10 +269,12 @@ export default function VipPurchasePage() {
                     className="h-10 w-full rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
                     value={selectedCountry}
                     onChange={e => {
+                      requestId.current = '';
                       setSelectedCountry(e.target.value);
                       setSelectedOperator('');
                       setPayerPhone('');
                       setOtpCode('');
+                      setOtpUssdCode(null);
                       setPaymentStartError(null);
                     }}
                   >
@@ -286,8 +295,10 @@ export default function VipPurchasePage() {
                             key={op.code}
                             type="button"
                             onClick={() => {
+                              requestId.current = '';
                               setSelectedOperator(op.code);
                               setOtpCode('');
+                              setOtpUssdCode(null);
                               setPaymentStartError(null);
                             }}
                             aria-pressed={selectedOperator === op.code}
@@ -316,6 +327,7 @@ export default function VipPurchasePage() {
                         placeholder={`${activeCountry.nationalNumberLength} chiffres`}
                         value={payerPhone}
                         onChange={e => {
+                          requestId.current = '';
                           setPayerPhone(normalizeNationalPhoneInput(
                             e.target.value,
                             activeCountry.callingCode,
@@ -335,29 +347,6 @@ export default function VipPurchasePage() {
                   </div>
                 )}
 
-                {activeOperator?.requiresOtp && (
-                  <div className="space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
-                    <p className="text-sm text-amber-900">{activeOperator.otpInstructions}</p>
-                    {otpUssdTemplate && (
-                      <div className="space-y-2">
-                        <code className="block break-all rounded-lg border border-amber-200 bg-white p-3 font-mono text-base font-bold tracking-wide text-primary">
-                          {otpUssdTemplate}
-                        </code>
-                        <UssdDialButton code={otpDialCode} />
-                      </div>
-                    )}
-                    <div className="space-y-2">
-                      <Label>Code OTP Orange Money</Label>
-                      <Input
-                        value={otpCode}
-                        onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
-                        inputMode="numeric"
-                        placeholder="Code reçu après le code USSD"
-                      />
-                    </div>
-                  </div>
-                )}
-
                 <Button
                   className="h-12 w-full"
                   onClick={handleContinue}
@@ -366,12 +355,52 @@ export default function VipPurchasePage() {
                     !selectedCountry ||
                     !selectedOperator ||
                     !activeCountry ||
-                    payerPhone.length !== activeCountry.nationalNumberLength ||
-                    (Boolean(activeOperator?.requiresOtp) && !otpCode)
+                    payerPhone.length !== activeCountry.nationalNumberLength
                   }
                 >
                   {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   {user?.isVip ? 'Renouveler' : 'Payer'} {vipPrice.toLocaleString()} {activeCountry?.currency ?? 'XOF'}
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {step === 'otp' && (
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+            <Card>
+              <CardContent className="space-y-4 p-5">
+                <div className="space-y-2">
+                  <p className="text-lg font-bold">Confirmer le code de paiement</p>
+                  {otpUssdCode ? (
+                    <>
+                      <p className="text-sm text-muted-foreground">Composez ce code USSD pour recevoir ou afficher votre OTP.</p>
+                      <code className="block break-all rounded-xl border border-amber-200 bg-amber-50 p-4 font-mono text-base font-bold tracking-wide text-primary">
+                        {otpUssdCode}
+                      </code>
+                      <UssdDialButton code={otpUssdCode} />
+                    </>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">Ashtechpay indique qu’un code OTP vous a été envoyé par SMS.</p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label>Code OTP</Label>
+                  <Input
+                    value={otpCode}
+                    onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 8))}
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    placeholder="Saisir le code reçu"
+                  />
+                </div>
+                <Button
+                  className="h-12 w-full"
+                  onClick={() => submitPayment()}
+                  disabled={submitting || otpCode.length < 4}
+                >
+                  {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Confirmer le code
                 </Button>
               </CardContent>
             </Card>
@@ -422,7 +451,7 @@ export default function VipPurchasePage() {
               <CardContent className="space-y-4 p-5">
                 <p className="text-lg font-bold text-amber-900">Vérifiez votre précédent paiement</p>
                 <p className="text-sm text-gray-700">
-                  Une ancienne tentative n’a pas reçu de référence DrimPay. Vérifiez le solde et l’historique de votre portefeuille mobile.
+                  Le résultat d’une tentative précédente est incertain. Vérifiez le solde et l’historique de votre portefeuille mobile.
                   Ne relancez pas si un débit est visible ou si une demande est encore affichée.
                 </p>
                 <Button disabled={submitting} onClick={() => submitPayment(true)} className="h-12 w-full">

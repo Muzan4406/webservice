@@ -27,6 +27,10 @@ import type {
   AdminUsersResponse,
   AdminWithdrawalListResponse,
   AppSettings,
+  AshtechPayCollectRequest,
+  AshtechPayCollectResponse,
+  AshtechPayCountry,
+  AshtechPayPaymentStatusResponse,
   AuthResponse,
   BroadcastRequest,
   ConfirmVipPurchaseRequest,
@@ -35,10 +39,8 @@ import type {
   CouponListResponse,
   CreateContestRequest,
   CreateCouponRequest,
-  CreateDepositPaymentRequest,
   CreateDepositRequest,
   CreatePromotionRequest,
-  CreateVipPaymentRequest,
   CreateWithdrawalRequest,
   Deposit,
   DepositListResponse,
@@ -53,8 +55,6 @@ import type {
   GoogleAuthRequest,
   HealthCheck503,
   HealthStatus,
-  InitiatePaymentRequest,
-  InitiatePaymentResponse,
   LeaderboardResponse,
   LoginRequest,
   NotificationListResponse,
@@ -65,11 +65,6 @@ import type {
   RegisterRequest,
   RejectRequest,
   ResetCounters200,
-  SendavapayCountriesResponse,
-  SendavapayOperatorsResponse,
-  SendavapayPaymentResponse,
-  SendavapayStatusResponse,
-  SubmitOtpRequest,
   SuccessResponse,
   TransactionListResponse,
   UpdateProfileRequest,
@@ -2177,20 +2172,20 @@ export const useConfirmVipPurchase = <TError = ErrorType<unknown>,
       return useMutation(getConfirmVipPurchaseMutationOptions(options));
     }
 
-export const getGetSendavapayCountriesUrl = () => {
+export const getGetAshtechPayCountriesUrl = () => {
 
 
 
 
-  return `/api/sendavapay/countries`
+  return `/api/ashtechpay/countries`
 }
 
 /**
- * @summary Get available countries for SendavaPay
+ * @summary Get active Ashtechpay countries and operators
  */
-export const getSendavapayCountries = async ( options?: RequestInit): Promise<SendavapayCountriesResponse> => {
+export const getAshtechPayCountries = async ( options?: RequestInit): Promise<AshtechPayCountry[]> => {
 
-  return customFetch<SendavapayCountriesResponse>(getGetSendavapayCountriesUrl(),
+  return customFetch<AshtechPayCountry[]>(getGetAshtechPayCountriesUrl(),
   {
     ...options,
     method: 'GET'
@@ -2203,45 +2198,45 @@ export const getSendavapayCountries = async ( options?: RequestInit): Promise<Se
 
 
 
-export const getGetSendavapayCountriesQueryKey = () => {
+export const getGetAshtechPayCountriesQueryKey = () => {
     return [
-    `/api/sendavapay/countries`
+    `/api/ashtechpay/countries`
     ] as const;
     }
 
 
-export const getGetSendavapayCountriesQueryOptions = <TData = Awaited<ReturnType<typeof getSendavapayCountries>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSendavapayCountries>>, TError, TData>, }
+export const getGetAshtechPayCountriesQueryOptions = <TData = Awaited<ReturnType<typeof getAshtechPayCountries>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAshtechPayCountries>>, TError, TData>, }
 ) => {
 
 const {query: queryOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetSendavapayCountriesQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getGetAshtechPayCountriesQueryKey();
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSendavapayCountries>>> = ({ signal }) => getSendavapayCountries({ signal });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAshtechPayCountries>>> = ({ signal }) => getAshtechPayCountries({ signal });
 
 
 
 
 
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSendavapayCountries>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAshtechPayCountries>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type GetSendavapayCountriesQueryResult = NonNullable<Awaited<ReturnType<typeof getSendavapayCountries>>>
-export type GetSendavapayCountriesQueryError = ErrorType<unknown>
+export type GetAshtechPayCountriesQueryResult = NonNullable<Awaited<ReturnType<typeof getAshtechPayCountries>>>
+export type GetAshtechPayCountriesQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Get available countries for SendavaPay
+ * @summary Get active Ashtechpay countries and operators
  */
 
-export function useGetSendavapayCountries<TData = Awaited<ReturnType<typeof getSendavapayCountries>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSendavapayCountries>>, TError, TData>, }
+export function useGetAshtechPayCountries<TData = Awaited<ReturnType<typeof getAshtechPayCountries>>, TError = ErrorType<unknown>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAshtechPayCountries>>, TError, TData>, }
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetSendavapayCountriesQueryOptions(options)
+  const queryOptions = getGetAshtechPayCountriesQueryOptions(options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 
@@ -2254,20 +2249,162 @@ export function useGetSendavapayCountries<TData = Awaited<ReturnType<typeof getS
 
 
 
-export const getGetSendavapayOperatorsUrl = (countryCode: string,) => {
+export const getCollectAshtechPayDepositUrl = () => {
 
 
 
 
-  return `/api/sendavapay/operators/${countryCode}`
+  return `/api/ashtechpay/collect`
 }
 
 /**
- * @summary Get payment operators for a country
+ * @summary Collect an international deposit through Ashtechpay
  */
-export const getSendavapayOperators = async (countryCode: string, options?: RequestInit): Promise<SendavapayOperatorsResponse> => {
+export const collectAshtechPayDeposit = async (ashtechPayCollectRequest: AshtechPayCollectRequest, options?: RequestInit): Promise<AshtechPayCollectResponse> => {
 
-  return customFetch<SendavapayOperatorsResponse>(getGetSendavapayOperatorsUrl(countryCode),
+  return customFetch<AshtechPayCollectResponse>(getCollectAshtechPayDepositUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(ashtechPayCollectRequest)
+  }
+);}
+
+
+
+
+
+export const getCollectAshtechPayDepositMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof collectAshtechPayDeposit>>, TError,{data: BodyType<AshtechPayCollectRequest>}, TContext>, }
+): UseMutationOptions<Awaited<ReturnType<typeof collectAshtechPayDeposit>>, TError,{data: BodyType<AshtechPayCollectRequest>}, TContext> => {
+
+const mutationKey = ['collectAshtechPayDeposit'];
+const {mutation: mutationOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof collectAshtechPayDeposit>>, {data: BodyType<AshtechPayCollectRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  collectAshtechPayDeposit(data,)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CollectAshtechPayDepositMutationResult = NonNullable<Awaited<ReturnType<typeof collectAshtechPayDeposit>>>
+    export type CollectAshtechPayDepositMutationBody = BodyType<AshtechPayCollectRequest>
+    export type CollectAshtechPayDepositMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Collect an international deposit through Ashtechpay
+ */
+export const useCollectAshtechPayDeposit = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof collectAshtechPayDeposit>>, TError,{data: BodyType<AshtechPayCollectRequest>}, TContext>, }
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof collectAshtechPayDeposit>>,
+        TError,
+        {data: BodyType<AshtechPayCollectRequest>},
+        TContext
+      > => {
+      return useMutation(getCollectAshtechPayDepositMutationOptions(options));
+    }
+
+export const getCollectAshtechPayVipUrl = () => {
+
+
+
+
+  return `/api/ashtechpay/collect-vip`
+}
+
+/**
+ * @summary Collect a VIP payment through Ashtechpay
+ */
+export const collectAshtechPayVip = async (ashtechPayCollectRequest: AshtechPayCollectRequest, options?: RequestInit): Promise<AshtechPayCollectResponse> => {
+
+  return customFetch<AshtechPayCollectResponse>(getCollectAshtechPayVipUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(ashtechPayCollectRequest)
+  }
+);}
+
+
+
+
+
+export const getCollectAshtechPayVipMutationOptions = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof collectAshtechPayVip>>, TError,{data: BodyType<AshtechPayCollectRequest>}, TContext>, }
+): UseMutationOptions<Awaited<ReturnType<typeof collectAshtechPayVip>>, TError,{data: BodyType<AshtechPayCollectRequest>}, TContext> => {
+
+const mutationKey = ['collectAshtechPayVip'];
+const {mutation: mutationOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof collectAshtechPayVip>>, {data: BodyType<AshtechPayCollectRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  collectAshtechPayVip(data,)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CollectAshtechPayVipMutationResult = NonNullable<Awaited<ReturnType<typeof collectAshtechPayVip>>>
+    export type CollectAshtechPayVipMutationBody = BodyType<AshtechPayCollectRequest>
+    export type CollectAshtechPayVipMutationError = ErrorType<ErrorResponse>
+
+    /**
+ * @summary Collect a VIP payment through Ashtechpay
+ */
+export const useCollectAshtechPayVip = <TError = ErrorType<ErrorResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof collectAshtechPayVip>>, TError,{data: BodyType<AshtechPayCollectRequest>}, TContext>, }
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof collectAshtechPayVip>>,
+        TError,
+        {data: BodyType<AshtechPayCollectRequest>},
+        TContext
+      > => {
+      return useMutation(getCollectAshtechPayVipMutationOptions(options));
+    }
+
+export const getGetAshtechPayPaymentStatusUrl = (reference: string,) => {
+
+
+
+
+  return `/api/ashtechpay/status/${reference}`
+}
+
+/**
+ * @summary Get Ashtechpay payment status
+ */
+export const getAshtechPayPaymentStatus = async (reference: string, options?: RequestInit): Promise<AshtechPayPaymentStatusResponse> => {
+
+  return customFetch<AshtechPayPaymentStatusResponse>(getGetAshtechPayPaymentStatusUrl(reference),
   {
     ...options,
     method: 'GET'
@@ -2280,406 +2417,45 @@ export const getSendavapayOperators = async (countryCode: string, options?: Requ
 
 
 
-export const getGetSendavapayOperatorsQueryKey = (countryCode: string,) => {
+export const getGetAshtechPayPaymentStatusQueryKey = (reference: string,) => {
     return [
-    `/api/sendavapay/operators/${countryCode}`
+    `/api/ashtechpay/status/${reference}`
     ] as const;
     }
 
 
-export const getGetSendavapayOperatorsQueryOptions = <TData = Awaited<ReturnType<typeof getSendavapayOperators>>, TError = ErrorType<unknown>>(countryCode: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSendavapayOperators>>, TError, TData>, }
+export const getGetAshtechPayPaymentStatusQueryOptions = <TData = Awaited<ReturnType<typeof getAshtechPayPaymentStatus>>, TError = ErrorType<unknown>>(reference: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAshtechPayPaymentStatus>>, TError, TData>, }
 ) => {
 
 const {query: queryOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getGetSendavapayOperatorsQueryKey(countryCode);
+  const queryKey =  queryOptions?.queryKey ?? getGetAshtechPayPaymentStatusQueryKey(reference);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSendavapayOperators>>> = ({ signal }) => getSendavapayOperators(countryCode, { signal });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAshtechPayPaymentStatus>>> = ({ signal }) => getAshtechPayPaymentStatus(reference, { signal });
 
 
 
 
 
-   return  { queryKey, queryFn, enabled: countryCode !== null && countryCode !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSendavapayOperators>>, TError, TData> & { queryKey: QueryKey }
+   return  { queryKey, queryFn, enabled: reference !== null && reference !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAshtechPayPaymentStatus>>, TError, TData> & { queryKey: QueryKey }
 }
 
-export type GetSendavapayOperatorsQueryResult = NonNullable<Awaited<ReturnType<typeof getSendavapayOperators>>>
-export type GetSendavapayOperatorsQueryError = ErrorType<unknown>
+export type GetAshtechPayPaymentStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getAshtechPayPaymentStatus>>>
+export type GetAshtechPayPaymentStatusQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Get payment operators for a country
+ * @summary Get Ashtechpay payment status
  */
 
-export function useGetSendavapayOperators<TData = Awaited<ReturnType<typeof getSendavapayOperators>>, TError = ErrorType<unknown>>(
- countryCode: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSendavapayOperators>>, TError, TData>, }
+export function useGetAshtechPayPaymentStatus<TData = Awaited<ReturnType<typeof getAshtechPayPaymentStatus>>, TError = ErrorType<unknown>>(
+ reference: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAshtechPayPaymentStatus>>, TError, TData>, }
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getGetSendavapayOperatorsQueryOptions(countryCode,options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getCreateDepositPaymentUrl = () => {
-
-
-
-
-  return `/api/sendavapay/create-deposit-payment`
-}
-
-/**
- * @summary Create a SendavaPay payment for an international deposit
- */
-export const createDepositPayment = async (createDepositPaymentRequest: CreateDepositPaymentRequest, options?: RequestInit): Promise<SendavapayPaymentResponse> => {
-
-  return customFetch<SendavapayPaymentResponse>(getCreateDepositPaymentUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(createDepositPaymentRequest)
-  }
-);}
-
-
-
-
-
-export const getCreateDepositPaymentMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDepositPayment>>, TError,{data: BodyType<CreateDepositPaymentRequest>}, TContext>, }
-): UseMutationOptions<Awaited<ReturnType<typeof createDepositPayment>>, TError,{data: BodyType<CreateDepositPaymentRequest>}, TContext> => {
-
-const mutationKey = ['createDepositPayment'];
-const {mutation: mutationOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createDepositPayment>>, {data: BodyType<CreateDepositPaymentRequest>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  createDepositPayment(data,)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CreateDepositPaymentMutationResult = NonNullable<Awaited<ReturnType<typeof createDepositPayment>>>
-    export type CreateDepositPaymentMutationBody = BodyType<CreateDepositPaymentRequest>
-    export type CreateDepositPaymentMutationError = ErrorType<ErrorResponse>
-
-    /**
- * @summary Create a SendavaPay payment for an international deposit
- */
-export const useCreateDepositPayment = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createDepositPayment>>, TError,{data: BodyType<CreateDepositPaymentRequest>}, TContext>, }
- ): UseMutationResult<
-        Awaited<ReturnType<typeof createDepositPayment>>,
-        TError,
-        {data: BodyType<CreateDepositPaymentRequest>},
-        TContext
-      > => {
-      return useMutation(getCreateDepositPaymentMutationOptions(options));
-    }
-
-export const getCreateVipPaymentUrl = () => {
-
-
-
-
-  return `/api/sendavapay/create-vip-payment`
-}
-
-/**
- * @summary Create a SendavaPay payment for VIP access
- */
-export const createVipPayment = async (createVipPaymentRequest: CreateVipPaymentRequest, options?: RequestInit): Promise<SendavapayPaymentResponse> => {
-
-  return customFetch<SendavapayPaymentResponse>(getCreateVipPaymentUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(createVipPaymentRequest)
-  }
-);}
-
-
-
-
-
-export const getCreateVipPaymentMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createVipPayment>>, TError,{data: BodyType<CreateVipPaymentRequest>}, TContext>, }
-): UseMutationOptions<Awaited<ReturnType<typeof createVipPayment>>, TError,{data: BodyType<CreateVipPaymentRequest>}, TContext> => {
-
-const mutationKey = ['createVipPayment'];
-const {mutation: mutationOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createVipPayment>>, {data: BodyType<CreateVipPaymentRequest>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  createVipPayment(data,)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CreateVipPaymentMutationResult = NonNullable<Awaited<ReturnType<typeof createVipPayment>>>
-    export type CreateVipPaymentMutationBody = BodyType<CreateVipPaymentRequest>
-    export type CreateVipPaymentMutationError = ErrorType<ErrorResponse>
-
-    /**
- * @summary Create a SendavaPay payment for VIP access
- */
-export const useCreateVipPayment = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createVipPayment>>, TError,{data: BodyType<CreateVipPaymentRequest>}, TContext>, }
- ): UseMutationResult<
-        Awaited<ReturnType<typeof createVipPayment>>,
-        TError,
-        {data: BodyType<CreateVipPaymentRequest>},
-        TContext
-      > => {
-      return useMutation(getCreateVipPaymentMutationOptions(options));
-    }
-
-export const getInitiateSendavapayPaymentUrl = () => {
-
-
-
-
-  return `/api/sendavapay/initiate`
-}
-
-/**
- * @summary Initiate a SendavaPay payment (send push to payer)
- */
-export const initiateSendavapayPayment = async (initiatePaymentRequest: InitiatePaymentRequest, options?: RequestInit): Promise<InitiatePaymentResponse> => {
-
-  return customFetch<InitiatePaymentResponse>(getInitiateSendavapayPaymentUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(initiatePaymentRequest)
-  }
-);}
-
-
-
-
-
-export const getInitiateSendavapayPaymentMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof initiateSendavapayPayment>>, TError,{data: BodyType<InitiatePaymentRequest>}, TContext>, }
-): UseMutationOptions<Awaited<ReturnType<typeof initiateSendavapayPayment>>, TError,{data: BodyType<InitiatePaymentRequest>}, TContext> => {
-
-const mutationKey = ['initiateSendavapayPayment'];
-const {mutation: mutationOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof initiateSendavapayPayment>>, {data: BodyType<InitiatePaymentRequest>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  initiateSendavapayPayment(data,)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type InitiateSendavapayPaymentMutationResult = NonNullable<Awaited<ReturnType<typeof initiateSendavapayPayment>>>
-    export type InitiateSendavapayPaymentMutationBody = BodyType<InitiatePaymentRequest>
-    export type InitiateSendavapayPaymentMutationError = ErrorType<ErrorResponse>
-
-    /**
- * @summary Initiate a SendavaPay payment (send push to payer)
- */
-export const useInitiateSendavapayPayment = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof initiateSendavapayPayment>>, TError,{data: BodyType<InitiatePaymentRequest>}, TContext>, }
- ): UseMutationResult<
-        Awaited<ReturnType<typeof initiateSendavapayPayment>>,
-        TError,
-        {data: BodyType<InitiatePaymentRequest>},
-        TContext
-      > => {
-      return useMutation(getInitiateSendavapayPaymentMutationOptions(options));
-    }
-
-export const getSubmitPaymentOtpUrl = () => {
-
-
-
-
-  return `/api/sendavapay/submit-otp`
-}
-
-/**
- * @summary Submit OTP for payment confirmation
- */
-export const submitPaymentOtp = async (submitOtpRequest: SubmitOtpRequest, options?: RequestInit): Promise<SuccessResponse> => {
-
-  return customFetch<SuccessResponse>(getSubmitPaymentOtpUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...options?.headers },
-    body: JSON.stringify(submitOtpRequest)
-  }
-);}
-
-
-
-
-
-export const getSubmitPaymentOtpMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitPaymentOtp>>, TError,{data: BodyType<SubmitOtpRequest>}, TContext>, }
-): UseMutationOptions<Awaited<ReturnType<typeof submitPaymentOtp>>, TError,{data: BodyType<SubmitOtpRequest>}, TContext> => {
-
-const mutationKey = ['submitPaymentOtp'];
-const {mutation: mutationOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitPaymentOtp>>, {data: BodyType<SubmitOtpRequest>}> = (props) => {
-          const {data} = props ?? {};
-
-          return  submitPaymentOtp(data,)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type SubmitPaymentOtpMutationResult = NonNullable<Awaited<ReturnType<typeof submitPaymentOtp>>>
-    export type SubmitPaymentOtpMutationBody = BodyType<SubmitOtpRequest>
-    export type SubmitPaymentOtpMutationError = ErrorType<ErrorResponse>
-
-    /**
- * @summary Submit OTP for payment confirmation
- */
-export const useSubmitPaymentOtp = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitPaymentOtp>>, TError,{data: BodyType<SubmitOtpRequest>}, TContext>, }
- ): UseMutationResult<
-        Awaited<ReturnType<typeof submitPaymentOtp>>,
-        TError,
-        {data: BodyType<SubmitOtpRequest>},
-        TContext
-      > => {
-      return useMutation(getSubmitPaymentOtpMutationOptions(options));
-    }
-
-export const getGetSendavapayPaymentStatusUrl = (reference: string,) => {
-
-
-
-
-  return `/api/sendavapay/status/${reference}`
-}
-
-/**
- * @summary Get SendavaPay payment status
- */
-export const getSendavapayPaymentStatus = async (reference: string, options?: RequestInit): Promise<SendavapayStatusResponse> => {
-
-  return customFetch<SendavapayStatusResponse>(getGetSendavapayPaymentStatusUrl(reference),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetSendavapayPaymentStatusQueryKey = (reference: string,) => {
-    return [
-    `/api/sendavapay/status/${reference}`
-    ] as const;
-    }
-
-
-export const getGetSendavapayPaymentStatusQueryOptions = <TData = Awaited<ReturnType<typeof getSendavapayPaymentStatus>>, TError = ErrorType<unknown>>(reference: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSendavapayPaymentStatus>>, TError, TData>, }
-) => {
-
-const {query: queryOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetSendavapayPaymentStatusQueryKey(reference);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getSendavapayPaymentStatus>>> = ({ signal }) => getSendavapayPaymentStatus(reference, { signal });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: reference !== null && reference !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getSendavapayPaymentStatus>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetSendavapayPaymentStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getSendavapayPaymentStatus>>>
-export type GetSendavapayPaymentStatusQueryError = ErrorType<unknown>
-
-
-/**
- * @summary Get SendavaPay payment status
- */
-
-export function useGetSendavapayPaymentStatus<TData = Awaited<ReturnType<typeof getSendavapayPaymentStatus>>, TError = ErrorType<unknown>>(
- reference: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getSendavapayPaymentStatus>>, TError, TData>, }
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetSendavapayPaymentStatusQueryOptions(reference,options)
+  const queryOptions = getGetAshtechPayPaymentStatusQueryOptions(reference,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

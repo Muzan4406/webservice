@@ -12,12 +12,4 @@ export interface PaymentConfig {
   moovMoneyNumber?: string | null;
   /** @nullable */
   moovMoneyUssdCode?: string | null;
-  /** @nullable */
-  internationalPaymentApiUrl?: string | null;
-  /** @nullable */
-  internationalPaymentApiKey?: string | null;
-  /** @nullable */
-  sendavapayApiKey?: string | null;
-  /** @nullable */
-  sendavapayWebhookSecret?: string | null;
 }

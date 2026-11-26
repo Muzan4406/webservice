@@ -16,3 +16,9 @@ export function extractUssdCodeFromInstructions(instructions: string | undefined
   if (!instructions) return null;
   return instructions.match(/(?:\*|#)[\d*#]+(?:montant)?#?/i)?.[0] ?? null;
 }
+
+export function sanitizeDialableUssdCode(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const code = value.trim().replace(/\s+/g, '');
+  return /^[*#][*#\d]+#?$/.test(code) ? code : null;
+}

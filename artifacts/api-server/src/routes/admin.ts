@@ -367,11 +367,6 @@ router.get("/admin/payment-config", requireAuth, async (req: AuthRequest, res): 
     moovMoneyEnabled: config.moovMoneyEnabled,
     moovMoneyNumber: config.moovMoneyNumber ?? null,
     moovMoneyUssdCode: config.moovMoneyUssdCode ?? null,
-    // Payment credentials are configured only as server environment variables.
-    internationalPaymentApiUrl: null,
-    internationalPaymentApiKey: null,
-    sendavapayApiKey: null,
-    sendavapayWebhookSecret: null,
     withdrawCity: config.withdrawCity ?? "Tsevie",
     withdrawStreet: config.withdrawStreet ?? "Kpali24",
   });
@@ -418,10 +413,6 @@ router.put("/admin/payment-config", requireAuth, async (req: AuthRequest, res): 
     moovMoneyEnabled: existing.moovMoneyEnabled,
     moovMoneyNumber: existing.moovMoneyNumber ?? null,
     moovMoneyUssdCode: existing.moovMoneyUssdCode ?? null,
-    internationalPaymentApiUrl: null,
-    internationalPaymentApiKey: null,
-    sendavapayApiKey: null,
-    sendavapayWebhookSecret: null,
     withdrawCity: existing.withdrawCity ?? "Tsevie",
     withdrawStreet: existing.withdrawStreet ?? "Kpali24",
   });
