@@ -19,7 +19,11 @@ router.get("/healthz", async (_req, res): Promise<void> => {
       .select({ id: usersTable.id, vipExpiresAt: usersTable.vipExpiresAt })
       .from(usersTable)
       .limit(0);
-    res.json(HealthCheckResponse.parse({ status: "ok" }));
+    res.json(HealthCheckResponse.parse({
+      status: "ok",
+      database: "ready",
+      schema: "vip-expiry-v1",
+    }));
   } catch (error) {
     const issue = getDatabaseIssue(error);
     logger.error({ reason: issue?.code ?? "database_error" }, "Database readiness check failed");

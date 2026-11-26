@@ -45356,7 +45356,9 @@ var UpdateAppSettingsResponse = objectType({
   "telegramSupportUrl": stringType().nullish()
 });
 var HealthCheckResponse = objectType({
-  "status": stringType()
+  "status": enumType(["ok"]),
+  "database": enumType(["ready"]),
+  "schema": enumType(["vip-expiry-v1"])
 });
 
 // ../../node_modules/.pnpm/pg@8.22.0/node_modules/pg/esm/index.mjs
@@ -64204,7 +64206,11 @@ router.get("/healthz", async (_req, res) => {
   }
   try {
     await db.select({ id: usersTable.id, vipExpiresAt: usersTable.vipExpiresAt }).from(usersTable).limit(0);
-    res.json(HealthCheckResponse.parse({ status: "ok" }));
+    res.json(HealthCheckResponse.parse({
+      status: "ok",
+      database: "ready",
+      schema: "vip-expiry-v1"
+    }));
   } catch (error40) {
     const issue2 = getDatabaseIssue(error40);
     logger.error({ reason: issue2?.code ?? "database_error" }, "Database readiness check failed");

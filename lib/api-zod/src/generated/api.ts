@@ -1214,7 +1214,9 @@ export const UpdateAppSettingsResponse = zod.object({
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({
-  "status": zod.string()
+  "status": zod.enum(['ok']),
+  "database": zod.enum(['ready']),
+  "schema": zod.enum(['vip-expiry-v1'])
 })
 
 

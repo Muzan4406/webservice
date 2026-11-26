@@ -530,8 +530,31 @@ export interface RejectRequest {
   reason: string;
 }
 
+export type HealthStatusStatus = typeof HealthStatusStatus[keyof typeof HealthStatusStatus];
+
+
+export const HealthStatusStatus = {
+  ok: 'ok',
+} as const;
+
+export type HealthStatusDatabase = typeof HealthStatusDatabase[keyof typeof HealthStatusDatabase];
+
+
+export const HealthStatusDatabase = {
+  ready: 'ready',
+} as const;
+
+export type HealthStatusSchema = typeof HealthStatusSchema[keyof typeof HealthStatusSchema];
+
+
+export const HealthStatusSchema = {
+  'vip-expiry-v1': 'vip-expiry-v1',
+} as const;
+
 export interface HealthStatus {
-  status: string;
+  status: HealthStatusStatus;
+  database: HealthStatusDatabase;
+  schema: HealthStatusSchema;
 }
 
 export type ResetCounters200 = {

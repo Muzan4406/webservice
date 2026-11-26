@@ -4,7 +4,12 @@
  * Api
  * OpenAPI spec version: 1.0.0
  */
+import type { HealthStatusDatabase } from './healthStatusDatabase';
+import type { HealthStatusSchema } from './healthStatusSchema';
+import type { HealthStatusStatus } from './healthStatusStatus';
 
 export interface HealthStatus {
-  status: string;
+  status: HealthStatusStatus;
+  database: HealthStatusDatabase;
+  schema: HealthStatusSchema;
 }

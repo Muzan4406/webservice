@@ -2087,7 +2087,14 @@ components:
 
     HealthStatus:
       type: object
-      required: [status]
+      required: [status, database, schema]
       properties:
         status:
           type: string
+          enum: [ok]
+        database:
+          type: string
+          enum: [ready]
+        schema:
+          type: string
+          enum: [vip-expiry-v1]
