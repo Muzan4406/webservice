@@ -21,6 +21,7 @@ import {
   findDrimPayOperator,
   getDrimPayApiKey,
   getDrimPayWebhookUrl,
+  normalizeDrimPayPhone,
   normalizeDrimPayStatus,
 } from "../lib/drimpay.js";
 import { settleDrimPayPayment, type DrimPayPaymentEvent } from "../lib/drimpay-settlement.js";
@@ -56,9 +57,11 @@ function validatePaymentInput(body: Record<string, unknown>): {
   const operator = findDrimPayOperator(country.code, operatorCode);
   if (!operator) return { error: "Opérateur non disponible pour ce pays." };
 
-  const phone = typeof body.phone === "string" ? body.phone.replace(/[ .()-]/g, "") : "";
-  if (!/^\+[1-9]\d{7,14}$/.test(phone) || !phone.startsWith(`+${country.callingCode}`)) {
-    return { error: `Entrez un numéro au format international +${country.callingCode}…` };
+  const phone = normalizeDrimPayPhone(body.phone, country);
+  if (!phone) {
+    return {
+      error: `Entrez les ${country.nationalNumberLength} chiffres du numéro local, sans +${country.callingCode}.`,
+    };
   }
 
   const amount = Number(body.amount);
@@ -107,8 +110,9 @@ function isPaymentOutcomeUnknown(error: unknown, providerRequestStarted: boolean
 }
 
 function respondWithPendingPayment(res: Response, flow: string, orderId: string, error: unknown): void {
+  const diagnosticId = randomUUID();
   logger.warn(
-    { flow, ...safePaymentErrorMetadata(error) },
+    { diagnosticId, flow, ...safePaymentErrorMetadata(error) },
     "DrimPay outcome is uncertain; payment remains pending",
   );
   res.json({
@@ -116,6 +120,7 @@ function respondWithPendingPayment(res: Response, flow: string, orderId: string,
     transactionId: orderId,
     status: "pending",
     confirmationPending: true,
+    diagnosticId,
   });
 }
 

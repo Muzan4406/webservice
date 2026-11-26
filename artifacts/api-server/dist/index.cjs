@@ -64163,8 +64163,19 @@ function getDatabaseIssue(error40, databaseConfigured = Boolean(process.env.PG_U
       message: "La base de donn\xE9es du site n'est pas configur\xE9e."
     };
   }
-  const candidate = error40 && typeof error40 === "object" ? error40 : void 0;
-  const code = typeof candidate?.code === "string" ? candidate.code : "";
+  let current = error40;
+  let code = "";
+  const visited = /* @__PURE__ */ new Set();
+  for (let depth = 0; depth < 8 && current && typeof current === "object"; depth += 1) {
+    if (visited.has(current)) break;
+    visited.add(current);
+    const candidate = current;
+    if (typeof candidate.code === "string") {
+      code = candidate.code;
+      break;
+    }
+    current = candidate.cause;
+  }
   if (code === "42703" || code === "42P01") {
     return {
       code: "database_schema_outdated",
@@ -64206,13 +64217,27 @@ router.get("/healthz", async (_req, res) => {
     return;
   }
   try {
-    await Promise.all([
-      db.select({ id: usersTable.id, vipExpiresAt: usersTable.vipExpiresAt }).from(usersTable).limit(0),
-      db.select({ id: appSettingsTable.id, vipPrice: appSettingsTable.vipPriceFcfa }).from(appSettingsTable).limit(0),
-      db.select({ id: vipPaymentsTable.id, orderId: vipPaymentsTable.drimpayOrderId }).from(vipPaymentsTable).limit(0),
-      db.select({ id: pendingSpDepositsTable.id, orderId: pendingSpDepositsTable.externalReference }).from(pendingSpDepositsTable).limit(0),
-      db.select({ id: depositsTable.id, reference: depositsTable.drimpayReference }).from(depositsTable).limit(0)
-    ]);
+    const checks = [
+      ["accounts", () => db.select({ id: usersTable.id, vipExpiresAt: usersTable.vipExpiresAt }).from(usersTable).limit(0)],
+      ["app_settings", () => db.select({ id: appSettingsTable.id, vipPrice: appSettingsTable.vipPriceFcfa }).from(appSettingsTable).limit(0)],
+      ["vip_payments", () => db.select({ id: vipPaymentsTable.id, orderId: vipPaymentsTable.drimpayOrderId }).from(vipPaymentsTable).limit(0)],
+      ["international_deposits", () => db.select({ id: pendingSpDepositsTable.id, orderId: pendingSpDepositsTable.externalReference }).from(pendingSpDepositsTable).limit(0)],
+      ["deposits", () => db.select({ id: depositsTable.id, reference: depositsTable.drimpayReference }).from(depositsTable).limit(0)]
+    ];
+    for (const [check2, run] of checks) {
+      try {
+        await run();
+      } catch (error40) {
+        const issue2 = getDatabaseIssue(error40);
+        logger.error({ check: check2, reason: issue2?.code ?? "database_error" }, "Database readiness check failed");
+        res.status(503).json({
+          status: "unavailable",
+          reason: issue2?.code ?? "database_error",
+          check: check2
+        });
+        return;
+      }
+    }
     res.json(HealthCheckResponse.parse({
       status: "ok",
       database: "ready",
@@ -64221,10 +64246,11 @@ router.get("/healthz", async (_req, res) => {
     }));
   } catch (error40) {
     const issue2 = getDatabaseIssue(error40);
-    logger.error({ reason: issue2?.code ?? "database_error" }, "Database readiness check failed");
+    logger.error({ check: "health_response", reason: issue2?.code ?? "database_error" }, "Database readiness check failed");
     res.status(503).json({
       status: "unavailable",
-      reason: issue2?.code ?? "database_error"
+      reason: issue2?.code ?? "database_error",
+      check: "health_response"
     });
   }
 });
@@ -67742,38 +67768,38 @@ var import_node_crypto3 = require("node:crypto");
 var import_node_crypto2 = require("node:crypto");
 var DRIMPAY_LIVE_API_BASE = "https://drimpay.com/api/v2";
 var DRIMPAY_COUNTRIES = [
-  { code: "TG", name: "Togo", currency: "XOF", callingCode: "228", operators: [
+  { code: "TG", name: "Togo", currency: "XOF", callingCode: "228", nationalNumberLength: 8, operators: [
     { code: "tmoney", label: "T-Money" },
     { code: "moov", label: "Moov Money" }
   ] },
-  { code: "BJ", name: "B\xE9nin", currency: "XOF", callingCode: "229", operators: [
+  { code: "BJ", name: "B\xE9nin", currency: "XOF", callingCode: "229", nationalNumberLength: 10, operators: [
     { code: "moov", label: "Moov Money" },
     { code: "mtn", label: "MTN Mobile Money" }
   ] },
-  { code: "CM", name: "Cameroun", currency: "XAF", callingCode: "237", operators: [
+  { code: "CM", name: "Cameroun", currency: "XAF", callingCode: "237", nationalNumberLength: 9, operators: [
     { code: "mtn", label: "MTN MoMo" },
     { code: "orange", label: "Orange Money" }
   ] },
-  { code: "BF", name: "Burkina Faso", currency: "XOF", callingCode: "226", operators: [
+  { code: "BF", name: "Burkina Faso", currency: "XOF", callingCode: "226", nationalNumberLength: 8, operators: [
     { code: "wave", label: "Wave" },
     { code: "moov", label: "Moov Money" },
     { code: "orange", label: "Orange Money", requiresOtp: true }
   ] },
-  { code: "ML", name: "Mali", currency: "XOF", callingCode: "223", operators: [
+  { code: "ML", name: "Mali", currency: "XOF", callingCode: "223", nationalNumberLength: 8, operators: [
     { code: "moov", label: "Moov Money" },
     { code: "orange", label: "Orange Money", requiresOtp: true }
   ] },
-  { code: "SN", name: "S\xE9n\xE9gal", currency: "XOF", callingCode: "221", operators: [
+  { code: "SN", name: "S\xE9n\xE9gal", currency: "XOF", callingCode: "221", nationalNumberLength: 9, operators: [
     { code: "orange", label: "Orange Money", requiresOtp: true },
     { code: "wave", label: "Wave" }
   ] },
-  { code: "CI", name: "C\xF4te d'Ivoire", currency: "XOF", callingCode: "225", operators: [
+  { code: "CI", name: "C\xF4te d'Ivoire", currency: "XOF", callingCode: "225", nationalNumberLength: 10, operators: [
     { code: "moov", label: "Moov Money" },
     { code: "mtn", label: "MTN Mobile Money" },
     { code: "wave", label: "Wave" },
     { code: "orange", label: "Orange Money", requiresOtp: true }
   ] },
-  { code: "CG", name: "Congo-Brazzaville", currency: "XAF", callingCode: "242", operators: [
+  { code: "CG", name: "Congo-Brazzaville", currency: "XAF", callingCode: "242", nationalNumberLength: 9, operators: [
     { code: "mtn", label: "MTN Mobile Money" }
   ] }
 ];
@@ -67855,6 +67881,14 @@ function verifyDrimPayWebhookSignature(rawBody, signatureHeader, timestampHeader
 }
 function findDrimPayOperator(countryCode, operatorCode) {
   return DRIMPAY_COUNTRIES.find((country) => country.code === countryCode.toUpperCase())?.operators.find((operator) => operator.code === operatorCode);
+}
+function normalizeDrimPayPhone(value, country) {
+  if (typeof value !== "string") return null;
+  const nationalNumber = value.trim().replace(/[ .()-]/g, "");
+  if (!/^\d+$/.test(nationalNumber) || nationalNumber.length !== country.nationalNumberLength) {
+    return null;
+  }
+  return `+${country.callingCode}${nationalNumber}`;
 }
 function normalizeDrimPayStatus(status) {
   if (status === "success") return "success";
@@ -68017,9 +68051,11 @@ function validatePaymentInput(body) {
   const operatorCode = typeof body.operator === "string" ? body.operator : "";
   const operator = findDrimPayOperator(country.code, operatorCode);
   if (!operator) return { error: "Op\xE9rateur non disponible pour ce pays." };
-  const phone = typeof body.phone === "string" ? body.phone.replace(/[ .()-]/g, "") : "";
-  if (!/^\+[1-9]\d{7,14}$/.test(phone) || !phone.startsWith(`+${country.callingCode}`)) {
-    return { error: `Entrez un num\xE9ro au format international +${country.callingCode}\u2026` };
+  const phone = normalizeDrimPayPhone(body.phone, country);
+  if (!phone) {
+    return {
+      error: `Entrez les ${country.nationalNumberLength} chiffres du num\xE9ro local, sans +${country.callingCode}.`
+    };
   }
   const amount = Number(body.amount);
   if (!Number.isSafeInteger(amount) || amount < MIN_AMOUNT || amount > MAX_AMOUNT) {
@@ -68055,15 +68091,17 @@ function isPaymentOutcomeUnknown(error40, providerRequestStarted) {
   return error40 instanceof DrimPayError ? error40.outcomeUnknown : providerRequestStarted;
 }
 function respondWithPendingPayment(res, flow, orderId, error40) {
+  const diagnosticId = (0, import_node_crypto3.randomUUID)();
   logger.warn(
-    { flow, ...safePaymentErrorMetadata(error40) },
+    { diagnosticId, flow, ...safePaymentErrorMetadata(error40) },
     "DrimPay outcome is uncertain; payment remains pending"
   );
   res.json({
     type: "ussd_push",
     transactionId: orderId,
     status: "pending",
-    confirmationPending: true
+    confirmationPending: true,
+    diagnosticId
   });
 }
 function respondWithNoChargeConfirmation(res) {

@@ -13,44 +13,45 @@ export type DrimPayCountry = {
   name: string;
   currency: "XOF" | "XAF";
   callingCode: string;
+  nationalNumberLength: number;
   operators: DrimPayOperator[];
 };
 
 // These are the production corridors and operator slugs published by DrimPay.
 // Unsupported or undocumented operator codes are deliberately not exposed.
 export const DRIMPAY_COUNTRIES: DrimPayCountry[] = [
-  { code: "TG", name: "Togo", currency: "XOF", callingCode: "228", operators: [
+  { code: "TG", name: "Togo", currency: "XOF", callingCode: "228", nationalNumberLength: 8, operators: [
     { code: "tmoney", label: "T-Money" },
     { code: "moov", label: "Moov Money" },
   ] },
-  { code: "BJ", name: "Bénin", currency: "XOF", callingCode: "229", operators: [
+  { code: "BJ", name: "Bénin", currency: "XOF", callingCode: "229", nationalNumberLength: 10, operators: [
     { code: "moov", label: "Moov Money" },
     { code: "mtn", label: "MTN Mobile Money" },
   ] },
-  { code: "CM", name: "Cameroun", currency: "XAF", callingCode: "237", operators: [
+  { code: "CM", name: "Cameroun", currency: "XAF", callingCode: "237", nationalNumberLength: 9, operators: [
     { code: "mtn", label: "MTN MoMo" },
     { code: "orange", label: "Orange Money" },
   ] },
-  { code: "BF", name: "Burkina Faso", currency: "XOF", callingCode: "226", operators: [
+  { code: "BF", name: "Burkina Faso", currency: "XOF", callingCode: "226", nationalNumberLength: 8, operators: [
     { code: "wave", label: "Wave" },
     { code: "moov", label: "Moov Money" },
     { code: "orange", label: "Orange Money", requiresOtp: true },
   ] },
-  { code: "ML", name: "Mali", currency: "XOF", callingCode: "223", operators: [
+  { code: "ML", name: "Mali", currency: "XOF", callingCode: "223", nationalNumberLength: 8, operators: [
     { code: "moov", label: "Moov Money" },
     { code: "orange", label: "Orange Money", requiresOtp: true },
   ] },
-  { code: "SN", name: "Sénégal", currency: "XOF", callingCode: "221", operators: [
+  { code: "SN", name: "Sénégal", currency: "XOF", callingCode: "221", nationalNumberLength: 9, operators: [
     { code: "orange", label: "Orange Money", requiresOtp: true },
     { code: "wave", label: "Wave" },
   ] },
-  { code: "CI", name: "Côte d'Ivoire", currency: "XOF", callingCode: "225", operators: [
+  { code: "CI", name: "Côte d'Ivoire", currency: "XOF", callingCode: "225", nationalNumberLength: 10, operators: [
     { code: "moov", label: "Moov Money" },
     { code: "mtn", label: "MTN Mobile Money" },
     { code: "wave", label: "Wave" },
     { code: "orange", label: "Orange Money", requiresOtp: true },
   ] },
-  { code: "CG", name: "Congo-Brazzaville", currency: "XAF", callingCode: "242", operators: [
+  { code: "CG", name: "Congo-Brazzaville", currency: "XAF", callingCode: "242", nationalNumberLength: 9, operators: [
     { code: "mtn", label: "MTN Mobile Money" },
   ] },
 ];
@@ -165,6 +166,15 @@ export function findDrimPayOperator(countryCode: string, operatorCode: string): 
   return DRIMPAY_COUNTRIES
     .find((country) => country.code === countryCode.toUpperCase())
     ?.operators.find((operator) => operator.code === operatorCode);
+}
+
+export function normalizeDrimPayPhone(value: unknown, country: DrimPayCountry): string | null {
+  if (typeof value !== "string") return null;
+  const nationalNumber = value.trim().replace(/[ .()-]/g, "");
+  if (!/^\d+$/.test(nationalNumber) || nationalNumber.length !== country.nationalNumberLength) {
+    return null;
+  }
+  return `+${country.callingCode}${nationalNumber}`;
 }
 
 export function normalizeDrimPayStatus(status: string): "pending" | "success" | "failed" | "reversed" {

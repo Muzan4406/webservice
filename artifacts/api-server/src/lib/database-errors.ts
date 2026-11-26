@@ -29,10 +29,19 @@ export function getDatabaseIssue(
     };
   }
 
-  const candidate = error && typeof error === "object"
-    ? error as { code?: unknown }
-    : undefined;
-  const code = typeof candidate?.code === "string" ? candidate.code : "";
+  let current = error;
+  let code = "";
+  const visited = new Set<object>();
+  for (let depth = 0; depth < 8 && current && typeof current === "object"; depth += 1) {
+    if (visited.has(current)) break;
+    visited.add(current);
+    const candidate = current as { code?: unknown; cause?: unknown };
+    if (typeof candidate.code === "string") {
+      code = candidate.code;
+      break;
+    }
+    current = candidate.cause;
+  }
 
   if (code === "42703" || code === "42P01") {
     return {

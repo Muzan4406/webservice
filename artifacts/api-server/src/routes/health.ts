@@ -22,13 +22,27 @@ router.get("/healthz", async (_req, res): Promise<void> => {
   try {
     // Zero-row queries verify the tables and columns used by login, VIP, and
     // both DrimPay initiation/status flows without reading customer records.
-    await Promise.all([
-      db.select({ id: usersTable.id, vipExpiresAt: usersTable.vipExpiresAt }).from(usersTable).limit(0),
-      db.select({ id: appSettingsTable.id, vipPrice: appSettingsTable.vipPriceFcfa }).from(appSettingsTable).limit(0),
-      db.select({ id: vipPaymentsTable.id, orderId: vipPaymentsTable.drimpayOrderId }).from(vipPaymentsTable).limit(0),
-      db.select({ id: pendingSpDepositsTable.id, orderId: pendingSpDepositsTable.externalReference }).from(pendingSpDepositsTable).limit(0),
-      db.select({ id: depositsTable.id, reference: depositsTable.drimpayReference }).from(depositsTable).limit(0),
-    ]);
+    const checks: Array<[string, () => Promise<unknown>]> = [
+      ["accounts", () => db.select({ id: usersTable.id, vipExpiresAt: usersTable.vipExpiresAt }).from(usersTable).limit(0)],
+      ["app_settings", () => db.select({ id: appSettingsTable.id, vipPrice: appSettingsTable.vipPriceFcfa }).from(appSettingsTable).limit(0)],
+      ["vip_payments", () => db.select({ id: vipPaymentsTable.id, orderId: vipPaymentsTable.drimpayOrderId }).from(vipPaymentsTable).limit(0)],
+      ["international_deposits", () => db.select({ id: pendingSpDepositsTable.id, orderId: pendingSpDepositsTable.externalReference }).from(pendingSpDepositsTable).limit(0)],
+      ["deposits", () => db.select({ id: depositsTable.id, reference: depositsTable.drimpayReference }).from(depositsTable).limit(0)],
+    ];
+    for (const [check, run] of checks) {
+      try {
+        await run();
+      } catch (error) {
+        const issue = getDatabaseIssue(error);
+        logger.error({ check, reason: issue?.code ?? "database_error" }, "Database readiness check failed");
+        res.status(503).json({
+          status: "unavailable",
+          reason: issue?.code ?? "database_error",
+          check,
+        });
+        return;
+      }
+    }
     res.json(HealthCheckResponse.parse({
       status: "ok",
       database: "ready",
@@ -37,10 +51,11 @@ router.get("/healthz", async (_req, res): Promise<void> => {
     }));
   } catch (error) {
     const issue = getDatabaseIssue(error);
-    logger.error({ reason: issue?.code ?? "database_error" }, "Database readiness check failed");
+    logger.error({ check: "health_response", reason: issue?.code ?? "database_error" }, "Database readiness check failed");
     res.status(503).json({
       status: "unavailable",
       reason: issue?.code ?? "database_error",
+      check: "health_response",
     });
   }
 });

@@ -8,6 +8,7 @@ import {
   drimPayRequest,
   findDrimPayOperator,
   getDrimPayApiKey,
+  normalizeDrimPayPhone,
   verifyDrimPayWebhookSignature,
 } from "./drimpay.js";
 import { isUnresolvedDrimPayAttempt } from "./payment-retry.js";
@@ -23,10 +24,19 @@ test("only documented production country and operator combinations are exposed",
   ]);
   assert.equal(findDrimPayOperator("TG", "tmoney")?.label, "T-Money");
   assert.equal(findDrimPayOperator("TG", "moov")?.label, "Moov Money");
+  assert.equal(DRIMPAY_COUNTRIES.find(({ code }) => code === "TG")?.callingCode, "228");
   assert.equal(findDrimPayOperator("BJ", "celtiis"), undefined);
   assert.equal(findDrimPayOperator("SN", "free"), undefined);
   assert.equal(findDrimPayOperator("NE", "airtel"), undefined);
   assert.equal(findDrimPayOperator("CD", "vodacom"), undefined);
+});
+
+test("DrimPay converts a national phone number to E.164 and rejects a typed country prefix", () => {
+  const togo = DRIMPAY_COUNTRIES.find(({ code }) => code === "TG")!;
+  assert.equal(normalizeDrimPayPhone("71 93 54 94", togo), "+22871935494");
+  assert.equal(normalizeDrimPayPhone("+22871935494", togo), null);
+  assert.equal(normalizeDrimPayPhone("22871935494", togo), null);
+  assert.equal(normalizeDrimPayPhone("7193549", togo), null);
 });
 
 test("only attempts without a provider reference require an explicit safe retry", () => {

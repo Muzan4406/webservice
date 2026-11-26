@@ -94,9 +94,10 @@ Le dépôt national manuel T-Money/Moov ne dépend pas de ces clés DrimPay.
    pnpm --filter @workspace/db run push
    ```
 
-   Cette version ajoute la colonne nullable `users.vip_expires_at`. Les membres VIP
-   existants restent actifs sans échéance jusqu'à leur prochain paiement; aucune
-   expiration rétroactive n'est appliquée. N'utilisez pas `push-force`.
+   Cette commande synchronise le schéma avec les colonnes utilisées par les comptes
+   VIP et DrimPay. Examinez toute proposition de suppression ou de renommage avant
+   de la confirmer; n'utilisez jamais `push-force`. Les membres VIP déjà actifs
+   restent sans échéance jusqu'à leur prochain paiement.
 
 7. Vérifiez que `artifacts/api-server/uploads` est accessible en écriture par
    l'utilisateur du site, puis cliquez sur **Save** et **Restart App**.
@@ -117,7 +118,9 @@ aux comptes VIP, aux paramètres de l'application et aux parcours DrimPay
 (dépôts internationaux et paiements VIP). Elle confirme que la version récente
 du serveur est déployée. Si elle renvoie `503` avec `database_not_configured`,
 configurez `PG_URL`. Si elle renvoie `database_schema_outdated`, exécutez la
-commande de mise à jour du schéma ci-dessus, puis redémarrez l'application.
+commande de mise à jour du schéma ci-dessus, puis redémarrez l'application. Le
+champ `check` précise quelle vérification a échoué (`accounts`, `app_settings`,
+`vip_payments`, `international_deposits` ou `deposits`).
 Consultez **Node.js → Logs** dans Plesk si l'application redémarre. Une erreur de
 démarrage de paiement affiche aussi une référence de diagnostic : recherchez
 cette référence dans les journaux Node.js, sans partager de clés ni de mots de
@@ -143,7 +146,7 @@ Puis cliquez sur **Restart App** dans Plesk.
 | `Cannot find ... index.cjs` | Exécuter `pnpm run build:full` et vérifier `artifacts/api-server/dist` |
 | Page blanche | Vérifier `NODE_ENV=production`, `Document Root` et la présence de `vitrine/dist/index.html` |
 | `PG_URL is not set` | Ajouter `PG_URL` dans les variables Plesk puis redémarrer |
-| API 500 / tables absentes | Exécuter `cd lib/db && pnpm run push` avec la bonne base |
+| API 500 / tables absentes | Vérifier `/api/healthz`, puis exécuter `pnpm --filter @workspace/db run push` après avoir vérifié la base cible |
 | Webhook non reçu | Utiliser HTTPS et définir `WEBHOOK_BASE_URL` sur l'origine publique |
 
 ---

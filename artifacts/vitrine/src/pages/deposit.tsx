@@ -6,10 +6,12 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from '@/lib/toast';
-import { ArrowLeft, Globe, Smartphone, Info, Wrench, ImagePlus, X, Check, Loader2 } from 'lucide-react';
+import { ArrowLeft, Globe, Smartphone, Info, Wrench, ImagePlus, X, Check, Loader2, PhoneCall } from 'lucide-react';
 import { useLocation } from 'wouter';
 import { useAuth } from '@/contexts/AuthContext';
 import { createPaymentRequestId } from '@/lib/payment-request-id';
+import { normalizeNationalPhoneInput } from '@/lib/national-phone';
+import { buildDialableUssdCode } from '@/lib/ussd';
 
 async function uploadImage(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -64,7 +66,14 @@ async function apiFetch(url: string, options?: { method?: string; body?: any }):
 }
 
 type DrimPayOperator = { code: string; label: string; requiresOtp?: boolean; otpInstructions?: string };
-type DrimPayCountry = { code: string; name: string; currency: string; callingCode: string; operators: DrimPayOperator[] };
+type DrimPayCountry = {
+  code: string;
+  name: string;
+  currency: string;
+  callingCode: string;
+  nationalNumberLength: number;
+  operators: DrimPayOperator[];
+};
 type IntlStep = 'form' | 'wave' | 'waiting' | 'confirmRetry' | 'done' | 'failed';
 
 const TMONEY_USSD = '*145*5*MONTANT*1181879*CODE SECRET#';
@@ -121,6 +130,7 @@ export default function DepositPage() {
   const [intlPhone, setIntlPhone] = useState('');
   const [intlOperator, setIntlOperator] = useState('');
   const [intlTransactionId, setIntlTransactionId] = useState('');
+  const [intlDiagnosticId, setIntlDiagnosticId] = useState('');
   const [intlWaveUrl, setIntlWaveUrl] = useState('');
   const [intlOtpCode, setIntlOtpCode] = useState('');
   const [intlSubmitting, setIntlSubmitting] = useState(false);
@@ -210,14 +220,19 @@ export default function DepositPage() {
 
   const startInternationalPayment = async (confirmedNoCharge = false) => {
     if (!intlOperator) { toast.error('Sélectionnez un opérateur.'); return; }
-    if (!intlPhone.trim()) { toast.error('Entrez votre numéro de téléphone.'); return; }
     if (!selectedIntlCountry) { toast.error('Sélectionnez un pays disponible.'); return; }
+    if (!intlPhone.trim()) { toast.error('Entrez votre numéro de téléphone.'); return; }
+    if (intlPhone.length !== selectedIntlCountry.nationalNumberLength) {
+      toast.error(`Entrez les ${selectedIntlCountry.nationalNumberLength} chiffres du numéro local.`);
+      return;
+    }
     if (selectedIntlOperator?.requiresOtp && !intlOtpCode.trim()) {
       toast.error('Entrez le code OTP demandé par Orange Money.');
       return;
     }
 
     setIntlSubmitting(true);
+    setIntlDiagnosticId('');
     try {
       if (!intlRequestId.current) intlRequestId.current = createPaymentRequestId();
       const res = await apiFetch('/api/drimpay/collect', { method: 'POST', body: {
@@ -238,10 +253,12 @@ export default function DepositPage() {
         setIntlStep('done');
       } else if (res.type === 'wave') {
         setIntlTransactionId(res.transactionId);
+        setIntlDiagnosticId('');
         setIntlWaveUrl(res.paymentUrl);
         setIntlStep('wave');
       } else {
         setIntlTransactionId(res.transactionId);
+        setIntlDiagnosticId(res.diagnosticId ?? '');
         setIntlStep('waiting');
       }
     } catch (e: any) {
@@ -262,6 +279,7 @@ export default function DepositPage() {
 
   const returnToInternationalForm = () => {
     setIntlTransactionId('');
+    setIntlDiagnosticId('');
     setIntlStep('form');
   };
 
@@ -271,6 +289,7 @@ export default function DepositPage() {
     setIntlPhone('');
     setIntlOtpCode('');
     setIntlTransactionId('');
+    setIntlDiagnosticId('');
     setIntlWaveUrl('');
     intlRequestId.current = '';
   };
@@ -279,6 +298,11 @@ export default function DepositPage() {
   const moovVisible = !paymentConfig || paymentConfig.moovMoneyEnabled;
   const selectedNationalOperatorVisible = nationalOperator === 'tmoney' ? tmoneyVisible : moovVisible;
   const bothDisabled = paymentConfig && !paymentConfig.tmoneyEnabled && !paymentConfig.moovMoneyEnabled;
+  const nationalDialCode = nationalOperator === 'tmoney'
+    ? buildDialableUssdCode(TMONEY_USSD, nationalAmount)
+    : paymentConfig?.moovMoneyUssdCode
+      ? buildDialableUssdCode(paymentConfig.moovMoneyUssdCode, nationalAmount, paymentConfig.moovMoneyNumber)
+      : null;
 
   return (
     <div className="min-h-screen bg-[#F4F6FB] pb-24">
@@ -432,6 +456,20 @@ export default function DepositPage() {
                         )}
                       </>
                     )}
+                    {nationalDialCode && (
+                      <a
+                        href={`tel:${encodeURIComponent(nationalDialCode)}`}
+                        className="flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#1a3aff] px-4 py-3 text-center text-sm font-bold text-white shadow-sm transition hover:bg-blue-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2"
+                      >
+                        <PhoneCall className="h-4 w-4" />
+                        Ouvrir le composeur téléphonique
+                      </a>
+                    )}
+                    {nationalOperator === 'tmoney' && nationalDialCode && (
+                      <p className="text-xs text-gray-600">
+                        Ajoutez votre code secret directement dans le composeur. Le site ne le demande ni ne l’enregistre.
+                      </p>
+                    )}
                     <p className="text-sm text-gray-700">
                       2. Notez le <strong>numéro de référence</strong> reçu par SMS.
                     </p>
@@ -540,6 +578,7 @@ export default function DepositPage() {
                     <Select value={intlCountry} onValueChange={(value) => {
                       setIntlCountry(value);
                       setIntlOperator('');
+                      setIntlPhone('');
                       setIntlOtpCode('');
                     }} required>
                       <SelectTrigger className="h-14 text-base bg-gray-50 border-gray-200 rounded-xl">
@@ -584,15 +623,29 @@ export default function DepositPage() {
                   {/* Numéro de téléphone */}
                   {intlOperator && (
                     <div className="space-y-2">
-                      <Label className="text-gray-700 font-medium">Numéro de téléphone au format international</Label>
-                      <Input
-                        type="tel"
-                        value={intlPhone}
-                        onChange={e => setIntlPhone(e.target.value)}
-                        placeholder={`Ex: +${selectedIntlCountry?.callingCode}90000000`}
-                        required
-                        className="h-14 text-base bg-gray-50 border-gray-200 rounded-xl"
-                      />
+                      <Label className="text-gray-700 font-medium">Numéro de téléphone</Label>
+                      <div className="flex">
+                        <span className="flex h-14 items-center rounded-l-xl border border-r-0 border-gray-200 bg-gray-100 px-4 text-base font-semibold">
+                          +{selectedIntlCountry?.callingCode}
+                        </span>
+                        <Input
+                          type="tel"
+                          inputMode="numeric"
+                          maxLength={selectedIntlCountry?.nationalNumberLength}
+                          value={intlPhone}
+                          onChange={e => selectedIntlCountry && setIntlPhone(normalizeNationalPhoneInput(
+                            e.target.value,
+                            selectedIntlCountry.callingCode,
+                            selectedIntlCountry.nationalNumberLength,
+                          ))}
+                          placeholder={`${selectedIntlCountry?.nationalNumberLength} chiffres`}
+                          required
+                          className="h-14 rounded-l-none rounded-r-xl border-gray-200 bg-gray-50 text-base"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500">
+                        Entrez uniquement le numéro local, sans +{selectedIntlCountry?.callingCode}.
+                      </p>
                     </div>
                   )}
 
@@ -649,7 +702,7 @@ export default function DepositPage() {
 
                   <Button
                     type="submit"
-                    disabled={intlSubmitting || !intlCountry || !intlOperator || !intlAmount || !intlAccountId || !intlPhone || (Boolean(selectedIntlOperator?.requiresOtp) && !intlOtpCode)}
+                    disabled={intlSubmitting || !intlCountry || !intlOperator || !intlAmount || !intlAccountId || !selectedIntlCountry || intlPhone.length !== selectedIntlCountry.nationalNumberLength || (Boolean(selectedIntlOperator?.requiresOtp) && !intlOtpCode)}
                     className="w-full h-14 bg-purple-600 hover:bg-purple-700 text-white font-bold rounded-2xl text-base"
                   >
                     {intlSubmitting
@@ -685,6 +738,11 @@ export default function DepositPage() {
                   <p className="text-lg font-bold">Vérification en cours…</p>
                   <p className="text-sm text-gray-500">Nous attendons la confirmation de votre paiement. Cette page se met à jour automatiquement.</p>
                   <p className="text-sm font-medium text-amber-700">La confirmation du service mobile peut arriver avec un délai. Ne relancez pas le paiement pendant cette vérification.</p>
+                  {intlDiagnosticId && (
+                    <p className="break-all text-left text-xs text-gray-500">
+                      Référence à transmettre au support : <strong>{intlDiagnosticId}</strong>
+                    </p>
+                  )}
                   <Button type="button" variant="outline" onClick={returnToInternationalForm} className="w-full">
                     Je n’ai reçu aucune demande
                   </Button>
